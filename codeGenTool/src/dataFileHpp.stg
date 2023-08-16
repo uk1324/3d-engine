@@ -1,0 +1,179 @@
+import "shared.stg"
+
+dataFile(dataFile) ::= <<
+#pragma once
+<includePaths(dataFile.hppIncludePaths)>
+
+<dataFile.declarations : { declaration | <declaration(declaration)> }>
+>>
+
+declaration(declaration) ::= <%
+<if(declaration.isStruct)>
+    <struct(declaration)>
+<elseif(declaration.isEnum)>
+    <enum(declaration)>
+<elseif(declaration.isCpp)>
+    <declaration.cppSource>
+<elseif(declaration.isShader)>
+    <shader(declaration)>
+<else>
+    error
+<endif>
+%>
+
+struct(struct) ::= <<
+<if(struct.isNetworkSerialize)>
+#define NETWORK_SERIALIZE_<struct.nameUpperSnakeCase>(stream, structValue) \
+    <struct.fields : { field | <if(!field.isNoNetworkSerialize)><networkSerialize(field.dataType, fieldAccess("(structValue)", field.name))><endif> }; separator="\\\n">
+<endif>
+
+<if(struct.isBullet)>
+struct <struct.name>Index {
+    PlayerIndex ownerPlayerIndex;
+    FrameTime spawnFrame;
+    u16 spawnIndexInFrame;
+
+    bool operator==(const <struct.name>Index&) const = default;
+
+    UntypedBulletIndex untypedIndex() const;
+};
+
+#define NETWORK_SERIALIZE_<struct.nameUpperSnakeCase>_INDEX(stream, value) \
+    NETWORK_SERIALIZE_PLAYER_INDEX(stream, value.ownerPlayerIndex); \
+    NETWORK_SERIALIZE_FRAME_TIME(stream, value.spawnFrame); \
+    serialize_int(stream, value.spawnIndexInFrame, 0, UINT16_MAX);
+
+template\<>
+struct std::hash\<<struct.name>Index> {
+    std::size_t operator()(const <struct.name>Index& value) const noexcept {
+        const auto h1 = std::hash\<PlayerIndex>{}(value.ownerPlayerIndex);
+        const auto h2 = std::hash\<FrameTime>{}(value.spawnFrame);
+        const auto h3 = std::hash\<u16>{}(value.spawnIndexInFrame);
+        return (h1 \<\< h2) * h3 - 1;
+    }
+};
+
+template\<>
+<struct.name>Index fromJson\<<struct.name>Index>(const Json::Value& json);
+Json::Value toJson(const <struct.name>Index& value);
+
+<endif>
+
+struct <struct.name> <if(struct.isNetworkMessage)>: yojimbo::Message <endif>{
+    <struct.declarations : { declaration | <declarationInStruct(declaration)> }; separator="\n">
+    <if(struct.isNetworkMessage)>
+    template\<typename Stream\>
+    bool Serialize(Stream& stream) {
+        NETWORK_SERIALIZE_<struct.nameUpperSnakeCase>(stream, *this);
+        return true;
+    }
+
+    <if(struct.isNetworkMessage)>YOJIMBO_VIRTUAL_SERIALIZE_FUNCTIONS();<endif>
+    <endif>
+};
+
+<if(struct.isGui)>
+void gui(<struct.name>& value);
+<endif>
+
+<if(struct.isJson)>
+Json::Value toJson(const <struct.name>& value);
+template\<\>
+<struct.name> fromJson\<<struct.name>\>(const Json::Value& json);
+<endif>
+
+<if(struct.isUniform)>
+void shaderSetUniforms(ShaderProgram& shader, const <struct.name>& value);
+<endif>
+>>
+
+declarationInStruct(declaration) ::= <%
+<if(declaration.isField)>
+    <field(declaration)>
+<elseif(declaration.isCppInStruct)>
+    <declaration.cppSource>
+<else>
+    error
+<endif>
+%>
+
+field(field) ::= "<field.dataType.name> <field.name><if(field.hasDefaultValue)> = <field.defaultValue><endif>;"
+
+enum(enum) ::= <<
+enum class <enum.name> {
+    <enum.definitions : { definition | <definition.name><if(definition.hasInitializer)> = <definition.initializer><endif>}; separator=",\n">
+};
+
+<if(enum.isToStr)>
+const char* toStr(<enum.name> value);
+<endif>
+<if(enum.isImGuiCombo)>
+void combo(<enum.name>* value);
+<endif>
+>>
+
+shader(shader) ::= <<
+<struct(shader.instance)>
+<struct(shader.fragUniforms)>
+<struct(shader.vertUniforms)>
+
+struct <shader.name>Instances {
+    std::vector\<<shader.name>Instance\> toDraw;
+
+    void drawCall(Vbo& instanceBuffer, usize instanceBufferSizeBytes, int indicesCount);
+    // For template use.
+    static void addAttributesToVao(Vao& vao, Vbo& verticesVbo, Vbo& instancesVbo);
+};
+
+static constexpr const char* <shader.nameUpperSnakeCase>_SHADER_VERT_PATH = "<shader.vertPathRelativeToWorkingDirectory>";
+static constexpr const char* <shader.nameUpperSnakeCase>_SHADER_FRAG_PATH = "<shader.fragPathRelativeToWorkingDirectory>";
+>>
+
+castConstAway(name, dataType) ::= "const_cast\<<dataType.keyDataType.name>&>(<name>)"
+
+networkSerialize(dataType, name) ::= <%
+<if(dataType.isFloat)>
+    serialize_float(stream, <name>);
+<elseif(dataType.isBool)>
+    serialize_bool(stream, <name>);
+<elseif(dataType.isRangedSignedInt)>
+    serialize_int(stream, <name>, <field.dataType.min>, <field.dataType.max>);
+<elseif(dataType.isVector)>
+    {
+        int size = <name>.size();
+        serialize_int(stream, size, 0, INT_MAX);
+        for (int i = 0; i \< size; i++) {
+            if (Stream::IsReading) {
+                <dataType.itemDataType.name> value;
+                <networkSerialize(dataType.itemDataType, "value")>
+                <name>.push_back(std::move(value));
+            } else {
+                <networkSerialize(dataType.itemDataType, arrayAccess(name, "i"))>
+            }
+        }
+    }
+<elseif(dataType.isMap)>
+    {
+        int size = <name>.size();
+        serialize_int(stream, size, 0, INT_MAX);
+        if (Stream::IsReading) {
+            for (int i = 0; i \< size; i++) {
+                <dataType.keyDataType.name> key;
+                <networkSerialize(dataType.keyDataType, "key")>
+                <dataType.valueDataType.name> value;
+                <networkSerialize(dataType.valueDataType, "value")>
+                <name>.insert({ std::move(key), std::move(value) });
+            }
+        } else {
+            for (auto& [key, value] : <name>) {
+                <networkSerialize(dataType.keyDataType, castConstAway("key", dataType))>
+                <networkSerialize(dataType.valueDataType, "value")>
+            }
+        }
+    }
+<elseif(dataType.isIdentifier)>
+    NETWORK_SERIALIZE_<dataType.nameUpperSnakeCase>(stream, <name>);
+<else>
+    error
+<endif>
+%>

@@ -1,0 +1,12 @@
+#pragma once
+
+#include <string_view>
+#include <optional>
+
+
+//std::string stringFromFile(std::string_view path);
+std::optional<std::string> tryLoadStringFromFile(std::string_view path);
+
+//Json::Value jsonFromFile(std::string_view path);
+// Why is this here?
+//std::optional<Json::Value> tryLoadJsonFromFile(std::string_view path);

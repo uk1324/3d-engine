@@ -1,0 +1,15 @@
+`
+#include <engine/Math/Mat4.hpp>
+`
+
+
+struct BasicShadingVertex {
+	Vec3 position;
+}
+
+shader BasicShading {
+	vertexStruct = BasicShadingVertex;
+	vertInstance = {
+		Mat4 transform;
+	};
+}

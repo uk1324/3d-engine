@@ -1,0 +1,48 @@
+New vao api - https://www.khronos.org/opengl/wiki/Vertex_Specification#Separate_attribute_format
+
+strucct VertexA {
+	Vec2 position;
+}
+
+VertexA mesh0[];
+VertexA mesh1[];
+
+1. You should be able to use the same shader on both meshes.
+Vbos are bound to vaos so if you use different vbos for the meshes then you would either need to create 2 vaos or change the bindings each time. Changing binding using attribPointer and the new vao api are both slow. attribPointer not has to be implemented using the new api.
+
+If you store both meshes inside a single vbo then you can reuse the same vao. 
+In draw calls you need pass different offsets. From what I have seen there is no way to specify a byte offset in the draw calls. Only the index in drawElements and offset in drawArrays. You can specify a byte offset when creating the vao.
+
+
+struct VertexB {
+	Vec2 position;
+	Vec2 normal;
+}
+
+VertexB meshB[];
+
+2. You should be able to use meshB inside of a shader that uses VertexA.
+
+You could change used buffers and the attribute offsets inside the vao (using the new api might be simpler), but it is probably slow. Also you would need to write or generate code so for swapping the buffers and attributes in the vao.
+
+Another option would be to generate multiple vaos. You would either need to create 2 shader objects or there would need to be some way to specify an array of vertex struct types. Then you would take the set intersection of the names of the structs. If needed you could allow creating a mapping from one name to another for example when the position field has 2 different names in 2 different vertex structs.
+
+The simplest to implement option might be to just have a function to convert a mesh of type b to a mesh of type a, but it would require duplicating data.
+
+
+
+Some shaders might use different vertex types in a way that not all fields are shared by all vertex types (for example one has vertex color and another texture UVs). Then you could create 2 shaders and move the actual shader functionality into a function that is included by both shaders. Technically you could use a deffered approach(use 2 shaders and render the color to the buffer and the do the actual shading on the buffer), but it probably isn't useful in most cases.
+
+
+
+For rendering dynamically generated data could preallocate a buffer and create either a frame allocator for it or just a bump allocator that is cleared after finishing rendering. This assumes that all data exists for a single frame or less. Other cases (like chunks) would need more complicated allocators. 
+The same idea can be used for allocating space for instances on the cpu. If memory is an issue then you can just use an allocator for it. But it is probably more convinient to use a separate vector for different instances. Also memory mapping and copying directly to it is also an option.
+
+
+
+Using a single vbo also allows you to use calls like multiDrawIndirect which reduce CPU side driver overhead.
+
+
+
+std::vector<ShaderInstance> instances;
+
