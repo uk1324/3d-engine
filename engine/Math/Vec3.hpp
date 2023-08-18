@@ -43,6 +43,9 @@ struct Vec3T {
 using Vec3 = Vec3T<float>;
 
 template<typename T>
+Vec3T<T> operator*(const T& s, const Vec3T<T>& v);
+
+template<typename T>
 Vec3T<T> cross(const Vec3T<T>& a, const Vec3T<T>& b);
 
 template<typename T>
@@ -180,4 +183,9 @@ Vec3T<T> cross(const Vec3T<T>& a, const Vec3T<T>& b) {
 		(a.z * b.x) - (a.x * b.z),
 		(a.x * b.y) - (a.y * b.x)
 	);
+}
+
+template<typename T>
+Vec3T<T> operator*(const T& s, const Vec3T<T>& v) {
+	return v * s;
 }

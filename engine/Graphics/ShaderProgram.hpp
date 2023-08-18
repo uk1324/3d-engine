@@ -5,6 +5,7 @@
 #include <engine/Math/Vec3.hpp>
 #include <engine/Math/Vec4.hpp>
 #include <engine/Math/Mat3x2.hpp>
+#include <engine/Math/Mat4.hpp>
 
 #include <unordered_map>
 #include <optional>
@@ -49,6 +50,7 @@ public:
 	void set(std::string_view name, float value);
 	void set(std::string_view name, bool value);
 	void set(std::string_view name, const Mat3x2& value);
+	void set(std::string_view name, const Mat4& value);
 	void set(std::string_view name, std::span<const Vec2> vecs);
 
 	u32 handle() const;

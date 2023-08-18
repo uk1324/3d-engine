@@ -4,6 +4,7 @@
 #include <engine/Math/Mat4.hpp>
 #include <engine/Graphics/Vbo.hpp>
 #include <engine/Graphics/Vao.hpp>
+#include <engine/Graphics/Ibo.hpp>
 #include <game/Shaders/basicShadingData.hpp>
 #include <game/FpsController.hpp>
 
@@ -28,7 +29,15 @@ struct Renderer {
 	Vbo triangleVbo;
 	Vao triangleVao;
 
-	FpsController movementController;
+	Vbo infinitePlaneVbo;
+	Vao infinitePlaneVao;
+	Ibo infinitePlaneIbo;
+
+	ShaderProgram infinitePlaneShader;
+
+	Mat4 transformTriangle(const Vec3& v0, const Vec3& v1, const Vec3& v2);
 
 	ShaderProgram basicShadingShader;
+
+	FpsController movementController;
 };

@@ -1,0 +1,19 @@
+`
+#include <engine/Math/Mat4.hpp>
+`
+
+struct InfinitePlaneVertex {
+	Vec4 position;
+}
+
+shader InfinitePlane {
+	vertexStruct = InfinitePlaneVertex;
+	vertInstance = {
+		Mat4 transform;
+	};
+	fragUniforms = {
+		Mat4 inverseViewProjection;
+		Vec3 cameraPositionWorldSpace;
+		Vec2 screenSize;
+	};
+}

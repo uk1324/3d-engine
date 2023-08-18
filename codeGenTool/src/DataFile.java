@@ -234,7 +234,7 @@ class Shader extends Declaration {
     }
 
     private int dataTypeLayoutSize(DataType type) {
-        if (type.getIsVec3() || type.getIsVec2()) {
+        if (type.getIsVec3() || type.getIsVec2() || type.getIsVec4()) {
             return 1;
         } else if (type.getName().equals("Mat3x2")) {
             return 3;

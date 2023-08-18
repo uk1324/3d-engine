@@ -1,0 +1,44 @@
+Good sources
+- optimized code - Doom 3 source - neo/idlib
+- https://geometrictools.com/
+- https://iquilezles.org/articles/
+
+# Matrix determinant
+
+Defition
+One way to define it could be that thing that the expresion is divided by in the analytic solution for the inverse.
+
+https://en.wikipedia.org/wiki/Determinant
+The determinant can also be uniquely defined by certain properties. Listed on wikipedia.
+
+Computing determinant using Laplace Expansion
+https://www.geometrictools.com/Documentation/LaplaceExpansionTheorem.pdf
+
+# Matrix inverse
+
+Analytic formula for the inverse of the matrix
+inv(M) = adj(M) / det(M)
+
+How the adj matrix is computed and a formula for determinants.
+https://www.geometrictools.com/Documentation/LaplaceExpansionTheorem.pdf
+
+Proof of I * det(M) = M * adj(M)
+https://proofwiki.org/wiki/Matrix_Product_with_Adjugate_Matrix
+
+There are also other methods to obtain the analytic formula.
+
+From what I read using the analytic formula is inefficient for bigger matrices and produces floating point errors (probably because of the number of floating point operations used which causes a lot of rounding).
+Using the analytic formula might also allow for using SMID instructions.
+
+A method that scales better with matrix size is gaussian elimination.
+
+# Filtering and antialiasing.
+
+Texture aliasing happens when a single pixel covers multiple texture texels. Things like mip maps and anisotropic filtering try to hide it by precomputing the average (or integral) of the texture in some range (which makes it more blurred). Then when the texture is sampled these algorithms try to match based on the derivative of the texture coorindates pased to the sampling function with respect to the screen pixel position which texture to sample from. The bigger the derivative the more texels the pixel covers.
+
+Filtering of procedural textures
+https://iquilezles.org/articles/filtering/
+
+Analytical filtering solutions
+https://iquilezles.org/articles/checkerfiltering/
+https://iquilezles.org/articles/morecheckerfiltering/

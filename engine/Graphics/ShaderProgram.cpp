@@ -111,6 +111,10 @@ void ShaderProgram::set(std::string_view name, const Mat3x2& value) {
 	glProgramUniformMatrix3x2fv(handle_, getUniformLocation(name), 1, false, reinterpret_cast<const float*>(value.m));
 }
 
+void ShaderProgram::set(std::string_view name, const Mat4& value) {
+	glProgramUniformMatrix4fv(handle_, getUniformLocation(name.data()), 1, GL_FALSE, value.data());
+}
+
 void ShaderProgram::set(std::string_view name, std::span<const Vec2> vecs) {
 	glProgramUniform2fv(handle_, getUniformLocation(name.data()), vecs.size(), reinterpret_cast<const float*>(vecs.data()));
 }
@@ -152,7 +156,7 @@ int ShaderProgram::getUniformLocation(std::string_view name) {
 	{
 		int location = glGetUniformLocation(handle_, uniformName.c_str());
 		if (location == -1)
-			LOG_WARNING("trying to set variable '%.*s', which doesn't exist", name.max_size(), name.data());
+			LOG_WARNING("trying to set variable '%', which doesn't exist", name);
 
 		m_cachedUniformLocations[std::move(uniformName)] = location;
 		return location;

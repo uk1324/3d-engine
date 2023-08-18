@@ -1,10 +1,12 @@
 #pragma once
 
 #include "Vec4.hpp"
+#include "Mat3.hpp"
 
 template<typename T>
 struct Mat4T {
 	constexpr Mat4T(const Vec4T<T>& x, const Vec4T<T>& y, const Vec4T<T>& z, const Vec4T<T>& w);
+	constexpr Mat4T(const Mat3T<T>& m);
 
 	// Using a target instead of direction seems more general. If you already have a direction the code to create a target is more easily readable than the code for creating the direciton if you have position and target.
 	static Mat4T translation(const Vec3T<T>& position);
@@ -18,7 +20,10 @@ struct Mat4T {
 
 	Mat4T operator*(const Mat4T& other) const;
 
-	const T* data();
+	Mat4T inversed() const;
+
+	const T* data() const;
+	T* data();
 
 	static const Mat4T identity;
 
@@ -26,11 +31,21 @@ struct Mat4T {
 
 };
 
+template<typename T>
+Vec4T<T> operator*(const Vec4T<T>& v, const Mat4T<T>& m);
+template<typename T>
+Vec4T<T>& operator*=(Vec4T<T>& v, const Mat4T<T>& m);
+
 using Mat4 = Mat4T<float>;
 
 template<typename T>
 constexpr Mat4T<T>::Mat4T(const Vec4T<T>& x, const Vec4T<T>& y, const Vec4T<T>& z, const Vec4T<T>& w)
-	: basis{ x, y, z, w} {}
+	: basis{ x, y, z, w } {}
+
+template<typename T>
+constexpr Mat4T<T>::Mat4T(const Mat3T<T>& m) 
+	: basis{ Vec4T<T>(m[0], 0), Vec4T<T>(m[1], 0), Vec4T<T>(m[2], 0), Vec4T<T>(0, 0, 0, 1) } {
+}
 
 template<typename T>
 Mat4T<T> Mat4T<T>::translation(const Vec3T<T>& position) {
@@ -59,11 +74,10 @@ Mat4T<T> Mat4T<T>::lookAt(const Vec3T<T>& position, const Vec3T<T>& target, cons
 }
 
 template<typename T>
-Mat4T<T> Mat4T<T>::perspective(T verticalFov, T aspectRatio, T nearPlaneZ, T farPlaneZ) {
-	//GenericMat4<T> mat;
-
+// nearPlaneZ and farPlaneZ are only used for depth clipping.
+Mat4T<T> Mat4T<T>::perspective(T verticalFov, T aspectRatio, T nearPlaneZ, T farPlaneZ) { 
 	/*
-	// Columns are the basis.
+	// In this comment columns are the basis.
 
 	A basic perspective projection matrix looks like this.
 	[1 0 0 0]
@@ -92,7 +106,7 @@ Mat4T<T> Mat4T<T>::perspective(T verticalFov, T aspectRatio, T nearPlaneZ, T far
 	So want this to be satisifed.
 	a * nZ + b = nZ
 	a * fZ + b = -fZ
-	Which after the projection division will make nZ to 1 and fZ to -1. (TODO: I think the signs might be swapped thats why the output sign is wrong Or maybe just don't flip the z in the transform?).
+	Which after the projection division will make nZ to 1 and fZ to -1. The far plane z is -1 because that is what OpenGL uses.
 
 	Calculating a
 	a * nZ + b = nZ
@@ -130,64 +144,6 @@ Mat4T<T> Mat4T<T>::perspective(T verticalFov, T aspectRatio, T nearPlaneZ, T far
 
 	*/
 
-	const auto focalLength = 1;
-	const auto imagePlaneHeight = tan(verticalFov / 2) * focalLength;
-	const auto imagePlaneWidth = imagePlaneHeight * aspectRatio;
-
-	// tan(fov) = farPlaneHalfHeight / distanceToFarPlane
-	// when the matrix is applied then y' = y * (farPlaneHalfHeight / distanceToFarPlane)
-
-	// Do things behind the focal plane also get projected onto it.
-	//mat(1, 1) = halfFovTan;
-	//mat(0, 0) = halfFovTan / aspectRatio;
-	//mat(2, 2) = (nearZ + farZ) / (nearZ - farZ);
-	//// Because Vec3::forward = [0, 0, 1] and OpenGL forward is [0, 0, -1] the z axis and the translation on it has to be flipped.
-	//mat(2, 3) = T(-1);
-	//mat(3, 2) = (T(2) * farZ * nearZ) / (nearZ - farZ);
-
-	/*return {
-		{ 1 / imagePlaneWidth, 0, 0, 0 },
-		{ 0, 1 / imagePlaneHeight, 0, 0 },
-		{ 0, 0, (nearPlaneZ + farPlaneZ) / (nearPlaneZ - farPlaneZ), 1 },
-		{ 0, 0, (-2 * nearPlaneZ * farPlaneZ) / (nearPlaneZ - farPlaneZ), 0 },
-	};*/
-
-	//T halfFovTan = tan(verticalFov / 2);
-	//// tan(fov) = farPlaneHalfHeight / distanceToFarPlane
-	//// when the matrix is applied then y' = y * (farPlaneHalfHeight / distanceToFarPlane)
-	//const auto nearZ = nearPlaneZ;
-	//const auto farZ = farPlaneZ;
-	//Mat4T<T> mat = Mat4T::identity;
-	//mat[0][0] = halfFovTan / aspectRatio;
-	//mat[1][1] = halfFovTan;
-	//mat[2][2] = (nearZ + farZ) / (nearZ - farZ);
-	//mat[2][3] = T(-1);
-	//mat[3][2] = (T(2) * farZ * nearZ) / (nearZ - farZ);
-
-	/*const auto far = farPlaneZ;
-	const auto near = nearPlaneZ;
-	const auto fov = verticalFov;
-	T fovInv = 1.0f / tanf(fov * 0.5f / 180.0f * 3.14159f);
-	Mat4T<T> mat = Mat4T<T>::identity;
-	mat[0][0] = fovInv;
-	mat[1][1] = aspectRatio * fovInv;
-	mat[2][2] = far / (far - near);
-	mat[3][2] = (-far * near) / (far - near);
-	mat[2][3] = 1.0f;
-	mat[3][3] = 0.0f;*/
-
-	/*const auto far = farPlaneZ;
-	const auto near = nearPlaneZ;
-	const auto fov = verticalFov;
-	T fovInv = 1.0f / tanf(fov * 0.5f / 180.0f * 3.14159f);
-	Mat4T<T> mat = Mat4T<T>::identity;
-	mat[0][0] = fovInv;
-	mat[1][1] = aspectRatio * fovInv;
-	mat[2][2] = far / (far - near);
-	mat[3][2] = 2 * (-far * near) / (far - near);
-	mat[2][3] = 1.0f;
-	mat[3][3] = 0.0f;*/
-
 	/*
 	AB   CD
 	..___..___
@@ -196,7 +152,7 @@ Mat4T<T> Mat4T<T>::perspective(T verticalFov, T aspectRatio, T nearPlaneZ, T far
 	  \____/
 	   \  /
 	    \/
-	The sizes in a perspective projection onto a plane don't depend on the distance to left and right. 
+	The sizes in a perspective projection onto a plane don't depend on the distance to left and right on on the distance forward. 
 	If you draw lines to for example to the dotted segments which both have the same length. Then the projection will also have the same length.
 	This can be proven using the intercept theorem.
 	AB and BC are the same length.
@@ -205,36 +161,19 @@ Mat4T<T> Mat4T<T>::perspective(T verticalFov, T aspectRatio, T nearPlaneZ, T far
 	so the length of the projection AB is equal to the length of the projection CD.
 	*/
 
-	const auto far = farPlaneZ;
-	const auto near = nearPlaneZ;
-	const auto nZ = near;
-	const auto fZ = far;
-	const auto fov = verticalFov;
-	//T fovInv = 1.0f / tanf(fov * 0.5f / 180.0f * 3.14159f);
-	//Mat4T<T> mat = Mat4T<T>::identity;
-	//mat[0][0] = fovInv;
-	//mat[1][1] = aspectRatio * fovInv;
-	//mat[2][2] = (nZ + fZ) / (nZ - fZ);
-	////mat[3][2] = 2 * (-far * near) / (far - near);
-	//mat[3][2] = (-2 * nZ * fZ) / (nZ - fZ);
-	//mat[2][3] = 1.0f;
-	//mat[3][3] = 0.0f;
-
-	T fovInv = 1.0f / tanf(fov * 0.5f / 180.0f * 3.14159f);
-	//Mat4T<T> mat = Mat4T<T>::identity;
-	//mat[0][0] = fovInv;
-	//mat[1][1] = aspectRatio * fovInv;
-	//mat[2][2] = (nZ + fZ) / (nZ - fZ);
-	////mat[3][2] = 2 * (-far * near) / (far - near);
-	//mat[3][2] = (-2 * nZ * fZ) / (nZ - fZ);
-	//mat[2][3] = 1.0f;
-	//mat[3][3] = 0.0f;
+	// focalLength is the distance of the plane onto which the image is projection from the camera position. The implementation of perspective projection I have seen make the focal length independent of the near and far planes and always set it to 1.
+	// The near and far planes are only used for depth clipping.
+	// Increasing the focal length makes objects appear smaller.
+	const auto focalLength = 1;
+	const auto imagePlaneHeight = tan(verticalFov / 2) * focalLength;
+	const auto imagePlaneWidth = imagePlaneHeight * aspectRatio;
 
 	return {
-		{ fovInv, 0, 0, 0 },
-		{ 0, aspectRatio * fovInv, 0, 0 },
-		{ 0, 0, (nZ + fZ) / (nZ - fZ), 1 },
-		{ 0, 0, (-2 * nZ * fZ) / (nZ - fZ), 0 },
+		{ 1 / imagePlaneWidth, 0, 0, 0 },
+		{ 0, 1 / imagePlaneHeight, 0, 0 },
+		// The signs are flipeed, because the depth was backwards.
+		{ 0, 0, -(nearPlaneZ + farPlaneZ) / (nearPlaneZ - farPlaneZ), 1 },
+		{ 0, 0, (2 * nearPlaneZ * farPlaneZ) / (nearPlaneZ - farPlaneZ), 0 },
 	};
 }
 
@@ -245,7 +184,7 @@ const Vec4T<T>& Mat4T<T>::operator[](i32 i) const {
 
 template<typename T>
 Vec4T<T>& Mat4T<T>::operator[](i32 i) {
-	CHECK(i >= 0 && i <= 4);
+	CHECK(i >= 0 && i <= 3);
 	return basis[i];
 }
 
@@ -256,15 +195,252 @@ Mat4T<T> Mat4T<T>::operator*(const Mat4T& other) const {
 }
 
 template<typename T>
-Vec4T<T> operator*(const Vec4T<T>& v, const Mat4T<T>& m);
-
-template<typename T>
 Vec4T<T> operator*(const Vec4T<T>& v, const Mat4T<T>& m) {
 	return v.x * m[0] + v.y * m[1] + v.z * m[2] + v.w * m[3];
 }
 
 template<typename T>
-const T* Mat4T<T>::data() {
+Vec4T<T>& operator*=(Vec4T<T>& v, const Mat4T<T>& m) {
+	v = v * m;
+	return v;
+}
+
+#include "Mat2.hpp"
+
+template<typename T>
+Mat4T<T> Mat4T<T>::inversed() const {
+	T inv[16], det;
+	int i;
+
+	const T* m = data();
+
+	inv[0] = m[5] * m[10] * m[15] -
+		m[5] * m[11] * m[14] -
+		m[9] * m[6] * m[15] +
+		m[9] * m[7] * m[14] +
+		m[13] * m[6] * m[11] -
+		m[13] * m[7] * m[10];
+
+	inv[4] = -m[4] * m[10] * m[15] +
+		m[4] * m[11] * m[14] +
+		m[8] * m[6] * m[15] -
+		m[8] * m[7] * m[14] -
+		m[12] * m[6] * m[11] +
+		m[12] * m[7] * m[10];
+
+	inv[8] = m[4] * m[9] * m[15] -
+		m[4] * m[11] * m[13] -
+		m[8] * m[5] * m[15] +
+		m[8] * m[7] * m[13] +
+		m[12] * m[5] * m[11] -
+		m[12] * m[7] * m[9];
+
+	inv[12] = -m[4] * m[9] * m[14] +
+		m[4] * m[10] * m[13] +
+		m[8] * m[5] * m[14] -
+		m[8] * m[6] * m[13] -
+		m[12] * m[5] * m[10] +
+		m[12] * m[6] * m[9];
+
+	inv[1] = -m[1] * m[10] * m[15] +
+		m[1] * m[11] * m[14] +
+		m[9] * m[2] * m[15] -
+		m[9] * m[3] * m[14] -
+		m[13] * m[2] * m[11] +
+		m[13] * m[3] * m[10];
+
+	inv[5] = m[0] * m[10] * m[15] -
+		m[0] * m[11] * m[14] -
+		m[8] * m[2] * m[15] +
+		m[8] * m[3] * m[14] +
+		m[12] * m[2] * m[11] -
+		m[12] * m[3] * m[10];
+
+	inv[9] = -m[0] * m[9] * m[15] +
+		m[0] * m[11] * m[13] +
+		m[8] * m[1] * m[15] -
+		m[8] * m[3] * m[13] -
+		m[12] * m[1] * m[11] +
+		m[12] * m[3] * m[9];
+
+	inv[13] = m[0] * m[9] * m[14] -
+		m[0] * m[10] * m[13] -
+		m[8] * m[1] * m[14] +
+		m[8] * m[2] * m[13] +
+		m[12] * m[1] * m[10] -
+		m[12] * m[2] * m[9];
+
+	inv[2] = m[1] * m[6] * m[15] -
+		m[1] * m[7] * m[14] -
+		m[5] * m[2] * m[15] +
+		m[5] * m[3] * m[14] +
+		m[13] * m[2] * m[7] -
+		m[13] * m[3] * m[6];
+
+	inv[6] = -m[0] * m[6] * m[15] +
+		m[0] * m[7] * m[14] +
+		m[4] * m[2] * m[15] -
+		m[4] * m[3] * m[14] -
+		m[12] * m[2] * m[7] +
+		m[12] * m[3] * m[6];
+
+	inv[10] = m[0] * m[5] * m[15] -
+		m[0] * m[7] * m[13] -
+		m[4] * m[1] * m[15] +
+		m[4] * m[3] * m[13] +
+		m[12] * m[1] * m[7] -
+		m[12] * m[3] * m[5];
+
+	inv[14] = -m[0] * m[5] * m[14] +
+		m[0] * m[6] * m[13] +
+		m[4] * m[1] * m[14] -
+		m[4] * m[2] * m[13] -
+		m[12] * m[1] * m[6] +
+		m[12] * m[2] * m[5];
+
+	inv[3] = -m[1] * m[6] * m[11] +
+		m[1] * m[7] * m[10] +
+		m[5] * m[2] * m[11] -
+		m[5] * m[3] * m[10] -
+		m[9] * m[2] * m[7] +
+		m[9] * m[3] * m[6];
+
+	inv[7] = m[0] * m[6] * m[11] -
+		m[0] * m[7] * m[10] -
+		m[4] * m[2] * m[11] +
+		m[4] * m[3] * m[10] +
+		m[8] * m[2] * m[7] -
+		m[8] * m[3] * m[6];
+
+	inv[11] = -m[0] * m[5] * m[11] +
+		m[0] * m[7] * m[9] +
+		m[4] * m[1] * m[11] -
+		m[4] * m[3] * m[9] -
+		m[8] * m[1] * m[7] +
+		m[8] * m[3] * m[5];
+
+	inv[15] = m[0] * m[5] * m[10] -
+		m[0] * m[6] * m[9] -
+		m[4] * m[1] * m[10] +
+		m[4] * m[2] * m[9] +
+		m[8] * m[1] * m[6] -
+		m[8] * m[2] * m[5];
+
+	det = m[0] * inv[0] + m[1] * inv[4] + m[2] * inv[8] + m[3] * inv[12];
+
+	Mat4T<T> inverse = Mat4T<T>(Vec4(), Vec4(), Vec4(), Vec4());
+
+	if (det == 0)
+		return inverse;
+
+	det = 1.0 / det;
+
+
+	for (i = 0; i < 16; i++)
+		inverse.data()[i] = inv[i] * det;
+
+	return inverse;
+
+
+
+
+	// https://gamedev.net/forums/topic/464489-quickly-invert-4x4-matrix/4061075/
+	// Taken from doom 3 source.
+
+	//Mat2 r0, r1, r2, r3;
+	//float a, det, invDet;
+	//// Copy
+	//Mat4T result = *this;
+	//T* mat = result.data();
+
+	//// r0 = m0.Inverse();
+	//det = mat[0 * 4 + 0] * mat[1 * 4 + 1] - mat[0 * 4 + 1] * mat[1 * 4 + 0];
+
+	///*if (idMath::Fabs(det) < MATRIX_INVERSE_EPSILON) {
+	//	return false;
+	//}*/
+
+	//invDet = 1.0f / det;
+
+	//r0[0][0] = mat[1 * 4 + 1] * invDet;
+	//r0[0][1] = -mat[0 * 4 + 1] * invDet;
+	//r0[1][0] = -mat[1 * 4 + 0] * invDet;
+	//r0[1][1] = mat[0 * 4 + 0] * invDet;
+
+	//// r1 = r0 * m1;
+	//r1[0][0] = r0[0][0] * mat[0 * 4 + 2] + r0[0][1] * mat[1 * 4 + 2];
+	//r1[0][1] = r0[0][0] * mat[0 * 4 + 3] + r0[0][1] * mat[1 * 4 + 3];
+	//r1[1][0] = r0[1][0] * mat[0 * 4 + 2] + r0[1][1] * mat[1 * 4 + 2];
+	//r1[1][1] = r0[1][0] * mat[0 * 4 + 3] + r0[1][1] * mat[1 * 4 + 3];
+
+	//// r2 = m2 * r1;
+	//r2[0][0] = mat[2 * 4 + 0] * r1[0][0] + mat[2 * 4 + 1] * r1[1][0];
+	//r2[0][1] = mat[2 * 4 + 0] * r1[0][1] + mat[2 * 4 + 1] * r1[1][1];
+	//r2[1][0] = mat[3 * 4 + 0] * r1[0][0] + mat[3 * 4 + 1] * r1[1][0];
+	//r2[1][1] = mat[3 * 4 + 0] * r1[0][1] + mat[3 * 4 + 1] * r1[1][1];
+
+	//// r3 = r2 - m3;
+	//r3[0][0] = r2[0][0] - mat[2 * 4 + 2];
+	//r3[0][1] = r2[0][1] - mat[2 * 4 + 3];
+	//r3[1][0] = r2[1][0] - mat[3 * 4 + 2];
+	//r3[1][1] = r2[1][1] - mat[3 * 4 + 3];
+
+	//// r3.InverseSelf();
+	//det = r3[0][0] * r3[1][1] - r3[0][1] * r3[1][0];
+
+	///*if (idMath::Fabs(det) < MATRIX_INVERSE_EPSILON) {
+	//	return false;
+	//}*/
+
+	//invDet = 1.0f / det;
+
+	//a = r3[0][0];
+	//r3[0][0] = r3[1][1] * invDet;
+	//r3[0][1] = -r3[0][1] * invDet;
+	//r3[1][0] = -r3[1][0] * invDet;
+	//r3[1][1] = a * invDet;
+
+	//// r2 = m2 * r0;
+	//r2[0][0] = mat[2 * 4 + 0] * r0[0][0] + mat[2 * 4 + 1] * r0[1][0];
+	//r2[0][1] = mat[2 * 4 + 0] * r0[0][1] + mat[2 * 4 + 1] * r0[1][1];
+	//r2[1][0] = mat[3 * 4 + 0] * r0[0][0] + mat[3 * 4 + 1] * r0[1][0];
+	//r2[1][1] = mat[3 * 4 + 0] * r0[0][1] + mat[3 * 4 + 1] * r0[1][1];
+
+	//// m2 = r3 * r2;
+	//mat[2 * 4 + 0] = r3[0][0] * r2[0][0] + r3[0][1] * r2[1][0];
+	//mat[2 * 4 + 1] = r3[0][0] * r2[0][1] + r3[0][1] * r2[1][1];
+	//mat[3 * 4 + 0] = r3[1][0] * r2[0][0] + r3[1][1] * r2[1][0];
+	//mat[3 * 4 + 1] = r3[1][0] * r2[0][1] + r3[1][1] * r2[1][1];
+
+	//// m0 = r0 - r1 * m2;
+	//mat[0 * 4 + 0] = r0[0][0] - r1[0][0] * mat[2 * 4 + 0] - r1[0][1] * mat[3 * 4 + 0];
+	//mat[0 * 4 + 1] = r0[0][1] - r1[0][0] * mat[2 * 4 + 1] - r1[0][1] * mat[3 * 4 + 1];
+	//mat[1 * 4 + 0] = r0[1][0] - r1[1][0] * mat[2 * 4 + 0] - r1[1][1] * mat[3 * 4 + 0];
+	//mat[1 * 4 + 1] = r0[1][1] - r1[1][0] * mat[2 * 4 + 1] - r1[1][1] * mat[3 * 4 + 1];
+
+	//// m1 = r1 * r3;
+	//mat[0 * 4 + 2] = r1[0][0] * r3[0][0] + r1[0][1] * r3[1][0];
+	//mat[0 * 4 + 3] = r1[0][0] * r3[0][1] + r1[0][1] * r3[1][1];
+	//mat[1 * 4 + 2] = r1[1][0] * r3[0][0] + r1[1][1] * r3[1][0];
+	//mat[1 * 4 + 3] = r1[1][0] * r3[0][1] + r1[1][1] * r3[1][1];
+
+	//// m3 = -r3;
+	//mat[2 * 4 + 2] = -r3[0][0];
+	//mat[2 * 4 + 3] = -r3[0][1];
+	//mat[3 * 4 + 2] = -r3[1][0];
+	//mat[3 * 4 + 3] = -r3[1][1];
+
+	////return true;
+	//return result;
+}
+
+template<typename T>
+const T* Mat4T<T>::data() const {
+	return reinterpret_cast<const float*>(basis);
+}
+
+template<typename T>
+T* Mat4T<T>::data() {
 	return reinterpret_cast<float*>(basis);
 }
 

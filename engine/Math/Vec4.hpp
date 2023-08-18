@@ -14,6 +14,8 @@ struct Vec4T {
 
 	Vec4T operator+(const Vec4T<T>& v) const;
 	Vec4T operator*(const T& s) const;
+	Vec4T operator/(const T& s) const;
+	Vec4T& operator/=(const T& s);
 
 	T& operator[](i32 i);
 	const T& operator[](i32 i) const;
@@ -63,8 +65,19 @@ Vec4T<T> Vec4T<T>::operator*(const T& s) const {
 }
 
 template<typename T>
+Vec4T<T> Vec4T<T>::operator/(const T& s) const {
+	return Vec4T(x / s, y / s, z / s, w / s);
+}
+
+template<typename T>
+Vec4T<T>& Vec4T<T>::operator/=(const T& s) {
+	*this = *this / s;
+	return *this;
+}
+
+template<typename T>
 T& Vec4T<T>::operator[](i32 i) {
-	CHECK(i >= 0 && i <= 4);
+	CHECK(i >= 0 && i <= 3);
 	return data()[i];
 }
 

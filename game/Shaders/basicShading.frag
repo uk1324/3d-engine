@@ -3,8 +3,9 @@ out vec4 fragColor;
 
 /*generated end*/
 
-in vec3 position;
-
 void main() {
-	fragColor = vec4(position, 1);
+	// fragColor = vec4(1, 1, 1, 1);
+	//fragColor = vec4(gl_FragCoord.zzz, 1);
+	fragColor = vec4(1, 0, 0, 1);
+	
 }
