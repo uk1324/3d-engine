@@ -107,8 +107,10 @@ void Renderer::update() {
 	glEnable(GL_DEPTH_TEST);
 
 	const auto dt = 1.0f / 60.0f;
-
-	movementController.update(dt);
+	elapsed += dt;
+	if (!ImGui::GetIO().WantCaptureMouse) {
+		movementController.update(dt);
+	}
 	//movementController.position = Vec3(0.0f, 2.0f, 0.0f);
 	auto target = movementController.position + movementController.cameraForwardRotation() * Vec3::FORWARD;
 	const auto view = Mat4::lookAt(movementController.position, target, Vec3::UP);
@@ -140,10 +142,14 @@ void Renderer::update() {
 		.transform = model * viewProjection,
 	});
 	infinitePlaneShader.use();
+
+	insliderfloat(detail, 1.0f, 0.0f, 20.0f);
+
 	InfinitePlaneFragUniforms uniforms{
 		.inverseViewProjection = viewProjection.inversed(),
-		.cameraPositionWorldSpace = movementController.position,
-		.screenSize = Window::size()
+		.screenSize = Window::size(),
+		.time = elapsed,
+		.detail = detail
 	};
 	shaderSetUniforms(infinitePlaneShader, uniforms);
 	drawInstances(infinitePlaneVao, instancesVbo, instances, [](usize instances) { 

@@ -13,7 +13,8 @@ shader InfinitePlane {
 	};
 	fragUniforms = {
 		Mat4 inverseViewProjection;
-		Vec3 cameraPositionWorldSpace;
 		Vec2 screenSize;
+		float time;
+		float detail;
 	};
 }

@@ -40,4 +40,6 @@ struct Renderer {
 	ShaderProgram basicShadingShader;
 
 	FpsController movementController;
+
+	float elapsed = 0.0f;
 };
