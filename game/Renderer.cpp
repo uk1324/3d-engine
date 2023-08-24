@@ -4,9 +4,12 @@
 #include <engine/Input/Input.hpp>
 #include <engine/Math/Angles.hpp>
 #include <engine/Math/Quat.hpp>
+#include <engine/Math/Color.hpp>
 #include <game/Shaders/infinitePlaneData.hpp>
 #include <game/Shaders/infiniteLineData.hpp>
 #include <imgui/imgui.h>
+#include <map>
+#include <queue>
 #include <Dbg.hpp>
 
 const auto INSTANCE_BUFFER_SIZE = 1024ull * 10ull;
@@ -49,6 +52,7 @@ const usize INFINTE_LINE_VBO_SIZE = 1024 * 40;
 
 std::vector<Vec3> sphereVertices;
 
+// This quad is not flat if the vertices are not coplanar.
 void addQuad(std::vector<Vec3>& v, const Vec3& v0, const Vec3& v1, const Vec3& v2, const Vec3& v3) {
 	v.push_back(v0);
 	v.push_back(v1);
@@ -59,14 +63,120 @@ void addQuad(std::vector<Vec3>& v, const Vec3& v0, const Vec3& v1, const Vec3& v
 	v.push_back(v3);
 }
 
+struct IndexedMesh {
+	std::vector<Vec3> vertices;
+	std::vector<u32> indices;
+};
+
+IndexedMesh makeIndexedMeshExact(const std::vector<Vec3>& trianglesVertices) {
+	ASSERT(trianglesVertices.size() % 3 == 0);
+
+	IndexedMesh mesh;
+	std::unordered_map<Vec3, u32> map;
+	for (int i = 0; i < trianglesVertices.size(); i++) {
+		const auto& vertex = trianglesVertices[i];
+		const auto result = map.insert({ vertex, static_cast<u32>(mesh.vertices.size()) });
+		if (const auto newInserted = result.second) {
+			mesh.vertices.push_back(vertex);
+		}
+		mesh.indices.push_back(result.first->second);
+	}
+ 	return mesh;
+}
+
+IndexedMesh makeIndexedMesh(const std::vector<Vec3>& trianglesVertices, float epsilon) {
+	ASSERT(trianglesVertices.size() % 3 == 0);
+
+	IndexedMesh mesh;
+	// TODO: Either do a O(n^2) approach or make some acceleration structure like a kd tree.
+	// https://softwareengineering.stackexchange.com/questions/311173/how-to-find-the-closest-vector-to-a-given-vector
+	// In general you shuldn't use a map with an epslion. One thing that might work would be rounding the value to the nearest multiple of epslion i guess.
+	//std::priority_queue<std::pair<Vec3, u32>> queue;
+
+	//struct Comarator {
+	//	bool operator()(const Vec3& a, const Vec3& b) {
+	//		return a.distanceSquaredTo(b);
+	//	}
+	//};
+
+	//std::vector<std::pair<Vec3, u32>> map;
+
+	//for (int i = 0; i < trianglesVertices.size(); i++) {
+	//	const auto& vertex = trianglesVertices[i];
+	//	if (std::lower_bound(map.begin(), map.end(), vertex, ))
+	//	/*auto result = map.push_back({ vertex, static_cast<u32>(mesh.vertices.size()) });
+	//	if (const auto newInserted = result.second) {
+	//		mesh.vertices.push_back(vertex);
+	//	}
+	//	mesh.indices.push_back(result.first->second);*/
+	//}
+	return mesh;
+}
+
+Vec3 triangleNormal(const Vec3& v0, const Vec3& v1, const Vec3& v2) {
+	return cross(v1 - v0, v2 - v0).normalized();
+}
+
+float triangleArea(const Vec3& v0, const Vec3& v1, const Vec3& v2) {
+	// It is probably slower, but could try projecting the triangle onto a plane (using dot product I think) (constructing a plane already requires calculating a normal or normalizing a vector so this would be slower) and then doing a cross product.
+	return cross(v1 - v0, v2 - v0).length() / 2.0f;
+}
+
 std::vector<Vec3> calculateFlatShadedNormals(const std::vector<Vec3>& trianglesVertices) {
 	std::vector<Vec3> normals;
 	ASSERT(trianglesVertices.size() % 3 == 0);
 	for (int i = 0; i < trianglesVertices.size(); i += 3) {
-		normals.push_back(cross(trianglesVertices[i + 1] - trianglesVertices[i], trianglesVertices[i + 2] - trianglesVertices[i]).normalized());
+		normals.push_back(triangleNormal(trianglesVertices[i], trianglesVertices[i + 1], trianglesVertices[i + 2]));
 	}
 	return normals;
 }
+
+std::vector<Vec3> calculateSmoothShededNormals(const IndexedMesh& mesh) {
+	// @Performance not optmized. Could be done in a lot of different ways with different tradeoffs.
+	std::unordered_multimap<u32, u32> vertexIndexToTriangleStartIndices;
+	for (u32 i = 0; i < mesh.indices.size(); i += 3) {
+		vertexIndexToTriangleStartIndices.insert({ mesh.indices[i], i });
+		vertexIndexToTriangleStartIndices.insert({ mesh.indices[i + 1], i });
+		vertexIndexToTriangleStartIndices.insert({ mesh.indices[i + 2], i });
+	}
+
+	std::vector<Vec3> normals;
+	normals.reserve(mesh.vertices.size());
+	for (u32 i = 0; i < mesh.vertices.size(); i++) {
+		const auto range = vertexIndexToTriangleStartIndices.equal_range(i);
+		Vec3 normal(0.0f);
+		i32 trianglesSharingVertex = 0;
+		float twiceTotalAreaOfTrianglesSharingVertex = 0.0f;
+		for (auto it = range.first; it != range.second; ++it) {
+			auto triangleStart = it->second;
+
+			const auto v0 = mesh.vertices[mesh.indices[triangleStart]];
+			const auto v1 = mesh.vertices[mesh.indices[triangleStart + 1]];
+			const auto v2 = mesh.vertices[mesh.indices[triangleStart + 2]];
+			const auto result = cross(v1 - v0, v2 - v0);
+			//const auto length = result.length();
+			normal += result;
+			/*totalAreaOfTrianglesSharingVertex += ;
+			trianglesSharingVertex++;*/
+		}
+		normal = normal.normalized();
+		normals.push_back(normal);
+		//normal /= 
+		//ASSERT(normal != Vec3(0.0f));
+	}
+
+	//vertexIndexToTriangleStartIndices.
+	/*ASSERT(trianglesVertices.size() % 3 == 0);
+	for (int i = 0; i < trianglesVertices.size(); i += 3) {
+		normals.push_back(cross(trianglesVertices[i + 1] - trianglesVertices[i], trianglesVertices[i + 2] - trianglesVertices[i]).normalized());
+	}
+	return normals;*/
+	return normals;
+}
+
+u32 sphereIndicesSize = 0;
+
+#include <iomanip>
 
 Renderer Renderer::make() {
 	Vbo instancesVbo(INSTANCE_BUFFER_SIZE);
@@ -96,166 +206,38 @@ Renderer Renderer::make() {
 		boundVaoSetAttribute(0, ShaderDataType::Float, 4, 0, sizeof(InfiniteLineVertex));
 		glVertexAttribDivisor(0, 0);
 		Vao::unbind();
-
 	}
 
-	const auto STEPS = 20;
-	auto step = 1.0f / STEPS;
-	step *= 2.0f;
-	/*for (int ix = 0; ix < STEPS; ix++) {
-		for (int iy = 0; iy < STEPS; iy++) {*/
+	const auto STEPS = 17;
 	for (int ix = 0; ix < STEPS; ix++) {
-		for (int iy = 0; iy < STEPS; iy++) {
-			/*float x = ix / static_cast<float>(STEPS);
-			float y = iy / static_cast<float>(STEPS);*/
-			
-			float x = ix / static_cast<float>(STEPS);
-			float y = iy / static_cast<float>(STEPS);
-			x -= 0.5f;
-			x *= 2.0f;
-			y -= 0.5f;
-			y *= 2.0f;
+		for (int iy = 0; iy < STEPS; iy++) {			
+			float x = (ix / static_cast<float>(STEPS) - 0.5f) * 2.0f;
+			float y = (iy / static_cast<float>(STEPS) - 0.5f) * 2.0f;
+			// Doing this istead of adding step to x to prevent precision issues.
+			float nextX = ((ix + 1) / static_cast<float>(STEPS) - 0.5f) * 2.0f;
+			float nextY = ((iy + 1) / static_cast<float>(STEPS) - 0.5f) * 2.0f;
 
-			Vec3 v0(x, 1.0f, y);
-			Vec3 v1(x + step, 1.0f, y);
-			Vec3 v2(x + step, 1.0f, y + step);
-			Vec3 v3(x, 1.0f, y + step);
-			Vec3 n(
-				0.0f, 0.0f, static_cast<float>((ix * STEPS + iy)) / (STEPS * STEPS)
-			);
-			addQuad(sphereVertices, v0.normalized(), v1.normalized(), v2.normalized(), v3.normalized());
+			Vec2 v0(x, y);
+			Vec2 v1(nextX, y);
+			Vec2 v2(nextX, nextY);
+			Vec2 v3(x, nextY);
 
-			/*float maxX = cos(asin(gy));
-			float maxY = sin(acos(gx));*/
-			// take out of loop
-			/*if (gx > maxX || gy > maxY) {
-				continue;
-			}*/
+			auto projectQuadsOntoSphere = [&](auto swizzleFunction, auto flipFunction) {
+				const auto a0 = swizzleFunction(v0).normalized();
+				const auto a1 = swizzleFunction(v1).normalized();
+				const auto a2 = swizzleFunction(v2).normalized();
+				const auto a3 = swizzleFunction(v3).normalized();
 
-			//auto clampX = [&](float x, float y) {
-			//	return std::clamp(x, 0.0f, std::max(0.0f, cos(asin(y))));
-			//};
-			//auto clampY = [&](float x, float y) {
-			//	//return y;
-			//	return std::clamp(y, 0.0f, std::max(0.0f, sin(acos(clampX(x, y)))));
-			//};
-
-			/*auto clampX = [](float x, float y) {
-				return x;
-				if (Vec2(x, y).length() > 1.0f) {
-					auto a = Vec2(x, y).normalized();	
-					return a.x;
-				}
-				return x;
+				addQuad(sphereVertices, a0, a1, a2, a3);
+				// Can't just negate the whole vector, because then neighbouring vertices don't have the exact same values because of precision issues.
+				addQuad(sphereVertices, flipFunction(a3), flipFunction(a2), flipFunction(a1), flipFunction(a0));
 			};
-			auto clampY = [](float x, float y) {
-				return y;
-				if (Vec2(x, y).length() > 1.0f) {
-					auto a = Vec2(x, y).normalized();
-					return a.y;
-				}
-				return y;
-			};*/
 
-			//auto clampX = [](float x, float y) {
-			//	//return x;
-			//	if (x > cos(asin(y))) {
-			//		return cos(asin(y));
-			//		/*auto a = Vec2(x, y).normalized();
-			//		return a.x;*/
-			//	}
-			//	return x;
-			//};
-			//auto clampY = [&clampX](float x, float y) {
-			//	//y = 1.0f - y;
-			//	//x = clampX(x, y);
-			//	return y;
-			//	if (y > sin(acos(x))) {
-			//		return sin(acos(x));
-			//		/*auto a = Vec2(x, y).normalized();
-			//		return a.x;*/
-			//	}
-			//	return y;
-			//};
-
-			/*if (Vec2(gx, gy).length() > 1.0f) {
-				auto a = Vec2(gx, gy).normalized();
-				continue;
-			}
-
-			float x = gx;
-			float y = gy;*/
-
-			/*float x = clampX(gx, gy);
-			float y = clampY(gx, gy);*/
-
-			/*float x = std::clamp(gx, 0.0f, sin(acos(gy)));
-			float y = std::clamp(gx, 0.0f, cos(asin(gx)));*/
-
-			/*float x = gx;
-			float y = gy;*/
-
-			/*Vec3 v0(x, cos(asin(x)) * cos(asin(y)), y);
-			Vec3 v1(x + step, cos(asin(x + step)) * cos(asin(y)), y);
-			Vec3 v2(x + step, cos(asin(x + step)) * cos(asin(y + step)), y + step);
-			Vec3 v3(x, cos(asin(x)) * cos(asin(y + step)), y + step);*/
-
-			//Vec3 v0(x, 0.0f, y);
-			//Vec3 v1(clampX(x + step, y), 0.0f, y);
-			///*Vec3 v2(clampX(x + step, y + step), 0.0f, clampY(x + step, y + step));*/
-			//Vec3 v2(x + step, 0.0f, y + step);
-			//Vec3 v3(x, 0.0f, clampY(x, y + step));
-			 
-			/*x = gx;
-			y = gy;*/
-
-			//Vec3 v0(x, 0.0f, y);
-			//Vec3 v1(x + step, 0.0f, y);
-			//Vec3 v2(x + step, 0.0f, y + step);
-			//Vec3 v3(x, 0.0f, y + step);
-			/*Vec3 n(
-				0.0f, 0.0f, static_cast<float>((ix * STEPS + iy)) / (STEPS * STEPS)
-			);*/
-
-			/*Vec3 v0(x, 0.0f, y);
-			Vec3 v1(x + step / 4.0f, 0.0f, y);
-			Vec3 v2(x + step / 4.0f, 0.0f, y + step / 4.0f);
-			Vec3 v3(x, 0.0f, y + step / 4.0f);
-			Vec3 n(
-				0.0f, 0.0f, static_cast<float>((ix * STEPS + iy)) / (STEPS * STEPS)
-			);*/
-
-			/*Vec3 n(
-				step,
-				(v2.y - v0.y) / (sqrt(2.0f) * step),
-				step
-			);*/
-			//addQuad(Vec3(x, cos(asin(x)) * y, y));
-			//addQuad(v0, v1, v2, v3, n);
+			projectQuadsOntoSphere([](Vec2 v) { return Vec3(1.0f, v.x, v.y); }, [](Vec3 v) { return Vec3(-v.x, v.y, v.z); });
+			projectQuadsOntoSphere([](Vec2 v) { return Vec3(v.x, -1.0f, v.y); }, [](Vec3 v) { return Vec3(v.x, -v.y, v.z); });
+			projectQuadsOntoSphere([](Vec2 v) { return Vec3(v.x, v.y, 1.0f); }, [](Vec3 v) { return Vec3(v.x, v.y, -v.z); });
 		}
 	}
-
-	auto c = sphereVertices;
-	sphereVertices.clear();
-	sphereVertices.insert(sphereVertices.begin(), c.begin(), c.end());
-
-	for (auto& v : c) {
-		v *= Quat(PI<float> / 2.0f, Vec3::RIGHT);
-	}
-	sphereVertices.insert(sphereVertices.begin(), c.begin(), c.end());
-	
-	for (auto& v : c) {
-		v *= Quat(PI<float> / 2.0f, Vec3::UP);
-	}
-	sphereVertices.insert(sphereVertices.begin(), c.begin(), c.end());
-
-	c = sphereVertices;
-
-	for (auto& v : c) {
-		v = -v;
-	}
-	/*sphereVertices.insert(sphereVertices.begin(), c.begin(), c.end());*/
-	sphereVertices.insert(sphereVertices.begin(), c.rbegin(), c.rend());
 
 	std::vector<BasicShadingVertex> sphereBasicShadingVertices;
 	const auto sphereFlatNormals = calculateFlatShadedNormals(sphereVertices);
@@ -269,6 +251,32 @@ Renderer Renderer::make() {
 	auto sphereVao = Vao::generate();
 	BasicShadingInstances::addAttributesToVao(sphereVao, sphereVbo, instancesVbo);
 	//InfiniteLineInstances::addAttributesToVao(infiniteLinesVao, infiniteLinesVbo, instancesVbo);
+
+	IndexedMesh mesh = makeIndexedMeshExact(sphereVertices);
+	sphereIndicesSize = mesh.indices.size();
+	const auto indexedSphereNormals = calculateSmoothShededNormals(mesh);
+
+	std::vector<BasicShadingVertex> indexedSphereVertices;
+	for (i32 i = 0; i < mesh.vertices.size(); i++) {
+		indexedSphereVertices.push_back(BasicShadingVertex{ .position = mesh.vertices[i], .normal = indexedSphereNormals[i]});
+		/*const auto c = Color::fromHsv(float(i) / mesh.vertices.size(), 1.0f, 1.0f).xyz();
+		indexedSphereVertices.push_back(BasicShadingVertex{ .position = mesh.vertices[i], .normal = c });*/
+	}
+
+	//Vbo sphereIndexedVbo(std::span<const Vec3>(mesh.vertices));
+	Vbo sphereIndexedVbo(indexedSphereVertices.data(), indexedSphereVertices.size() * sizeof(decltype(indexedSphereVertices)::value_type));
+	/*Vbo sphereIndexedVbo(sphereBasicShadingVertices.data(), sphereBasicShadingVertices.size() * sizeof(decltype(sphereBasicShadingVertices)::value_type));;*/
+	auto sphereIndexedVao = Vao::generate();
+	/*BasicShadingInstances::addAttributesToVao(sphereIndexedVao, sphereIndexedVbo, instancesVbo);*/
+	BasicShadingInstances::addAttributesToVao(sphereIndexedVao, sphereIndexedVbo, instancesVbo);
+	/*BasicShadingInstances::addAttributesToVao(sphereIndexedVao, sphereIndexedVbo, instancesVbo);*/
+	Ibo sphereIndexedIbo(mesh.indices.data(), mesh.indices.size() * sizeof(u32));
+
+	sphereIndexedVao.bind();
+	sphereIndexedIbo.bind();
+	Vao::unbind();
+	Ibo::unbind();
+
 
 #define MOVE(name) .name = std::move(name)
 
@@ -285,10 +293,14 @@ Renderer Renderer::make() {
 		.infinteLinesShader = ShaderProgram::compile(INFINITE_LINE_SHADER_VERT_PATH, INFINITE_LINE_SHADER_FRAG_PATH),
 		MOVE(sphereVao),
 		MOVE(sphereVbo),
+		MOVE(sphereIndexedVao),
+		MOVE(sphereIndexedVbo),
+		MOVE(sphereIndexedIbo),
 		.infinitePlaneShader = ShaderProgram::compile(INFINITE_PLANE_SHADER_VERT_PATH, INFINITE_PLANE_SHADER_FRAG_PATH),
 		.basicShadingShader = ShaderProgram::compile(BASIC_SHADING_SHADER_VERT_PATH, BASIC_SHADING_SHADER_FRAG_PATH),
 		.movementController = {
-			.position = Vec3(0.0f, 2.0f, 0.0f)
+			.position = Vec3(3.0f, 2.0f, 0.0f),
+			.movementSpeed = 5.0f
 		},
 	};
 }
@@ -414,15 +426,32 @@ void Renderer::update() {
 		previous = current;
 	}*/
 
+	/*std::vector<BasicShadingInstance> sphereInstances;
+	sphereInstances.push_back(BasicShadingInstance{
+		.transform = Mat4(Mat3::scale(2.0f)) * Mat4::translation(Vec3(0.0f, 2.0f, 0.0f)) * viewProjection
+	});*/
 	std::vector<BasicShadingInstance> sphereInstances;
 	sphereInstances.push_back(BasicShadingInstance{
-		.transform = Mat4(Mat3::scale(2.0f)) * Mat4::translation(Vec3(0.0f, 5.0f, 0.0f)) * viewProjection
+		.transform = Mat4(Mat3::scale(5.0f)) * Mat4::translation(Vec3(0.0f, 5.0f, 0.0f)) * viewProjection
 	});
 
 	basicShadingShader.use();
-	drawInstances(sphereVao, instancesVbo, sphereInstances, [](usize count) {
+	/*drawInstances(sphereVao, instancesVbo, sphereInstances, [](usize count) {
 		glDrawArraysInstanced(GL_TRIANGLES, 0, sphereVertices.size(), count);
+	});*/
+	chk(abc) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	}
+	drawInstances(sphereIndexedVao, instancesVbo, sphereInstances, [](usize count) {
+		glDrawElementsInstanced(GL_TRIANGLES, sphereIndicesSize, GL_UNSIGNED_INT, nullptr, count);
 	});
+	if (abc) {
+		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+	}
+
+	/*drawInstances(sphereIndexedVao, instancesVbo, sphereInstances, [](usize count) {
+		glDrawArraysInstanced(GL_TRIANGLES, 0, sphereVertices.size(), count);
+	});*/
 	sphereInstances.clear();
 
 	{

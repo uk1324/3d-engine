@@ -40,6 +40,10 @@ struct Renderer {
 	Vao sphereVao;
 	Vbo sphereVbo;
 
+	Vao sphereIndexedVao;
+	Vbo sphereIndexedVbo;
+	Ibo sphereIndexedIbo;
+
 	ShaderProgram infinitePlaneShader;
 
 	Mat4 transformTriangle(const Vec3& v0, const Vec3& v1, const Vec3& v2);

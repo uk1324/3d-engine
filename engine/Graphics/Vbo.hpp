@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Types.hpp>
+#include <span>
 
 void boundVboSetData(intptr_t offset, const void* data, usize dataByteSize);
 void boundVboReadData(intptr_t offset, void* readData, usize readDataBufferSize);
@@ -12,6 +13,8 @@ public:
 	explicit Vbo(usize dataByteSize); // On 32 bit systems this would be the same constructor as the private one maybe rename to staitc function dynamic draw and static draw.
 	// Static draw
 	Vbo(const void* data, size_t dataByteSize);
+	template<typename T>
+	Vbo(std::span<const T> vertices);
 	~Vbo();
 
 	static Vbo generate();
@@ -35,3 +38,7 @@ private:
 	Vbo(u32 handle);
 	u32 handle_;
 };
+
+template<typename T>
+Vbo::Vbo(std::span<const T> vertices) 
+	: Vbo(vertices.data(), vertices.size() * sizeof(T)) {}

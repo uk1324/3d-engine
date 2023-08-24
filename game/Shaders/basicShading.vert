@@ -6,7 +6,7 @@ layout(location = 2) in mat4 instanceTransform;
 
 /*generated end*/
 
-flat out vec3 normal;
+out vec3 normal;
 
 void main() {
 	gl_Position = instanceTransform * vec4(vertexPosition, 1.0);

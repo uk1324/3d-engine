@@ -15,7 +15,7 @@
 template<typename T>
 decltype(auto) dbgImplementation(T&& value, const char* expressionString) {
 	thread_local StringStream stream;
-	std::cout << expressionString << " = " << value;
+	std::cout << expressionString << " = " << value << '\n';
 	return std::forward<T>(value);
 }
 

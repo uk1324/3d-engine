@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <ostream>
+#include <HashCombine.hpp>
 
 template<typename T>
 struct Vec3T {
@@ -25,6 +26,10 @@ struct Vec3T {
 	auto length() const -> float;
 	auto normalized() const -> Vec3T;
 	Vec3T roundedToDecimalDigits(int digitsCount) const;
+	T distanceTo(Vec3T p) const;
+	T distanceSquaredTo(Vec3T p) const;
+
+	bool operator==(const Vec3T&) const = default;
 
 	auto data() -> T*;
 	auto data() const -> const T*;
@@ -47,6 +52,16 @@ Vec3T<T> operator*(const T& s, const Vec3T<T>& v);
 
 template<typename T>
 Vec3T<T> cross(const Vec3T<T>& a, const Vec3T<T>& b);
+
+template<typename T>
+struct std::hash<Vec3T<T>> {
+	std::size_t operator()(const Vec3T<T>& value) const noexcept {
+		auto r = std::hash<T>()(value.x);
+		r = hashCombine(r, std::hash<T>()(value.y));
+		r = hashCombine(r, std::hash<T>()(value.z));
+		return r;
+	}
+};
 
 template<typename T>
 std::ostream& operator<< (std::ostream& os, const Vec3T<T>& v) {
@@ -145,6 +160,15 @@ Vec3T<T> Vec3T<T>::roundedToDecimalDigits(int digitsCount) const {
 	return (*this * scale).applied(floor) / scale;
 }
 
+template<typename T>
+T Vec3T<T>::distanceTo(Vec3T p) const {
+	return sqrt(distanceSquaredTo(p));
+}
+
+template<typename T>
+T Vec3T<T>::distanceSquaredTo(Vec3T p) const {
+	return (x - p.x) * (x - p.x) + (y - p.y) * (y - p.y) + (z - p.z) * (z - p.z);
+}
 
 template<typename T>
 inline auto Vec3T<T>::data() -> T* {
