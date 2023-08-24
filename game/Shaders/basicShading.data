@@ -2,9 +2,9 @@
 #include <engine/Math/Mat4.hpp>
 `
 
-
 struct BasicShadingVertex {
 	Vec3 position;
+	Vec3 normal = `Vec3(0.0f)`;
 }
 
 shader BasicShading {

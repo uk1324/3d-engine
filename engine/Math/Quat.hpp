@@ -15,6 +15,11 @@ struct QuatT {
 	T x, y, z, w;
 };
 
+template<typename T>
+Vec3T<T> operator* (const Vec3T<T>& lhs, const QuatT<T>& rhs);
+template<typename T>
+Vec3T<T>& operator*= (Vec3T<T>& lhs, const QuatT<T>& rhs);
+
 using Quat = QuatT<float>;
 
 template<typename T>
@@ -53,4 +58,15 @@ Vec3T<T> QuatT<T>::operator*(const Vec3T<T>& rhs) const {
 template<typename T>
 QuatT<T> QuatT<T>::conjugate() const {
 	return QuatT<T>(-x, -y, -z, w);
+}
+
+template<typename T>
+Vec3T<T> operator* (const Vec3T<T>& lhs, const QuatT<T>& rhs) {
+	return rhs * lhs;
+}
+
+template<typename T>
+Vec3T<T>& operator*= (Vec3T<T>& lhs, const QuatT<T>& rhs) {
+	lhs = lhs * rhs;
+	return lhs;
 }

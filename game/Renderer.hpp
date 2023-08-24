@@ -33,6 +33,13 @@ struct Renderer {
 	Vao infinitePlaneVao;
 	Ibo infinitePlaneIbo;
 
+	Vao infiniteLinesVao;
+	Vbo infiniteLinesVbo;
+	ShaderProgram infinteLinesShader;
+
+	Vao sphereVao;
+	Vbo sphereVbo;
+
 	ShaderProgram infinitePlaneShader;
 
 	Mat4 transformTriangle(const Vec3& v0, const Vec3& v1, const Vec3& v2);

@@ -140,6 +140,11 @@ void Window::toggleCursor() {
 	}
 }
 
+bool Window::isCursorEnabled() {
+	const auto mode = glfwGetInputMode(windowHandle, GLFW_CURSOR);
+	return mode == GLFW_CURSOR_NORMAL;
+}
+
 bool Window::resized() {
 	return resizedThisFrame;
 }

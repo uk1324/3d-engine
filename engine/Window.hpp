@@ -35,6 +35,8 @@ namespace Window {
 	void enableCursor();
 	void toggleCursor();
 
+	bool isCursorEnabled();
+
 	bool resized();
 
 	bool shouldClose();

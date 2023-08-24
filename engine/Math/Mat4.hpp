@@ -205,8 +205,6 @@ Vec4T<T>& operator*=(Vec4T<T>& v, const Mat4T<T>& m) {
 	return v;
 }
 
-#include "Mat2.hpp"
-
 template<typename T>
 Mat4T<T> Mat4T<T>::inversed() const {
 	T inv[16], det;
