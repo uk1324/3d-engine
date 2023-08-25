@@ -5,12 +5,252 @@
 #include <engine/Math/Angles.hpp>
 #include <engine/Math/Quat.hpp>
 #include <engine/Math/Color.hpp>
+#include <engine/Math/Utils.hpp>
 #include <game/Shaders/infinitePlaneData.hpp>
 #include <game/Shaders/infiniteLineData.hpp>
 #include <imgui/imgui.h>
 #include <map>
 #include <queue>
 #include <Dbg.hpp>
+
+#include "AdaptiveSample.hpp"
+
+GLuint g_frontFboId[2];
+GLuint g_frontDepthTexId[2];
+GLuint g_frontColorTexId[2];
+GLuint g_frontColorBlenderTexId;
+GLuint g_frontColorBlenderFboId;
+
+#define GL_TEXTURE_RECTANGLE_ARB GL_TEXTURE_RECTANGLE
+#define GL_DEPTH_COMPONENT32F_NV GL_DEPTH_COMPONENT32F
+#define GL_FRAMEBUFFER_EXT GL_FRAMEBUFFER
+#define GL_DEPTH_ATTACHMENT_EXT GL_DEPTH_ATTACHMENT
+#define GL_COLOR_ATTACHMENT0_EXT GL_COLOR_ATTACHMENT0
+#define glGenFramebuffersEXT glGenFramebuffers
+
+GLenum g_drawBuffers[] = { 
+	GL_COLOR_ATTACHMENT0_EXT,
+	GL_COLOR_ATTACHMENT1,
+	GL_COLOR_ATTACHMENT2,
+	GL_COLOR_ATTACHMENT3,
+	GL_COLOR_ATTACHMENT4,
+	GL_COLOR_ATTACHMENT5,
+	GL_COLOR_ATTACHMENT6
+};
+
+#define glBindFramebufferEXT glBindFramebuffer
+#define glFramebufferTexture2DEXT glFramebufferTexture2D
+
+void InitFrontPeelingRenderTargets()
+{
+	auto g_imageWidth = Window::size().x, g_imageHeight = Window::size().y;
+
+
+	glGenTextures(2, g_frontDepthTexId);
+	glGenTextures(2, g_frontColorTexId);
+	glGenFramebuffers(2, g_frontFboId);
+
+	for (int i = 0; i < 2; i++)
+	{
+		glBindTexture(GL_TEXTURE_RECTANGLE_ARB, g_frontDepthTexId[i]);
+		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, GL_DEPTH_COMPONENT32F_NV,
+			g_imageWidth, g_imageHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+		glBindTexture(GL_TEXTURE_RECTANGLE_ARB, g_frontColorTexId[i]);
+		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA, g_imageWidth, g_imageHeight,
+			0, GL_RGBA, GL_FLOAT, 0);
+
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, g_frontFboId[i]);
+		glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT,
+			GL_TEXTURE_RECTANGLE_ARB, g_frontDepthTexId[i], 0);
+		glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
+			GL_TEXTURE_RECTANGLE_ARB, g_frontColorTexId[i], 0);
+	}
+
+	glGenTextures(1, &g_frontColorBlenderTexId);
+	glBindTexture(GL_TEXTURE_RECTANGLE_ARB, g_frontColorBlenderTexId);
+	glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexImage2D(GL_TEXTURE_RECTANGLE_ARB, 0, GL_RGBA, g_imageWidth, g_imageHeight,
+		0, GL_RGBA, GL_FLOAT, 0);
+
+	glGenFramebuffersEXT(1, &g_frontColorBlenderFboId);
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, g_frontColorBlenderFboId);
+	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_DEPTH_ATTACHMENT_EXT,
+		GL_TEXTURE_RECTANGLE_ARB, g_frontDepthTexId[0], 0);
+	glFramebufferTexture2DEXT(GL_FRAMEBUFFER_EXT, GL_COLOR_ATTACHMENT0_EXT,
+		GL_TEXTURE_RECTANGLE_ARB, g_frontColorBlenderTexId, 0);
+	//CHECK_GL_ERRORS;
+}
+
+const auto g_numPasses = 3;
+const auto g_useOQ = false;
+
+ShaderProgram* g_shaderFrontInit;
+ShaderProgram* g_shaderFrontPeel;
+ShaderProgram* g_shaderFrontBlend;
+ShaderProgram* g_shaderFrontFinal;
+
+void RenderFrontToBackPeeling(auto DrawModel)
+{
+	// ---------------------------------------------------------------------
+	// 1. Initialize Min Depth Buffer
+	// ---------------------------------------------------------------------
+
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, g_frontColorBlenderFboId);
+	glDrawBuffer(g_drawBuffers[0]);
+
+	glClearColor(0, 0, 0, 1);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	glEnable(GL_DEPTH_TEST);
+
+	/*g_shaderFrontInit->bind();*/
+	g_shaderFrontInit->use();
+	//g_shaderFrontInit.setUniform("Alpha", (float*)&g_opacity, 1);
+	DrawModel();
+	//g_shaderFrontInit.unbind();
+	//g_shaderFrontInit.unbind();
+	//ShaderProgram::
+
+	//CHECK_GL_ERRORS;
+
+	// ---------------------------------------------------------------------
+	// 2. Depth Peeling + Blending
+	// ---------------------------------------------------------------------
+
+	int numLayers = (g_numPasses - 1) * 2;
+	for (int layer = 1; g_useOQ || layer < numLayers; layer++) {
+		int currId = layer % 2;
+		int prevId = 1 - currId;
+
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, g_frontFboId[currId]);
+		glDrawBuffer(g_drawBuffers[0]);
+
+		glClearColor(0, 0, 0, 0);
+		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		glDisable(GL_BLEND);
+		glEnable(GL_DEPTH_TEST);
+
+		/*if (g_useOQ) {
+			glBeginQuery(GL_SAMPLES_PASSED_ARB, g_queryId);
+		}*/
+		/*if (g_useOQ) {
+			glBeginQuery(GL_SAMPLES_PASSED, g_queryId);
+		}*/
+
+		//g_shaderFrontPeel.bind();
+		//g_shaderFrontPeel.bindTextureRECT("DepthTex", g_frontDepthTexId[prevId], 0);
+		////g_shaderFrontPeel.setUniform("Alpha", (float*)&g_opacity, 1);
+		//DrawModel();
+		//g_shaderFrontPeel.unbind();
+
+		auto setTextureUnit = [](std::string texname, int texunit, int _progId)
+		{
+			GLint linked;
+			glGetProgramiv(_progId, GL_LINK_STATUS, &linked);
+			if (linked != GL_TRUE) {
+				std::cerr << "Error: setTextureUnit needs program to be linked." << std::endl;
+				exit(1);
+			}
+			GLint id = glGetUniformLocation(_progId, texname.c_str());
+			if (id == -1) {
+		#ifdef NV_REPORT_UNIFORM_ERRORS
+				std::cerr << "Warning: Invalid texture " << texname << std::endl;
+		#endif
+				return;
+			}
+			glUniform1i(id, texunit);
+		};
+
+		g_shaderFrontPeel->use();
+		auto bindTexture = [&](GLenum target, std::string texname, GLuint texid, int texunit, int prog)
+		{
+			glActiveTexture(GL_TEXTURE0 + texunit);
+			glBindTexture(target, texid);
+			setTextureUnit(texname, texunit, prog);
+			glActiveTexture(GL_TEXTURE0);
+		};
+		auto bindTextureRECT = [&](std::string texname, GLuint texid, int texunit, int prog) {
+			bindTexture(GL_TEXTURE_RECTANGLE_ARB, texname, texid, texunit, prog);
+		};
+
+		bindTextureRECT("DepthTex", g_frontDepthTexId[prevId], 0, g_shaderFrontPeel->handle());
+		//g_shaderFrontPeel->bindTextureRECT("DepthTex", g_frontDepthTexId[prevId], 0);
+
+		//bindTexture(GL_TEXTURE_RECTANGLE_ARB, texname, texid, texunit);
+		//g_shaderFrontPeel.setUniform("Alpha", (float*)&g_opacity, 1);
+		DrawModel();
+		//g_shaderFrontPeel.unbind();
+
+
+		if (g_useOQ) {
+			//glEndQuery(GL_SAMPLES_PASSED_ARB);
+		}
+
+		//CHECK_GL_ERRORS;
+
+		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, g_frontColorBlenderFboId);
+		glDrawBuffer(g_drawBuffers[0]);
+
+		glDisable(GL_DEPTH_TEST);
+		glEnable(GL_BLEND);
+
+		glBlendEquation(GL_FUNC_ADD);
+		glBlendFuncSeparate(GL_DST_ALPHA, GL_ONE,
+			GL_ZERO, GL_ONE_MINUS_SRC_ALPHA);
+
+		/*g_shaderFrontBlend.bind();
+		g_shaderFrontBlend.bindTextureRECT("TempTex", g_frontColorTexId[currId], 0);
+		glCallList(g_quadDisplayList);
+		g_shaderFrontBlend.unbind();*/
+		g_shaderFrontBlend->use();
+		bindTextureRECT("TempTex", g_frontColorTexId[currId], 0, g_shaderFrontBlend->handle());
+		/*g_shaderFrontBlend.bindTextureRECT("TempTex", g_frontColorTexId[currId], 0);
+		glCallList(g_quadDisplayList); ?????????????????????
+		g_shaderFrontBlend.unbind();*/
+
+		glDisable(GL_BLEND);
+
+		//CHECK_GL_ERRORS;
+
+		/*if (g_useOQ) {
+			GLuint sample_count;
+			glGetQueryObjectuiv(g_queryId, GL_QUERY_RESULT_ARB, &sample_count);
+			if (sample_count == 0) {
+				break;
+			}
+		}*/
+	}
+
+	// ---------------------------------------------------------------------
+	// 3. Final Pass
+	// ---------------------------------------------------------------------
+
+	glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, 0);
+	glDrawBuffer(GL_BACK);
+	glDisable(GL_DEPTH_TEST);
+
+	g_shaderFrontFinal->use();
+	/*g_shaderFrontFinal.bind();*/
+	//g_shaderFrontFinal.setUniform("BackgroundColor", g_backgroundColor, 3);
+	//g_shaderFrontFinal.bindTextureRECT("ColorTex", g_frontColorBlenderTexId, 0);
+	//glCallList(g_quadDisplayList); ??????????????????????????????
+	//g_shaderFrontFinal.unbind();
+
+	//CHECK_GL_ERRORS;
+}
 
 const auto INSTANCE_BUFFER_SIZE = 1024ull * 10ull;
 
@@ -48,7 +288,7 @@ i32 infinitePlaneIndices[]{
 // Maybe it might be better to use the parametric representation.
 // Construct a topological model of the projective plane by using a parabolic point.
 
-const usize INFINTE_LINE_VBO_SIZE = 1024 * 40;
+const usize INFINTE_LINE_VBO_SIZE = 1024 * 1024;
 
 std::vector<Vec3> sphereVertices;
 
@@ -179,6 +419,8 @@ u32 sphereIndicesSize = 0;
 #include <iomanip>
 
 Renderer Renderer::make() {
+	InitFrontPeelingRenderTargets();
+
 	Vbo instancesVbo(INSTANCE_BUFFER_SIZE);
 	Vbo triangleVbo(triangle3dVertices, sizeof(triangle3dVertices));
 
@@ -200,17 +442,19 @@ Renderer Renderer::make() {
 	Vbo infiniteLinesVbo(INFINTE_LINE_VBO_SIZE);
 	auto infiniteLinesVao = Vao::generate();
 	// TODO: make 2 function one for instances and one for vertex attributes.
-	{
-		infiniteLinesVao.bind();
-		infiniteLinesVao.bind();
-		boundVaoSetAttribute(0, ShaderDataType::Float, 4, 0, sizeof(InfiniteLineVertex));
-		glVertexAttribDivisor(0, 0);
-		Vao::unbind();
-	}
+	InfiniteLineInstances::addAttributesToVao(infiniteLinesVao, infiniteLinesVbo, instancesVbo);
+	//{
+	//	/*infiniteLinesVao.bind();
+	//	infiniteLinesVao.bind();
+	//	boundVaoSetAttribute(0, ShaderDataType::Float, 4, 0, sizeof(InfiniteLineVertex));
+	//	glVertexAttribDivisor(0, 0);
+	//	Vao::unbind();*/
+	//}
 
 	const auto STEPS = 17;
 	for (int ix = 0; ix < STEPS; ix++) {
 		for (int iy = 0; iy < STEPS; iy++) {			
+			// Would it be better to subtract 0.5f after division or before somehow?
 			float x = (ix / static_cast<float>(STEPS) - 0.5f) * 2.0f;
 			float y = (iy / static_cast<float>(STEPS) - 0.5f) * 2.0f;
 			// Doing this istead of adding step to x to prevent precision issues.
@@ -320,7 +564,11 @@ static void drawInstances(Vao& vao, Vbo& instancesVbo, const std::vector<Instanc
 	}
 }
 
+#include <engine/Graphics/Fbo.hpp>
+
 void Renderer::update() {
+	Fbo::unbind();
+
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glViewport(0, 0, Window::size().x, Window::size().y);
 	glEnable(GL_DEPTH_TEST);
@@ -381,81 +629,390 @@ void Renderer::update() {
 
 	std::vector<InfiniteLineVertex> vertices;
 
-	auto drawRay = [&vertices](Vec3 start, Vec3 direction) {
-		vertices.push_back(InfiniteLineVertex{ Vec4(start, 1.0f) });
-		vertices.push_back(InfiniteLineVertex{ Vec4(direction, 0.0f) });
+	auto drawRay = [&vertices](Vec3 start, Vec3 direction, Vec3 color) {
+		vertices.push_back(InfiniteLineVertex{ Vec4(start, 1.0f), color });
+		vertices.push_back(InfiniteLineVertex{ Vec4(direction, 0.0f), color });
 	};
 
-	auto drawLine = [&vertices](Vec3 start, Vec3 end) {
-		vertices.push_back(InfiniteLineVertex{ Vec4(start, 1.0f) });
-		vertices.push_back(InfiniteLineVertex{ Vec4(end, 1.0f) });
+	auto drawLine = [&vertices](Vec3 start, Vec3 end, Vec3 color) {
+		vertices.push_back(InfiniteLineVertex{ Vec4(start, 1.0f), color });
+		vertices.push_back(InfiniteLineVertex{ Vec4(end, 1.0f), color });
 	};
-
-	infinteLinesShader.use();
-	shaderSetUniforms(infinteLinesShader, InfiniteLineVertUniforms{ .viewProjection = viewProjection });
-	infloat(angle, 0.0f);
-	angle += 0.01;
 	
 	//const auto range = 2.0f;
 	// function grapher jit compiler
 
-	insliderfloat(range, 80.0f, 1.0f, 80.0f);
-	float x = -range / 2.0f;
-	int count = 600;
-	float step = range / count;
-	auto sample = [](float x) {
-		/*return ((sin(2.0f * x) + 1.0f) / 2.0f + 0.01f) * x * x;*/
-		/*return ((sin(5.0f * x) + 1.0f) / 2.0f + 1.0f) * x * x;*/
-		/*return ((cos(2.0f * x) + 1.0f) / 2.0f + 1.0f) * x * x;*/
-		//return pow(x, 6.0f);
-		return pow(x, 2.0f);
-		//return abs(x);
+	/*insliderfloat(range, 80.0f, 1.0f, 80.0f);*/
+	//insliderfloat(val, 0.0f, -2.0f, 2.0f);
+	//auto sample = [&](float x) {
+	//	/*return ((sin(2.0f * x) + 1.0f) / 2.0f + 0.01f) * x * x;*/
+	//	/*return ((sin(5.0f * x) + 1.0f) / 2.0f + 1.0f) * x * x;*/
+	//	/*return ((cos(2.0f * x) + 1.0f) / 2.0f + 1.0f) * x * x;*/
+	//	//return pow(x, 6.0f);
+	//	/*return pow(x, 2.0f);*/
+	//	/*const auto a = sqrt(-(pow(x, 2.0f) * (1.0f - val) - 2.0f * x * val + 1));
+	//	ASSERT(isnormal(a));*/
+	//	return sqrt(-(pow(x, 2.0f) * (1.0f - val) - 2.0f * x * val + 1));
+	//	//return abs(x);
+	//};
+
+	auto projectOntoHemisphere = [](Vec2 pos) -> Vec3 {
+		// project a point from plane y = -1 to sphere x^2 + y^2 + z^2 = 1
+		return Vec3(pos.x, -1.0f, pos.y).normalized();
 	};
 
-	/*Vec3 previous = Vec3(x, 0.1f, sample(x));
-	for (int i = 0; i <= count; i++) {
-		x += step;
-		Vec3 current = Vec3(x, 0.1f, sample(x));
-		if (i == 0) {
-			drawRay(current, Vec3(0.0f, 0.0f, 2.0f));
-		} else if (i == count) {
-			drawRay(previous, Vec3(0.0f, 0.0f, 2.0f));
+
+	function_sampler_1d_options options;
+	function_sampler_1d_options_defaults(&options);
+	auto sampler = function_sampler_1d_new(&options);
+
+	std::vector<float> discontinouties;
+	chk(disable);
+	insliderfloat(val, 0.0f, -2.0f, 2.0f);
+
+	{
+		float a = -1.0f + pow(val, 2.0f);
+		float b = -2.0f * val;
+		float c = 1.0f - 0.00001f;
+
+		if (a == 0.0f) {
+			discontinouties.push_back(-c / b);
 		} else {
-			drawLine(previous, current);
+			const auto discriminant = pow(b, 2.0f) - 4.0f * a * c;
+			if (discriminant == 0.0f) {
+				discontinouties.push_back(-b / (2.0f * a));
+			} else if (discriminant > 0.0f) {
+				const auto s = sqrt(discriminant);
+				discontinouties.push_back((-b + s) / (2.0f * a));
+				discontinouties.push_back((-b - s) / (2.0f * a));
+			}
 		}
-		previous = current;
+
+		
+	}
+
+	auto plot = [&](auto sample) {
+		function_sampler_1d_clear(sampler);
+		int count = 750;
+		const auto range = 120.0f;
+
+		auto calculateX = [&](int i) -> float {
+			auto t = ((static_cast<float>(i) / count) - 0.5f) * range;
+			return t;
+		};
+
+		for (int i = 0; i <= count; i++) {
+			auto x = calculateX(i);
+			function_sampler_1d_add(sampler, x, sample(x), 0);
+		}
+
+		for (auto a : discontinouties) {
+			function_sampler_1d_add(sampler, a, sample(a), 0);
+		}
+		function_sampler_1d_add(sampler, -2000.0f, sample(-2000.0f), 0);
+		function_sampler_1d_add(sampler, 2000.0f, sample(2000.0f), 0);
+
+		int loops = 0;
+
+		while (!function_sampler_1d_is_done(sampler) && loops <= 2) {
+			loops++;
+
+			const auto num = function_sampler_1d_num_refine(sampler);
+			std::vector<double> toRefine;
+			toRefine.resize(num);
+			const auto nret = function_sampler_1d_get_refine(sampler, num, toRefine.data());
+
+			for (int i = 0; i < nret; i++) {
+				dbgGui(toRefine[i]);
+				if (!disable)
+					function_sampler_1d_add(sampler, toRefine[i], sample(toRefine[i]), 0);
+			}
+		}
+
+		const auto numSamples = function_sampler_1d_num_samples(sampler);
+		for (int i = 0; i < numSamples - 1; i++) {
+			double x, y;
+			int _;
+			function_sampler_1d_get(sampler, i, &x, &y, &_);
+			Vec2 current(x, y);
+			function_sampler_1d_get(sampler, i + 1, &x, &y, &_);
+			Vec2 next(x, y);
+
+			auto to3d = [](Vec2 p) -> Vec3 {
+				return Vec3(p.x, 0.1f, p.y);
+			};
+
+			drawLine(to3d(current), to3d(next), Color3::GREEN);
+			const auto a = projectOntoHemisphere(current) * 1.01f;
+			const auto b = projectOntoHemisphere(next) * 1.01f;
+			drawLine(a + Vec3::UP, b + Vec3::UP, Color3::RED);
+			drawLine(-a + Vec3::UP, -b + Vec3::UP, Color3::RED);
+		}
+	};
+	
+	/*for (const auto& d : discontinouties) {
+		drawLine(Vec3(d, 0.1f, -2.0f), Vec3(d, 0.1f, 2.0f), Color3::WHITE);
 	}*/
 
-	/*std::vector<BasicShadingInstance> sphereInstances;
-	sphereInstances.push_back(BasicShadingInstance{
-		.transform = Mat4(Mat3::scale(2.0f)) * Mat4::translation(Vec3(0.0f, 2.0f, 0.0f)) * viewProjection
-	});*/
-	std::vector<BasicShadingInstance> sphereInstances;
-	sphereInstances.push_back(BasicShadingInstance{
-		.transform = Mat4(Mat3::scale(5.0f)) * Mat4::translation(Vec3(0.0f, 5.0f, 0.0f)) * viewProjection
+	function_sampler_1d_clear(sampler);
+
+
+	/*struct QuadraticSolutions {
+
+	};*/
+
+	auto conicSections = [](float x) {
+		/*return sqrt(-(pow(x, 2.0f) * (1.0f - val) - 2.0f * x * val - 1));*/
+		//return sqrt(-(pow(x, 2.0f) * (1.0f - val) - 2.0f * x * val - 1));
+		return sqrt(-pow(x, 2.0f) * (1.0f - pow(val, 2.0f)) - 2.0f * val * x + 1.0f);
+	};
+
+	/*for (const auto& d : discontinouties) {
+		drawLine(Vec3(d, 0.1f, -2.0f), Vec3(d, 0.1f, 2.0f), Color3::WHITE);
+	}*/
+
+	auto conicSectionsPlot = [&](float x) {
+		const auto v = conicSections(x);
+		return v;
+	};
+
+	plot([&](float x) {
+		return conicSectionsPlot(x);
 	});
 
-	basicShadingShader.use();
-	/*drawInstances(sphereVao, instancesVbo, sphereInstances, [](usize count) {
-		glDrawArraysInstanced(GL_TRIANGLES, 0, sphereVertices.size(), count);
-	});*/
-	chk(abc) {
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+	plot([&](float x) {
+		return -conicSectionsPlot(x);
+	});
+
+	auto plotParametric = [&](auto sampleParametric, float range, Vec3 groundColor, Vec3 sphereColor) {
+		const auto count = 800;
+		auto calculateT = [&count, &range](int i) -> float {
+			return ((static_cast<float>(i) / count) - 0.5f) * range;
+		};
+		
+		Vec2 previous = sampleParametric(calculateT(0));
+		for (int i = 1; i <= count; i++) {
+			const auto t = ((static_cast<float>(i) / count) - 0.5f) * range;
+			const auto current = sampleParametric(t);
+			auto to3d = [](Vec2 p) -> Vec3 {
+				return Vec3(p.x, 0.1f, p.y);
+			};
+
+			drawLine(to3d(current), to3d(previous), groundColor);
+			const auto a = projectOntoHemisphere(previous) * 1.01f;
+			const auto b = projectOntoHemisphere(current) * 1.01f;
+			drawLine(a + Vec3::UP, b + Vec3::UP, sphereColor);
+			drawLine(-a + Vec3::UP, -b + Vec3::UP, sphereColor);
+
+			previous = current;
+		}
+	};
+
+
+	insliderfloat(c, 0.0f, 0.0f, 1.0f);
+	infloat(speed, 0.001f);
+	static float direction = 1.0f;
+	chk(animate) {
+		if (c > 1.0f || c < 0.0f) {
+			direction = -direction;
+		}
+		c += speed * direction;
 	}
+
+
+
+
+
+	insliderfloat(testa, 10.0f, 10.0f, 50.0f);
+
+
+
+
+
+
+
+
+
+
+
+
+
+	//auto plot = [&](auto sample) {
+	//	int count = 2600;
+	//	const auto range = 120.0f;
+
+	//	auto calculateX = [&](int i) -> float {
+	//		auto t = ((static_cast<float>(i) / count) - 0.5f) * range;
+	//		/*return pow(t / 5.0f, 3.0f);*/
+	//		return pow(t / testa, 3.0f);
+	//		//return t;
+	//	};
+
+	//	Vec3 previous = Vec3(calculateX(0), 0.1f, sample(calculateX(0)));
+	//	for (int i = 1; i <= count; i++) {
+	//		//auto x = ((static_cast<float>(i) / count) - 0.5f) * range;
+	//		auto x = calculateX(i);
+	//		Vec3 current = Vec3(x, 0.1f, sample(x));
+
+	//		drawLine(previous, current, Color3::GREEN);
+	//		const auto a = projectOntoHemisphere(Vec2(previous.x, previous.z)) * 1.01f;
+	//		const auto b = projectOntoHemisphere(Vec2(current.x, current.z)) * 1.01f;
+	//		drawLine(a + Vec3::UP, b + Vec3::UP, Color3::RED);
+	//		drawLine(-a + Vec3::UP, -b + Vec3::UP, Color3::RED);
+	//		
+	//		if (isnan(previous.z) && !isnan(current.z)) {
+	//			int x = 5;
+	//		}
+
+	//		previous = current;
+	//	}
+	//};
+
+	//insliderfloat(val, 0.0f, -2.0f, 2.0f);
+
+	//std::vector<float> discontinouties;
+
+	//{
+	//	float a = -1.0f + pow(val, 2.0f);
+	//	float b = -2.0f * val;
+	//	float c = 1.0f;
+
+	//	const auto discriminant = pow(b, 2.0f) - 4.0f * a * c;
+	//	if (discriminant == 0.0f) {
+	//		discontinouties.push_back(-b / (2.0f * a));
+	//	} else if (discriminant > 0.0f) {
+	//		const auto s = sqrt(discriminant);
+	//		discontinouties.push_back((-b + s) / (2.0f * a));
+	//		discontinouties.push_back((-b - s) / (2.0f * a));
+	//	}
+	//}
+
+
+	///*struct QuadraticSolutions {
+
+	//};*/
+
+	//auto conicSections = [](float x) {
+	//	/*return sqrt(-(pow(x, 2.0f) * (1.0f - val) - 2.0f * x * val - 1));*/
+	//	//return sqrt(-(pow(x, 2.0f) * (1.0f - val) - 2.0f * x * val - 1));
+	//	return sqrt(-pow(x, 2.0f) * (1.0f - pow(val, 2.0f)) - 2.0f * val * x + 1.0f);
+	//};
+
+	///*for (const auto& d : discontinouties) {
+	//	drawLine(Vec3(d, 0.1f, -2.0f), Vec3(d, 0.1f, 2.0f), Color3::WHITE);
+	//}*/
+
+	//auto conicSectionsPlot = [&](float x) {
+	//	const auto v = conicSections(x);
+
+	//	if (isnan(v)) {
+	//		for (const auto& d : discontinouties) {
+	//			if (abs(d - x) < 0.04615384615f / 2.0f) {
+	//				return 0.0f;
+	//				return conicSections(d);
+	//			}
+	//		}
+	//	}
+	//	return v;
+	//};
+
+
+
+	//plot([&](float x) {
+	//	return conicSectionsPlot(x);
+	//});
+
+	//plot([&](float x) {
+	//	return -conicSectionsPlot(x);
+	//});
+
+	//auto plotParametric = [&](auto sampleParametric, float range, Vec3 groundColor, Vec3 sphereColor) {
+	//	const auto count = 800;
+	//	auto calculateT = [&count, &range](int i) -> float {
+	//		return ((static_cast<float>(i) / count) - 0.5f) * range;
+	//	};
+	//	
+	//	Vec2 previous = sampleParametric(calculateT(0));
+	//	for (int i = 1; i <= count; i++) {
+	//		const auto t = ((static_cast<float>(i) / count) - 0.5f) * range;
+	//		const auto current = sampleParametric(t);
+	//		auto to3d = [](Vec2 p) -> Vec3 {
+	//			return Vec3(p.x, 0.1f, p.y);
+	//		};
+
+	//		drawLine(to3d(current), to3d(previous), groundColor);
+	//		const auto a = projectOntoHemisphere(previous) * 1.01f;
+	//		const auto b = projectOntoHemisphere(current) * 1.01f;
+	//		drawLine(a + Vec3::UP, b + Vec3::UP, sphereColor);
+	//		drawLine(-a + Vec3::UP, -b + Vec3::UP, sphereColor);
+
+	//		previous = current;
+	//	}
+	//};
+
+	//function_sampler_1d_options options;
+	//function_sampler_1d_options_defaults(&options);
+	//auto sampler = function_sampler_1d_new(&options);
+
+	///*plot([&](float t) -> Vec2 {
+	//	return Vec2(cosh(t), sinh(t));
+	//}, 40.0f);
+	//plot([&](float t) -> Vec2 {
+	//	return Vec2(-cosh(t), sinh(t));
+	//}, 40.0f);*/
+
+
+	//insliderfloat(c, 0.0f, 0.0f, 1.0f);
+	//infloat(speed, 0.001f);
+	//static float direction = 1.0f;
+	//chk(animate) {
+	//	if (c > 1.0f || c < 0.0f) {
+	//		direction = -direction;
+	//	}
+	//	c += speed * direction;
+	//}
+
+
+
+
+
+
+
+
+
+
+
+	/*plot([&](float t) -> Vec2 {
+		return lerp(Vec2(sin(t), cos(t)), Vec2(cosh(t), sinh(t)), c);
+	}, 80.0f, Color3::RED, Color3::GREEN);
+
+
+	plot([&](float t) -> Vec2 {
+		return lerp(Vec2(sin(t), cos(t)), Vec2(-cosh(t), -sinh(t)), c);
+	}, 80.0f, Color3::RED, Color3::GREEN);*/
+	/*infloat(offset, 0.0f);
+	plot([&](float t) -> Vec2 {
+		return Vec2(sin(t), cos(t) + offset);
+	}, 80.0f, Color3::RED, Color3::GREEN);*/
+
+	std::vector<BasicShadingInstance> sphereInstances;
+	//sphereInstances.push_back(BasicShadingInstance{
+	//	/*.transform = Mat4(Mat3::scale(2.0f)) * Mat4::translation(Vec3(0.0f, 2.0f, 0.0f)) * viewProjection*/
+	//	.transform = Mat4::translation(Vec3(0.0f, 1.0f, 0.0f)) * viewProjection
+	//});
+
+	basicShadingShader.use();
 	drawInstances(sphereIndexedVao, instancesVbo, sphereInstances, [](usize count) {
 		glDrawElementsInstanced(GL_TRIANGLES, sphereIndicesSize, GL_UNSIGNED_INT, nullptr, count);
 	});
-	if (abc) {
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	}
 
-	/*drawInstances(sphereIndexedVao, instancesVbo, sphereInstances, [](usize count) {
-		glDrawArraysInstanced(GL_TRIANGLES, 0, sphereVertices.size(), count);
-	});*/
 	sphereInstances.clear();
 
 	{
-		glDepthFunc(GL_LEQUAL);
+		infinteLinesShader.use();
+		shaderSetUniforms(infinteLinesShader, InfiniteLineVertUniforms{ .viewProjection = viewProjection });
+
+ 		glDepthFunc(GL_LEQUAL);
 		const auto verticesSize = sizeof(InfiniteLineVertex) * vertices.size();
 		if (verticesSize > INFINTE_LINE_VBO_SIZE) {
 			ASSERT_NOT_REACHED();

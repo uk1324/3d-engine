@@ -1,7 +1,7 @@
 add_executable(
 	game
 	"main.cpp"
- "Game.cpp" "Renderer.cpp" "FpsController.cpp")
+ "Game.cpp" "Renderer.cpp" "FpsController.cpp" "AdaptiveSample.cpp")
 
 target_link_libraries(game engine)
 target_link_libraries(game glfw)

@@ -1,10 +1,14 @@
 struct InfiniteLineVertex {
 	Vec4 position;
+	Vec3 color;
 }
 
 shader InfiniteLine {
 	vertexStruct = InfiniteLineVertex;
 	vertUniforms = {
 		Mat4 viewProjection;
+	};
+	vertOut = {
+		Vec3 color;
 	};
 }
