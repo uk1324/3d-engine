@@ -15,6 +15,20 @@
 
 #include "AdaptiveSample.hpp"
 
+enum FBORenderTarget
+{
+	NORMAL_FBO,
+	NORMAL_TEXTURE,
+	NORMAL_COLOR_RBO,
+	NORMAL_DEPTH_RBO,
+	MULTISAMPLING_FBO,
+	MULTISAMPLING_TEXTURE,
+	MULTISAMPLING_COLOR_RBO,
+	MULTISAMPLING_DEPTH_RBO,
+	NORMAL_DEPTH_TEXTURE,
+};
+GLuint RenderRelatedIds[9];
+
 GLuint g_frontFboId[2];
 GLuint g_frontDepthTexId[2];
 GLuint g_frontColorTexId[2];
@@ -100,6 +114,13 @@ ShaderProgram* g_shaderFrontInit;
 ShaderProgram* g_shaderFrontPeel;
 ShaderProgram* g_shaderFrontBlend;
 ShaderProgram* g_shaderFrontFinal;
+Vbo* g_quadVbo;
+Vao* g_quadVao;
+
+void renderQuad() {
+	g_quadVao->bind();
+	glDrawArrays(GL_TRIANGLES, 0, 6);
+}
 
 void RenderFrontToBackPeeling(auto DrawModel)
 {
@@ -115,19 +136,54 @@ void RenderFrontToBackPeeling(auto DrawModel)
 
 	glEnable(GL_DEPTH_TEST);
 
-	/*g_shaderFrontInit->bind();*/
 	g_shaderFrontInit->use();
-	//g_shaderFrontInit.setUniform("Alpha", (float*)&g_opacity, 1);
-	DrawModel();
-	//g_shaderFrontInit.unbind();
-	//g_shaderFrontInit.unbind();
-	//ShaderProgram::
+	
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, RenderRelatedIds[NORMAL_DEPTH_TEXTURE]);
+	//glBindTexture(GL_TEXTURE_2D, RenderRelatedIds[NORMAL_TEXTURE]);
+	glActiveTexture(GL_TEXTURE0);
+	g_shaderFrontInit->setTexture("depthTexture0", 0);
+	g_shaderFrontInit->set("screenSize", Window::size());
 
-	//CHECK_GL_ERRORS;
+		
+	/*g_shaderFrontInit->set()
+	uniform sampler2D depthTexture0;
+	uniform vec2 screenSize;*/
+	DrawModel();
 
 	// ---------------------------------------------------------------------
 	// 2. Depth Peeling + Blending
 	// ---------------------------------------------------------------------
+
+	auto setTextureUnit = [](std::string texname, int texunit, int _progId)
+	{
+		GLint linked;
+		glGetProgramiv(_progId, GL_LINK_STATUS, &linked);
+		if (linked != GL_TRUE) {
+			std::cerr << "Error: setTextureUnit needs program to be linked." << std::endl;
+			exit(1);
+		}
+		GLint id = glGetUniformLocation(_progId, texname.c_str());
+		if (id == -1) {
+#ifdef NV_REPORT_UNIFORM_ERRORS
+			std::cerr << "Warning: Invalid texture " << texname << std::endl;
+#endif
+			return;
+		}
+		glUniform1i(id, texunit);
+	};
+
+	//g_shaderFrontPeel->use();
+	auto bindTexture = [&](GLenum target, std::string texname, GLuint texid, int texunit, int prog)
+	{
+		glActiveTexture(GL_TEXTURE0 + texunit);
+		glBindTexture(target, texid);
+		setTextureUnit(texname, texunit, prog);
+		glActiveTexture(GL_TEXTURE0);
+	};
+	auto bindTextureRECT = [&](std::string texname, GLuint texid, int texunit, int prog) {
+		bindTexture(GL_TEXTURE_RECTANGLE_ARB, texname, texid, texunit, prog);
+	};
 
 	int numLayers = (g_numPasses - 1) * 2;
 	for (int layer = 1; g_useOQ || layer < numLayers; layer++) {
@@ -143,63 +199,10 @@ void RenderFrontToBackPeeling(auto DrawModel)
 		glDisable(GL_BLEND);
 		glEnable(GL_DEPTH_TEST);
 
-		/*if (g_useOQ) {
-			glBeginQuery(GL_SAMPLES_PASSED_ARB, g_queryId);
-		}*/
-		/*if (g_useOQ) {
-			glBeginQuery(GL_SAMPLES_PASSED, g_queryId);
-		}*/
-
-		//g_shaderFrontPeel.bind();
-		//g_shaderFrontPeel.bindTextureRECT("DepthTex", g_frontDepthTexId[prevId], 0);
-		////g_shaderFrontPeel.setUniform("Alpha", (float*)&g_opacity, 1);
-		//DrawModel();
-		//g_shaderFrontPeel.unbind();
-
-		auto setTextureUnit = [](std::string texname, int texunit, int _progId)
-		{
-			GLint linked;
-			glGetProgramiv(_progId, GL_LINK_STATUS, &linked);
-			if (linked != GL_TRUE) {
-				std::cerr << "Error: setTextureUnit needs program to be linked." << std::endl;
-				exit(1);
-			}
-			GLint id = glGetUniformLocation(_progId, texname.c_str());
-			if (id == -1) {
-		#ifdef NV_REPORT_UNIFORM_ERRORS
-				std::cerr << "Warning: Invalid texture " << texname << std::endl;
-		#endif
-				return;
-			}
-			glUniform1i(id, texunit);
-		};
-
+		
 		g_shaderFrontPeel->use();
-		auto bindTexture = [&](GLenum target, std::string texname, GLuint texid, int texunit, int prog)
-		{
-			glActiveTexture(GL_TEXTURE0 + texunit);
-			glBindTexture(target, texid);
-			setTextureUnit(texname, texunit, prog);
-			glActiveTexture(GL_TEXTURE0);
-		};
-		auto bindTextureRECT = [&](std::string texname, GLuint texid, int texunit, int prog) {
-			bindTexture(GL_TEXTURE_RECTANGLE_ARB, texname, texid, texunit, prog);
-		};
-
-		bindTextureRECT("DepthTex", g_frontDepthTexId[prevId], 0, g_shaderFrontPeel->handle());
-		//g_shaderFrontPeel->bindTextureRECT("DepthTex", g_frontDepthTexId[prevId], 0);
-
-		//bindTexture(GL_TEXTURE_RECTANGLE_ARB, texname, texid, texunit);
-		//g_shaderFrontPeel.setUniform("Alpha", (float*)&g_opacity, 1);
+		bindTextureRECT("depthTexture", g_frontDepthTexId[prevId], 0, g_shaderFrontPeel->handle());
 		DrawModel();
-		//g_shaderFrontPeel.unbind();
-
-
-		if (g_useOQ) {
-			//glEndQuery(GL_SAMPLES_PASSED_ARB);
-		}
-
-		//CHECK_GL_ERRORS;
 
 		glBindFramebufferEXT(GL_FRAMEBUFFER_EXT, g_frontColorBlenderFboId);
 		glDrawBuffer(g_drawBuffers[0]);
@@ -211,27 +214,11 @@ void RenderFrontToBackPeeling(auto DrawModel)
 		glBlendFuncSeparate(GL_DST_ALPHA, GL_ONE,
 			GL_ZERO, GL_ONE_MINUS_SRC_ALPHA);
 
-		/*g_shaderFrontBlend.bind();
-		g_shaderFrontBlend.bindTextureRECT("TempTex", g_frontColorTexId[currId], 0);
-		glCallList(g_quadDisplayList);
-		g_shaderFrontBlend.unbind();*/
 		g_shaderFrontBlend->use();
 		bindTextureRECT("TempTex", g_frontColorTexId[currId], 0, g_shaderFrontBlend->handle());
-		/*g_shaderFrontBlend.bindTextureRECT("TempTex", g_frontColorTexId[currId], 0);
-		glCallList(g_quadDisplayList); ?????????????????????
-		g_shaderFrontBlend.unbind();*/
+		renderQuad();
 
 		glDisable(GL_BLEND);
-
-		//CHECK_GL_ERRORS;
-
-		/*if (g_useOQ) {
-			GLuint sample_count;
-			glGetQueryObjectuiv(g_queryId, GL_QUERY_RESULT_ARB, &sample_count);
-			if (sample_count == 0) {
-				break;
-			}
-		}*/
 	}
 
 	// ---------------------------------------------------------------------
@@ -243,11 +230,14 @@ void RenderFrontToBackPeeling(auto DrawModel)
 	glDisable(GL_DEPTH_TEST);
 
 	g_shaderFrontFinal->use();
-	/*g_shaderFrontFinal.bind();*/
-	//g_shaderFrontFinal.setUniform("BackgroundColor", g_backgroundColor, 3);
-	//g_shaderFrontFinal.bindTextureRECT("ColorTex", g_frontColorBlenderTexId, 0);
-	//glCallList(g_quadDisplayList); ??????????????????????????????
-	//g_shaderFrontFinal.unbind();
+	glEnable(GL_BLEND);
+	glBlendFuncSeparate(GL_DST_ALPHA, GL_ONE, GL_ZERO, GL_ONE_MINUS_SRC_ALPHA);
+
+	//g_shaderFrontFinal->set("BackgroundColor", Vec3(0.0f, 0.0f, 1.0f));
+	bindTextureRECT("ColorTex", g_frontColorBlenderTexId, 0, g_shaderFrontFinal->handle());
+	renderQuad();
+
+	glDisable(GL_BLEND);
 
 	//CHECK_GL_ERRORS;
 }
@@ -418,6 +408,8 @@ u32 sphereIndicesSize = 0;
 
 #include <iomanip>
 
+
+
 Renderer Renderer::make() {
 	InitFrontPeelingRenderTargets();
 
@@ -521,6 +513,179 @@ Renderer Renderer::make() {
 	Vao::unbind();
 	Ibo::unbind();
 
+	/*Vec2 v[]{
+		{ 0.0, 0.0 },
+		{ 1.0, 0.0 },
+		{ 1.0, 1.0 },
+
+		{ 0.0, 0.0 },
+		{ 1.0, 1.0 },
+		{ 0.0, 1.0 },
+	};*/
+	
+	Vec2 v[]{
+		{ -1.0, -1.0 },
+		{ 1.0, -1.0 },
+		{ 1.0, 1.0 },
+
+		{ -1.0, -1.0 },
+		{ 1.0, 1.0 },
+		{ -1.0, 1.0 },
+	};
+
+
+	auto quadVao = Vao::generate();
+	Vbo quadVbo(v, sizeof(v));
+	quadVao.bind();
+	quadVao.bind();
+	boundVaoSetAttribute(0, ShaderDataType::Float, 2, 0, sizeof(Vec2));
+
+
+	//auto mainColorTexture = Texture::generate();
+	//glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, mainColorTexture.handle());
+	//glTexStorage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 16, GL_RGBA8, Window::size().x, Window::size().y, GL_TRUE);
+
+	//auto mainDepthTexture = Texture::generate();
+	//mainDepthTexture.bind();
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	//glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	//glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, Window::size().x, Window::size().y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+	//auto mainFbo = Fbo::generate();
+	//mainFbo.bind();
+	///*glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mainColorTexture.handle(), 0);
+	//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_RECTANGLE, 0);*/
+	//glFramebufferTexture(GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, mainColorTexture.handle(), 0);
+	//glFramebufferTexture(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, mainDepthTexture.handle(), 0);
+
+	auto mainColorTexture = Texture::generate();
+	auto mainDepthTexture = Texture::generate();
+	auto mainFbo = Fbo::generate();
+
+	//glBindTexture(GL_TEXTURE_RECTANGLE, mainDepthTexture.handle());
+	//glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	//glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	//glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	//glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	//glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_DEPTH_COMPONENT32F_NV, Window::size().x, Window::size().y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+	///*glBindTexture(GL_TEXTURE_RECTANGLE, mainColorTexture.handle());
+	//glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_WRAP_S, GL_CLAMP);
+	//glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_WRAP_T, GL_CLAMP);
+	//glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	//glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	//glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGBA, Window::size().x, Window::size().y, 0, GL_RGBA, GL_FLOAT, 0);*/
+	//glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, mainColorTexture.handle());
+	///*glTexStorage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 16, GL_RGBA8, Window::size().x, Window::size().y, GL_TRUE);*/
+	//glTexStorage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 3, GL_RGBA8, Window::size().x, Window::size().y, GL_FALSE);
+
+	//glBindFramebuffer(GL_FRAMEBUFFER, mainFbo.handle());
+	//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_RECTANGLE, mainDepthTexture.handle(), 0);
+	///*glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE, mainColorTexture.handle(), 0);*/
+	//glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, mainColorTexture.handle(), 0);
+
+
+
+
+
+	/*glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, mainColorTexture.handle());
+	{
+		glTexParameterf(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameterf(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameterf(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameterf(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_GENERATE_MIPMAP, GL_TRUE);
+	}
+	glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 16, GL_RGBA, Window::size().x, Window::size().y, GL_TRUE);*/
+
+
+	glGenTextures(1, &RenderRelatedIds[NORMAL_TEXTURE]);
+	glBindTexture(GL_TEXTURE_2D, RenderRelatedIds[NORMAL_TEXTURE]);
+	{
+		/*glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);*/
+		// Must be nearest.
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		//glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
+	}
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, Window::size().x, Window::size().y, 0, GL_RGBA, GL_UNSIGNED_BYTE, 0);
+
+	glGenTextures(1, &RenderRelatedIds[NORMAL_DEPTH_TEXTURE]);
+	glBindTexture(GL_TEXTURE_2D, RenderRelatedIds[NORMAL_DEPTH_TEXTURE]);
+	{
+		/*glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);*/
+		// Must be nearest.
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		//glTexParameteri(GL_TEXTURE_2D, GL_GENERATE_MIPMAP, GL_TRUE);
+	}
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F_NV, Window::size().x, Window::size().y, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, 0);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32, Window::size().x, Window::size().y, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, 0);
+
+
+	glGenRenderbuffers(1, &RenderRelatedIds[NORMAL_COLOR_RBO]);
+	glBindRenderbuffer(GL_RENDERBUFFER, RenderRelatedIds[NORMAL_COLOR_RBO]);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_RGBA8, Window::size().x, Window::size().y);
+	glGenRenderbuffers(1, &RenderRelatedIds[NORMAL_DEPTH_RBO]);
+	glBindRenderbuffer(GL_RENDERBUFFER, RenderRelatedIds[NORMAL_DEPTH_RBO]);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, Window::size().x, Window::size().y);
+
+
+	glGenFramebuffers(1, &RenderRelatedIds[NORMAL_FBO]);
+	glBindFramebuffer(GL_FRAMEBUFFER, RenderRelatedIds[NORMAL_FBO]);
+
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, RenderRelatedIds[NORMAL_TEXTURE], 0);
+	//glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, RenderRelatedIds[NORMAL_COLOR_RBO]);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, RenderRelatedIds[NORMAL_DEPTH_TEXTURE], 0);
+	//glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderRelatedIds[NORMAL_DEPTH_RBO]);
+
+
+
+
+	glGenTextures(1, &RenderRelatedIds[MULTISAMPLING_TEXTURE]);
+	glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, RenderRelatedIds[MULTISAMPLING_TEXTURE]);
+	{
+		/*glTexParameterf(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameterf(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+		glTexParameterf(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameterf(GL_TEXTURE_2D_MULTISAMPLE, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D_MULTISAMPLE, GL_GENERATE_MIPMAP, GL_TRUE);*/
+	}
+	glTexImage2DMultisample(GL_TEXTURE_2D_MULTISAMPLE, 16, GL_RGBA, Window::size().x, Window::size().y, GL_TRUE);
+
+
+	glGenRenderbuffers(1, &RenderRelatedIds[MULTISAMPLING_COLOR_RBO]);
+	glBindRenderbuffer(GL_RENDERBUFFER, RenderRelatedIds[MULTISAMPLING_COLOR_RBO]);
+	glRenderbufferStorageMultisample(GL_RENDERBUFFER, 16, GL_RGBA8, Window::size().x, Window::size().y);
+	glGenRenderbuffers(1, &RenderRelatedIds[MULTISAMPLING_DEPTH_RBO]);
+	glBindRenderbuffer(GL_RENDERBUFFER, RenderRelatedIds[MULTISAMPLING_DEPTH_RBO]);
+	glRenderbufferStorageMultisample(GL_RENDERBUFFER, 16, GL_DEPTH_COMPONENT, Window::size().x, Window::size().y);
+
+
+	glGenFramebuffers(1, &RenderRelatedIds[MULTISAMPLING_FBO]);
+	glBindFramebuffer(GL_FRAMEBUFFER, RenderRelatedIds[MULTISAMPLING_FBO]);
+
+
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D_MULTISAMPLE, RenderRelatedIds[MULTISAMPLING_TEXTURE], 0);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, RenderRelatedIds[MULTISAMPLING_COLOR_RBO]);
+	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, RenderRelatedIds[MULTISAMPLING_DEPTH_RBO]);
+
+	/*glBindFramebuffer(GL_READ_FRAMEBUFFER, RenderRelatedIds[MULTISAMPLING_FBO]);
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, RenderRelatedIds[NORMAL_FBO]);
+	glDrawBuffer(GL_BACK);
+	glBlitFramebuffer(0, 0, Window::size().x, Window::size().y, 0, 0, Window::size().x, Window::size().y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+	glBindFramebuffer(GL_FRAMEBUFFER, RenderRelatedIds[NORMAL_FBO]);*/
+
+	Fbo::unbind();
 
 #define MOVE(name) .name = std::move(name)
 
@@ -546,6 +711,16 @@ Renderer Renderer::make() {
 			.position = Vec3(3.0f, 2.0f, 0.0f),
 			.movementSpeed = 5.0f
 		},
+		.shaderFrontInit = ShaderProgram::compile("game/DepthPeeling/frontInit.vert", "game/DepthPeeling/frontInit.frag"),
+		.shaderFrontPeel = ShaderProgram::compile("game/DepthPeeling/frontPeel.vert", "game/DepthPeeling/frontPeel.frag"),
+		.shaderFrontBlend = ShaderProgram::compile("game/DepthPeeling/frontBlend.vert", "game/DepthPeeling/frontBlend.frag"),
+		.shaderFrontFinal = ShaderProgram::compile("game/DepthPeeling/frontFinal.vert", "game/DepthPeeling/frontFinal.frag"),
+		MOVE(quadVbo),
+		MOVE(quadVao),
+		.depthPeeling = DepthPeeling::make(Window::size()),
+		MOVE(mainFbo),
+		MOVE(mainColorTexture),
+		MOVE(mainDepthTexture),
 	};
 }
 
@@ -567,8 +742,19 @@ static void drawInstances(Vao& vao, Vbo& instancesVbo, const std::vector<Instanc
 #include <engine/Graphics/Fbo.hpp>
 
 void Renderer::update() {
-	Fbo::unbind();
+	g_shaderFrontInit = &shaderFrontInit;
+	g_shaderFrontPeel = &shaderFrontPeel;
+	g_shaderFrontBlend = &shaderFrontBlend;
+	g_shaderFrontFinal = &shaderFrontFinal;
+	g_quadVao = &quadVao;
+	g_quadVbo = &quadVbo;
 
+	glBindFramebuffer(GL_FRAMEBUFFER, RenderRelatedIds[MULTISAMPLING_FBO]);
+	//Fbo::unbind();
+
+	//mainFbo.bind();
+
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glViewport(0, 0, Window::size().x, Window::size().y);
 	glEnable(GL_DEPTH_TEST);
@@ -723,7 +909,7 @@ void Renderer::update() {
 			const auto nret = function_sampler_1d_get_refine(sampler, num, toRefine.data());
 
 			for (int i = 0; i < nret; i++) {
-				dbgGui(toRefine[i]);
+				//dbgGui(toRefine[i]);
 				if (!disable)
 					function_sampler_1d_add(sampler, toRefine[i], sample(toRefine[i]), 0);
 			}
@@ -995,19 +1181,6 @@ void Renderer::update() {
 		return Vec2(sin(t), cos(t) + offset);
 	}, 80.0f, Color3::RED, Color3::GREEN);*/
 
-	std::vector<BasicShadingInstance> sphereInstances;
-	//sphereInstances.push_back(BasicShadingInstance{
-	//	/*.transform = Mat4(Mat3::scale(2.0f)) * Mat4::translation(Vec3(0.0f, 2.0f, 0.0f)) * viewProjection*/
-	//	.transform = Mat4::translation(Vec3(0.0f, 1.0f, 0.0f)) * viewProjection
-	//});
-
-	basicShadingShader.use();
-	drawInstances(sphereIndexedVao, instancesVbo, sphereInstances, [](usize count) {
-		glDrawElementsInstanced(GL_TRIANGLES, sphereIndicesSize, GL_UNSIGNED_INT, nullptr, count);
-	});
-
-	sphereInstances.clear();
-
 	{
 		infinteLinesShader.use();
 		shaderSetUniforms(infinteLinesShader, InfiniteLineVertUniforms{ .viewProjection = viewProjection });
@@ -1024,7 +1197,145 @@ void Renderer::update() {
 		glDepthFunc(GL_LESS);
 	}
 	infiniteLinesVbo.bind();
+
+	std::vector<BasicShadingInstance> sphereInstances;
+	sphereInstances.push_back(BasicShadingInstance{
+		/*.transform = Mat4(Mat3::scale(2.0f)) * Mat4::translation(Vec3(0.0f, 2.0f, 0.0f)) * viewProjection*/
+		.transform = Mat4::translation(Vec3(0.0f, 1.0f, 0.0f)) * viewProjection
+	});
+	insliderfloat(offseta, 0.5f, 0.0f, 3.0f);
+
+	sphereInstances.push_back(BasicShadingInstance{
+		/*.transform = Mat4(Mat3::scale(2.0f)) * Mat4::translation(Vec3(0.0f, 2.0f, 0.0f)) * viewProjection*/
+		.transform = Mat4::translation(Vec3(offseta, 1.0f, 0.0f)) * viewProjection
+	});
+
+	auto renderScene = [&]() {
+		drawInstances(sphereIndexedVao, instancesVbo, sphereInstances, [](usize count) {
+			glDrawElementsInstanced(GL_TRIANGLES, sphereIndicesSize, GL_UNSIGNED_INT, nullptr, count);
+		});
+	};
+
+	//basicShadingShader.use();
+
+	auto setTextureUnit = [](u32 _progId, std::string texname, int texunit) {
+		GLint linked;
+		glGetProgramiv(_progId, GL_LINK_STATUS, &linked);
+		if (linked != GL_TRUE) {
+			std::cerr << "Error: setTextureUnit needs program to be linked." << std::endl;
+			exit(1);
+		}
+		GLint id = glGetUniformLocation(_progId, texname.c_str());
+		if (id == -1) {
+#ifdef NV_REPORT_UNIFORM_ERRORS
+			std::cerr << "Warning: Invalid texture " << texname << std::endl;
+#endif
+			return;
+		}
+		glUniform1i(id, texunit);
+	};
+
+	auto bindTexture = [&](u32 _progId, GLenum target, std::string texname, GLuint texid, int texunit) {
+		glActiveTexture(GL_TEXTURE0 + texunit);
+		glBindTexture(target, texid);
+		setTextureUnit(_progId, texname, texunit);
+		glActiveTexture(GL_TEXTURE0);
+	};
+
+	auto bindTextureRECT = [&](u32 _progId, std::string texname, GLuint texid, int texunit) {
+		bindTexture(_progId, GL_TEXTURE_RECTANGLE_ARB, texname, texid, texunit);
+	};
 	
+	depthPeeling.fbos[0].bind();
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	shaderFrontInit.use();
+	renderScene();
+
+	glBindFramebuffer(GL_READ_FRAMEBUFFER, RenderRelatedIds[MULTISAMPLING_FBO]);
+
+	/*glBindFramebuffer(GL_DRAW_FRAMEBUFFER, RenderRelatedIds[NORMAL_FBO]);
+	glBlitFramebuffer(0, 0, Window::size().x, Window::size().y, 0, 0, Window::size().x, Window::size().y, GL_COLOR_BUFFER_BIT, GL_NEAREST);*/
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, RenderRelatedIds[NORMAL_FBO]);
+	glBlitFramebuffer(0, 0, Window::size().x, Window::size().y, 0, 0, Window::size().x, Window::size().y, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT, GL_NEAREST);
+
+	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	glBlitFramebuffer(0, 0, Window::size().x, Window::size().y, 0, 0, Window::size().x, Window::size().y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+	//glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+	//glDrawBuffer(GL_BACK);
+	//glBindFramebuffer(GL_FRAMEBUFFER, RenderRelatedIds[NORMAL_FBO]);
+
+
+	glLineWidth(3);
+	Fbo::unbind();
+
+	//int handle;
+
+	//glGetFramebufferAttachmentParameteriv(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE, &handle);
+
+	//Fbo::unbind();
+
+	///*glActiveTexture(GL_TEXTURE0);
+	//glBindTexture(GL_TEXTURE_RECTANGLE, depthPeeling.depthTextures[0].handle());
+	//glActiveTexture(GL_TEXTURE0);*/
+	//shaderFrontPeel.setTexture("depthTexture", 0);
+	//shaderFrontPeel.use();
+	//bindTextureRECT(shaderFrontPeel.handle(), "depthTexture", depthPeeling.depthTextures[0].handle(), 0);
+
+	//depthPeeling.fbos[1].bind();
+	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	//renderScene();
+	//Fbo::unbind();
+
+	RenderFrontToBackPeeling(renderScene);
+
+	/*chk(transaparency) {
+		RenderFrontToBackPeeling(renderScene);
+	} else {
+		basicShadingShader.use();
+		renderScene();
+	}*/
+
+
+	/*glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+	glDepthFunc(GL_LESS);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDisable(GL_CULL_FACE);
+	glEnable(GL_CULL_FACE);
+	glDisable(GL_BLEND);
+
+	glDepthFunc(GL_LEQUAL);
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	glActiveTexture(GL_TEXTURE0);
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glDisable(GL_CULL_FACE);
+	renderScene();
+	glEnable(GL_CULL_FACE);
+	glDisable(GL_BLEND);*/
+
+	/*basicShadingShader.use();
+	glColorMask(false, false, false, false);
+	renderScene();
+	glColorMask(true, true, true, true);
+
+	glEnable(GL_BLEND);
+	renderScene();
+	glDisable(GL_BLEND);*/
+
+	/*RenderFrontToBackPeeling([&]() {
+		
+	});*/
+	/*basicShadingShader.use();
+	drawInstances(sphereIndexedVao, instancesVbo, sphereInstances, [](usize count) {
+		glDrawElementsInstanced(GL_TRIANGLES, sphereIndicesSize, GL_UNSIGNED_INT, nullptr, count);
+	});*/
+	//glDepthMask(false);
+	sphereInstances.clear();
+
+
 }
 
 Mat4 Renderer::transformTriangle(const Vec3& v0, const Vec3& v1, const Vec3& v2) {
@@ -1037,3 +1348,35 @@ Mat4 Renderer::transformTriangle(const Vec3& v0, const Vec3& v1, const Vec3& v2)
 	return translateBasis * Mat4::translation(v0);
 }
 
+Renderer::DepthPeeling Renderer::DepthPeeling::make(Vec2 screenSize) {
+
+	std::array<Fbo, 2> fbos{ Fbo::generate(), Fbo::generate() };
+	std::array<Texture, 2> depthTextures{ Texture::generate(), Texture::generate() };
+	std::array<Texture, 2> colorTextures{ Texture::generate(), Texture::generate() };
+
+	for (int i = 0; i < 2; i++) {
+		glBindTexture(GL_TEXTURE_RECTANGLE, depthTextures[i].handle());
+		glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_DEPTH_COMPONENT32F_NV, Window::size().x, Window::size().y, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+
+		glBindTexture(GL_TEXTURE_RECTANGLE, colorTextures[i].handle());
+		glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_WRAP_S, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_WRAP_T, GL_CLAMP);
+		glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+		glTexParameteri(GL_TEXTURE_RECTANGLE, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+		glTexImage2D(GL_TEXTURE_RECTANGLE, 0, GL_RGBA, Window::size().x, Window::size().y, 0, GL_RGBA, GL_FLOAT, 0);
+
+		glBindFramebuffer(GL_FRAMEBUFFER, fbos[i].handle());
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_RECTANGLE, depthTextures[i].handle(), 0);
+		glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_RECTANGLE, colorTextures[i].handle(), 0);
+	}
+
+	return DepthPeeling{
+		MOVE(fbos),
+		MOVE(depthTextures),
+		MOVE(colorTextures),
+	};
+}

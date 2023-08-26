@@ -9,6 +9,7 @@ namespace Window {
 		const char* title = "game";
 		bool maximized = true;
 		bool openGlDebugContext = true;
+		int multisamplingSamplesPerPixel = -1; // GLFW_DONT_CARE
 	};
 
 	void init(const Settings& settings);

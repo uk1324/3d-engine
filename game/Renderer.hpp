@@ -5,8 +5,11 @@
 #include <engine/Graphics/Vbo.hpp>
 #include <engine/Graphics/Vao.hpp>
 #include <engine/Graphics/Ibo.hpp>
+#include <engine/Graphics/Fbo.hpp>
+#include <engine/Graphics/Texture.hpp>
 #include <game/Shaders/basicShadingData.hpp>
 #include <game/FpsController.hpp>
+#include <array>
 
 struct Vertex3d {
 	Vec3 position;
@@ -53,4 +56,24 @@ struct Renderer {
 	FpsController movementController;
 
 	float elapsed = 0.0f;
+
+	ShaderProgram shaderFrontInit;
+	ShaderProgram shaderFrontPeel;
+	ShaderProgram shaderFrontBlend;
+	ShaderProgram shaderFrontFinal;
+	Vbo quadVbo;
+	Vao quadVao;
+
+	struct DepthPeeling {
+		static DepthPeeling make(Vec2 screenSize);
+
+		std::array<Fbo, 2> fbos;
+		std::array<Texture, 2> depthTextures;
+		std::array<Texture, 2> colorTextures;
+	} depthPeeling;
+
+	Fbo mainFbo;
+	Texture mainColorTexture;
+	Texture mainDepthTexture;
+
 };

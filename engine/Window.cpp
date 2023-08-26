@@ -43,7 +43,7 @@ void Window::init(const Settings& settings) {
 	if (settings.openGlDebugContext) {
 		glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, true);
 	}
-
+	glfwWindowHint(GLFW_SAMPLES, settings.multisamplingSamplesPerPixel);
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, Engine::openGlVersionMajor);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, Engine::openGlVersionMinor);

@@ -4,7 +4,9 @@
 #include <game/Game.hpp>
 
 int main() {
-	Engine::initAll(Window::Settings{});
+	Engine::initAll(Window::Settings{
+		.multisamplingSamplesPerPixel = 16
+	});
 
 	Game game;
 
