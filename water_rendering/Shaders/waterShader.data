@@ -21,6 +21,7 @@ shader WaterShader {
 	};
 	fragUniforms = {
 		Vec3 cameraPosition;
+		Vec3 directionalLightDirection;
 	};
 	vertUniforms = {
 		float time;

@@ -56,42 +56,6 @@ static const CubemapVertex cubeVertices[] = {
 	Vec3(1.0f, -1.0f, -1.0f), 
 	Vec3(-1.0f, -1.0f, 1.0f), 
 	Vec3(1.0f, -1.0f, 1.0f)
-	/*Vec3(-1.0f,-1.0f,-1.0f),
-	Vec3(-1.0f,-1.0f, 1.0f),
-	Vec3(-1.0f, 1.0f, 1.0f),
-	Vec3(1.0f, 1.0f,-1.0f),
-	Vec3(-1.0f,-1.0f,-1.0f),
-	Vec3(-1.0f, 1.0f,-1.0f),
-	Vec3(1.0f,-1.0f, 1.0f),
-	Vec3(-1.0f,-1.0f,-1.0f),
-	Vec3(1.0f,-1.0f,-1.0f),
-	Vec3(1.0f, 1.0f,-1.0f),
-	Vec3(1.0f,-1.0f,-1.0f),
-	Vec3(-1.0f,-1.0f,-1.0f),
-	Vec3(-1.0f,-1.0f,-1.0f),
-	Vec3(-1.0f, 1.0f, 1.0f),
-	Vec3(-1.0f, 1.0f,-1.0f),
-	Vec3(1.0f,-1.0f, 1.0f),
-	Vec3(-1.0f,-1.0f, 1.0f),
-	Vec3(-1.0f,-1.0f,-1.0f),
-	Vec3(-1.0f, 1.0f, 1.0f),
-	Vec3(-1.0f,-1.0f, 1.0f),
-	Vec3(1.0f,-1.0f, 1.0f),
-	Vec3(1.0f, 1.0f, 1.0f),
-	Vec3(1.0f,-1.0f,-1.0f),
-	Vec3(1.0f, 1.0f,-1.0f),
-	Vec3(1.0f,-1.0f,-1.0f),
-	Vec3(1.0f, 1.0f, 1.0f),
-	Vec3(1.0f,-1.0f, 1.0f),
-	Vec3(1.0f, 1.0f, 1.0f),
-	Vec3(1.0f, 1.0f,-1.0f),
-	Vec3(-1.0f, 1.0f,-1.0f),
-	Vec3(1.0f, 1.0f, 1.0f),
-	Vec3(-1.0f, 1.0f,-1.0f),
-	Vec3(-1.0f, 1.0f, 1.0f),
-	Vec3(1.0f, 1.0f, 1.0f),
-	Vec3(-1.0f, 1.0f, 1.0f),
-	Vec3(1.0f,-1.0f, 1.0),*/
 };
 
 Texture loadCubemap(const std::array<const char*, CubemapDirection::COUNT>& paths) {
@@ -145,7 +109,7 @@ MainLoop MainLoop::make() {
 		for (i32 iy = 0; iy < COUNT; iy++) {
 			const auto SIZE = 100.0f;
 			auto convert = [&](Vec2 v) -> WaterShaderVertex {
-				return WaterShaderVertex{ (v / COUNT) * SIZE };
+				return WaterShaderVertex{ ((v / COUNT) - Vec2(0.5f)) * SIZE };
 			};
 			const auto v0 = convert(Vec2(ix, iy));
 			const auto v1 = convert(Vec2(ix + 1, iy));
@@ -207,19 +171,19 @@ void MainLoop::update() {
 
 	if (!Window::isCursorEnabled()) {
 		movementController.update(dt);
+
+		if (Input::isKeyDown(KeyCode::V)) {
+			GLint polygonMode;
+			glGetIntegerv(GL_POLYGON_MODE, &polygonMode);
+
+			if (polygonMode == GL_FILL) {
+				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+			} else {
+				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+			}
+		}
 	} else {
 		movementController.lastMousePosition = std::nullopt;
-	}
-
-	if (Input::isKeyDown(KeyCode::V)) {
-		GLint polygonMode;
-		glGetIntegerv(GL_POLYGON_MODE, &polygonMode);
-
-		if (polygonMode == GL_FILL) {
-			glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-		} else {
-			glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-		}
 	}
 
 	ShaderManager::update();
@@ -231,14 +195,18 @@ void MainLoop::update() {
 	glEnable(GL_DEPTH_TEST);
 
 	const auto view = movementController.viewMatrix();
-	const auto projection = Mat4::perspective(90.0f, Window::aspectRatio(), 0.1f, 100.0f);
+	const auto projection = Mat4::perspective(90.0f, Window::aspectRatio(), 0.1f, 1000.0f);
 	const auto viewProjection = view * projection;
+	const auto directionalLightDirection = Vec3(1, -1, 0).normalized();
 
 	{
 		glDepthMask(GL_FALSE);
 		shaderSetUniforms(cubemapShader, CubemapShaderVertUniforms{
-			.transform = view.removedTranslation() * projection
+			.transform = view.removedTranslation() * projection,
 		});
+		cubemapShaderFragUniforms.directionalLightDirection = directionalLightDirection;
+		cubemapShaderFragUniforms.time = elapsed;
+		shaderSetUniforms(cubemapShader, cubemapShaderFragUniforms);
 		cubemapShader.use();
 		cubemapVao.bind(); 
 		cubemapShaderFragUniforms.update();
@@ -257,7 +225,8 @@ void MainLoop::update() {
 			.time = elapsed
 		});
 		shaderSetUniforms(waterShader, WaterShaderFragUniforms{
-			.cameraPosition = movementController.position
+			.cameraPosition = movementController.position,
+			.directionalLightDirection = directionalLightDirection
 		});
 		drawInstances(waterVao, instancesVbo, waterInstances, [&](usize count) {
 			//glDrawArraysInstanced(GL_TRIANGLES, 0, waterI, count);

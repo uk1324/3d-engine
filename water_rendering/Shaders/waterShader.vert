@@ -21,28 +21,27 @@ float hash11(float p) {
 }
 
 float getHeight(vec2 p) {
-	//p += vec2(time, 0.0);
+	float t = time / 2.0;
+	p += vec2(t, 0.0);
 	p /= 10.0;
 
 	float h = 0.0;
 
-	float scale = 0.76;
+	float scale = 0.75;
 	{
-		float amplitude = 0.5;
+		float amplitude = 1.0;
 		float frequency = 1.0;
-		for (int i = 0; i < 5; i++) {
+		for (int i = 0; i < 13; i++) {
 			float angle = hash11(i);
 			float d = dot(vec2(cos(angle), sin(angle)), p);
-			h += amplitude * sin(frequency * d + time / 3.0);
-			amplitude /= 2.0;
-			frequency *= 2.0;
+			h += amplitude * exp(sin(frequency * d + t / 3.0));
+			amplitude *= scale;
+			frequency /= scale;
 		}
 	}
 
-	h /= 2.0;
-	h *= 15.0;
-
 	return h;
+
 }
 
 void main() {

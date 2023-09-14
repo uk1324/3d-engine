@@ -11,7 +11,7 @@ shader CubemapShader {
 		Vec3 unnormalizedDirection;
 	};
 	fragUniforms = [[Json, Gui]] {
-		color3 c0;
-		color3 c1;
+		Vec3 [[NoJsonSerialize]] directionalLightDirection;
+		float [[NoJsonSerialize]] time;
 	};
 }
