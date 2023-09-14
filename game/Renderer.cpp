@@ -10,10 +10,20 @@
 #include <game/Shaders/infiniteLineData.hpp>
 #include <imgui/imgui.h>
 #include <map>
+#include <complex>
 #include <queue>
+#include <engine/Utils/Timer.hpp>
 #include <Dbg.hpp>
 
 #include "AdaptiveSample.hpp"
+
+// Order independent transparency 
+// Presentation - https://developer.download.nvidia.com/assets/gamedev/docs/OrderIndependentTransparency.pdf
+// Paper - https://my.eng.utah.edu/~cs5610/handouts/order_independent_transparency.pdf
+// Implementation of normal and dual depth peeling and other transparency methods and explanation of dual depth peeling https://developer.download.nvidia.com/SDK/10.5/opengl/screenshots/samples/dual_depth_peeling.html
+// Explanation - https://community.khronos.org/t/details-about-handling-transparency-with-depth-peeling/3638
+
+// Could use the polar formula for conic sections https://en.wikipedia.org/wiki/Conic_section
 
 enum FBORenderTarget
 {
@@ -408,7 +418,7 @@ u32 sphereIndicesSize = 0;
 
 #include <iomanip>
 
-
+std::vector<BasicShadingVertex> graphVertices;
 
 Renderer Renderer::make() {
 	InitFrontPeelingRenderTargets();
@@ -540,6 +550,71 @@ Renderer Renderer::make() {
 	quadVao.bind();
 	boundVaoSetAttribute(0, ShaderDataType::Float, 2, 0, sizeof(Vec2));
 
+
+	{
+		std::vector<Vec3> graph2dVerticesPositions;
+		//const auto STEPS = 500;
+		const auto STEPS = 1000;
+		//const auto RANGE = 1000.0f;
+		const auto RANGE = 250.0f;
+		auto indexToValue = [&](i32 i) -> float {
+			const auto a = (static_cast<float>(i) / STEPS - 0.5f) * RANGE;
+			return a;
+		};
+
+		auto evaluate = [](float x, float y) -> float {
+			//return std::beta(x, y);
+			//return pow(std::complex<float>(x, y), 2.0f).real();
+			/*return sin(std::complex<float>(x, y)).imag();*/
+			//return -pow(x, 2.0f) - 2.0f * pow(y, 2.0f);
+			//const auto d = sqrt(x * x + y * y);
+			//return sin(d) / d;
+			/*x *= x;
+			y *= y;*/
+			/*return sin(x) + sin(y) + 0.01f * pow((abs(x) + abs(y)), 2.0f);*/
+			/*return sin(x) + sin(y) + 0.01f * pow((abs(x) + abs(y)), 2.0f);*/
+			return sin(x) + sin(y);
+			/*return x * y;*/
+			/*return sin(x) * cos(y); */
+		};
+
+		/*auto position = [&](float x, float y) -> Vec3 {
+			return Vec3(x, evaluate(x, y), y);
+		};*/
+		auto position = [&](float x, float y) -> Vec3 {
+			Vec3 p(x, evaluate(x, y), y);
+			return p;
+			//return Vec4(p, -1.0f).normalized().xyz();
+			/*vec3 projected = normalize(vec4(p, -1)).xyz;
+			return Vec3(x, evaluate(x, y), y);*/
+		};
+
+		Timer t;
+		for (i32 xi = 0; xi < STEPS; xi++) {
+			const auto x = indexToValue(xi);
+			const auto nx = indexToValue(xi + 1);
+
+			for (i32 yi = 0; yi < STEPS; yi++) {
+				const auto y = indexToValue(yi);
+				const auto ny = indexToValue(yi + 1);
+
+				addQuad(graph2dVerticesPositions, position(x, y), position(nx, y), position(nx, ny), position(x, ny));
+			}
+		}
+		dbg(t.elapsedMilliseconds());
+
+		Timer t0;
+		const auto normals = calculateFlatShadedNormals(graph2dVerticesPositions);
+		for (int i = 0; i < normals.size(); i++) {
+			for (int j = 0; j < 3; j++) {
+				graphVertices.push_back(BasicShadingVertex{ .position = graph2dVerticesPositions[i * 3 + j], .normal = normals[i] });
+			}
+		}
+		dbg(t0.elapsedMilliseconds());
+	}
+	auto graph2dVbo = Vbo(std::span<const BasicShadingVertex>(graphVertices));
+	auto graph2dVao = Vao::generate();
+	BasicShadingInstances::addAttributesToVao(graph2dVao, graph2dVbo, instancesVbo);
 
 	//auto mainColorTexture = Texture::generate();
 	//glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, mainColorTexture.handle());
@@ -685,6 +760,9 @@ Renderer Renderer::make() {
 	glBlitFramebuffer(0, 0, Window::size().x, Window::size().y, 0, 0, Window::size().x, Window::size().y, GL_COLOR_BUFFER_BIT, GL_NEAREST);
 	glBindFramebuffer(GL_FRAMEBUFFER, RenderRelatedIds[NORMAL_FBO]);*/
 
+	GLint maxSamples;
+	glGetIntegerv(GL_MAX_SAMPLES, &maxSamples);
+
 	Fbo::unbind();
 
 #define MOVE(name) .name = std::move(name)
@@ -709,7 +787,7 @@ Renderer Renderer::make() {
 		.basicShadingShader = ShaderProgram::compile(BASIC_SHADING_SHADER_VERT_PATH, BASIC_SHADING_SHADER_FRAG_PATH),
 		.movementController = {
 			.position = Vec3(3.0f, 2.0f, 0.0f),
-			.movementSpeed = 5.0f
+			/*.movementSpeed = 5.0f*/
 		},
 		.shaderFrontInit = ShaderProgram::compile("game/DepthPeeling/frontInit.vert", "game/DepthPeeling/frontInit.frag"),
 		.shaderFrontPeel = ShaderProgram::compile("game/DepthPeeling/frontPeel.vert", "game/DepthPeeling/frontPeel.frag"),
@@ -721,6 +799,8 @@ Renderer Renderer::make() {
 		MOVE(mainFbo),
 		MOVE(mainColorTexture),
 		MOVE(mainDepthTexture),
+		MOVE(graph2dVbo),
+		MOVE(graph2dVao),
 	};
 }
 
@@ -784,9 +864,9 @@ void Renderer::update() {
 	//rotation += 0.01f;
 	const auto model = Mat4(Mat3::rotationX(rotationX) * Mat3::rotationY(rotationY)) * Mat4::translation(Vec3(0.0f, translationY, 0.0f));
 
-	instances.push_back(InfinitePlaneInstance{
+	/*instances.push_back(InfinitePlaneInstance{
 		.transform = model * viewProjection,
-	});
+	});*/
 	infinitePlaneShader.use();
 
 	InfinitePlaneFragUniforms uniforms{
@@ -929,8 +1009,10 @@ void Renderer::update() {
 			};
 
 			drawLine(to3d(current), to3d(next), Color3::GREEN);
-			const auto a = projectOntoHemisphere(current) * 1.01f;
-			const auto b = projectOntoHemisphere(next) * 1.01f;
+			/*const auto a = projectOntoHemisphere(current) * 1.01f;
+			const auto b = projectOntoHemisphere(next) * 1.01f;*/
+			const auto a = projectOntoHemisphere(current) * 1.05f;
+			const auto b = projectOntoHemisphere(next) * 1.05f;
 			drawLine(a + Vec3::UP, b + Vec3::UP, Color3::RED);
 			drawLine(-a + Vec3::UP, -b + Vec3::UP, Color3::RED);
 		}
@@ -1192,23 +1274,32 @@ void Renderer::update() {
 		}
 		infiniteLinesVbo.setData(0, vertices.data(), verticesSize);
 		infiniteLinesVao.bind();
-		glDrawArrays(GL_LINES, 0, vertices.size());
+		//glDrawArrays(GL_LINES, 0, vertices.size());
 
 		glDepthFunc(GL_LESS);
 	}
 	infiniteLinesVbo.bind();
 
-	std::vector<BasicShadingInstance> sphereInstances;
-	sphereInstances.push_back(BasicShadingInstance{
-		/*.transform = Mat4(Mat3::scale(2.0f)) * Mat4::translation(Vec3(0.0f, 2.0f, 0.0f)) * viewProjection*/
-		.transform = Mat4::translation(Vec3(0.0f, 1.0f, 0.0f)) * viewProjection
+	std::vector<BasicShadingInstance> graph2dInstances;
+	basicShadingShader.use();
+	insliderfloat(time, 0.0f, 0.0f, 1.0f);
+	basicShadingShader.set("t", time);
+	graph2dInstances.push_back(BasicShadingInstance{ .transform = viewProjection });
+	drawInstances(graph2dVao, instancesVbo, graph2dInstances, [](usize count) {
+ 		glDrawArraysInstanced(GL_TRIANGLES, 0, graphVertices.size(), count);
 	});
-	insliderfloat(offseta, 0.5f, 0.0f, 3.0f);
 
-	sphereInstances.push_back(BasicShadingInstance{
-		/*.transform = Mat4(Mat3::scale(2.0f)) * Mat4::translation(Vec3(0.0f, 2.0f, 0.0f)) * viewProjection*/
-		.transform = Mat4::translation(Vec3(offseta, 1.0f, 0.0f)) * viewProjection
-	});
+	std::vector<BasicShadingInstance> sphereInstances;
+	//sphereInstances.push_back(BasicShadingInstance{
+	//	/*.transform = Mat4(Mat3::scale(2.0f)) * Mat4::translation(Vec3(0.0f, 2.0f, 0.0f)) * viewProjection*/
+	//	.transform = Mat4::translation(Vec3(0.0f, 1.0f, 0.0f)) * viewProjection
+	//});
+	//insliderfloat(offseta, 0.5f, 0.0f, 3.0f);
+
+	//sphereInstances.push_back(BasicShadingInstance{
+	//	/*.transform = Mat4(Mat3::scale(2.0f)) * Mat4::translation(Vec3(0.0f, 2.0f, 0.0f)) * viewProjection*/
+	//	.transform = Mat4::translation(Vec3(offseta, 1.0f, 0.0f)) * viewProjection
+	//});
 
 	auto renderScene = [&]() {
 		drawInstances(sphereIndexedVao, instancesVbo, sphereInstances, [](usize count) {

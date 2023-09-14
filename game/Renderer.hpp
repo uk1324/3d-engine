@@ -76,4 +76,6 @@ struct Renderer {
 	Texture mainColorTexture;
 	Texture mainDepthTexture;
 
+	Vbo graph2dVbo;
+	Vao graph2dVao;
 };

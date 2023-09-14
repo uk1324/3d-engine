@@ -14,7 +14,12 @@ add_subdirectory("./dependencies/glfw")
 
 add_subdirectory(engine)
 
+add_subdirectory(engine/json)
+ 
 add_subdirectory(game)
+
+add_subdirectory(water_rendering)
+
 
 # Working directory can be set by clicking debug > debug and launch settings for <target> and settings "currentDir": "${projectDir}"
 # Tasks https://learn.microsoft.com/en-us/visualstudio/ide/customize-build-and-debug-tasks-in-visual-studio?view=vs-2022

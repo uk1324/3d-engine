@@ -21,6 +21,7 @@ struct Mat4T {
 	Mat4T operator*(const Mat4T& other) const;
 
 	Mat4T inversed() const;
+	Mat4T removedTranslation() const;
 
 	const T* data() const;
 	T* data();
@@ -430,6 +431,13 @@ Mat4T<T> Mat4T<T>::inversed() const {
 
 	////return true;
 	//return result;
+}
+
+template<typename T>
+Mat4T<T> Mat4T<T>::removedTranslation() const {
+	auto result = *this;
+	result[3] = Vec4T<T>(0.0f, 0.0f, 0.0f, result[3].w);
+	return result;
 }
 
 template<typename T>

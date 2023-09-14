@@ -2,6 +2,7 @@
 
 #include <engine/Math/Quat.hpp>
 #include <engine/Math/Vec2.hpp>
+#include <engine/Math/Mat4.hpp>
 #include <optional>
 
 //extern void fpsControllerUpdate(Vec2& lastMousePosition, Vec3& position, float& rotationAroundYAxis, float& rotationAroundXAxis);
@@ -14,9 +15,10 @@ struct FpsController {
 	float angleAroundRightAxis = 0.0f;
 
 	// Angle change per pixel.
-	float rotationSpeed = 0.2f;
+	float rotationSpeed = 0.1f;
 	float movementSpeed = 1.0f;
 
 	void update(float dt);
 	Quat cameraForwardRotation() const;
+	Mat4 viewMatrix() const;
 };

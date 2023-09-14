@@ -8,7 +8,18 @@ layout(location = 2) in mat4 instanceTransform;
 
 out vec3 normal;
 
+uniform float t;
+
 void main() {
-	gl_Position = instanceTransform * vec4(vertexPosition, 1.0);
+
+	vec3 p = vertexPosition.xyz;
+	vec3 projected = normalize(vec4(p, -1)).xyz;
+
+	vec3 a = mix(p, projected, t);
+
+	gl_Position = instanceTransform * vec4(a, 1.0);
+	// gl_Position = instanceTransform * vec4(projected, 1.0);
+	//gl_Position = instanceTransform * vec4(p, 1.0);
+
 	normal = vertexNormal;
 }

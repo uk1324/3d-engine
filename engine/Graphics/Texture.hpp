@@ -5,6 +5,11 @@
 #include <Types.hpp>
 
 struct Texture {
+	//enum class Target {
+	//	GL_TEXTURE_2D = 0x0DE1,
+	//	GL_TEXTURE_CUBE_MAP = 0x8513,
+	//};
+
 	enum class Format {
 		DEPTH = 0x1902,
 		DEPTH_STENCIL = 0x84F9,
@@ -32,6 +37,8 @@ struct Texture {
 		Wrap wrapT = Wrap::REPEAT;
 	};
 
+	static constexpr u32 DEFAULT_TARGET = 0x0DE1; // GL_TEXTURE_2D
+
 	Texture(uint32_t handle);
 	Texture(const Image32& img, const Settings& settings);
 	Texture(std::string_view path);
@@ -43,7 +50,7 @@ struct Texture {
 	Texture(Texture&& other) noexcept;
 	Texture& operator= (Texture&& other) noexcept;
 
-	void bind() const;
+	void bind(u32 target = DEFAULT_TARGET) const;
 
 	u32 handle() const;
 

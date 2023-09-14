@@ -111,6 +111,15 @@ auto cross(T s, const Vec2T<T>& a) -> Vec2 {
 	return Vec2T{ -s * a.y, s * a.x };
 }
 
+template<typename T>
+struct std::hash<Vec2T<T>> {
+	std::size_t operator()(const Vec2T<T>& value) const noexcept {
+		auto r = std::hash<T>()(value.x);
+		r = hashCombine(r, std::hash<T>()(value.y));
+		return r;
+	}
+};
+
 // I don't think there are any good ways to leaves values unitialized explicitly so I just have to use the default constrcutor. Leaving the values unitialized is useful when creating an array. This could also be solved by providing some intialization function or in some cases maybe using a statically sized vector.
 template<typename T>
 constexpr Vec2T<T>::Vec2T()

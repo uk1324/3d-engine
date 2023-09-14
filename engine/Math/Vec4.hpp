@@ -20,6 +20,10 @@ struct Vec4T {
 	T& operator[](i32 i);
 	const T& operator[](i32 i) const;
 
+	T lengthSquared() const;
+	T length() const;
+	Vec4T<T> normalized() const;
+
 	Vec3T<T> xyz() const;
 
 	T* data();
@@ -84,6 +88,22 @@ T& Vec4T<T>::operator[](i32 i) {
 template<typename T>
 const T& Vec4T<T>::operator[](i32 i) const {
 	return const_cast<Vec4T<float>*>(this)->operator[](i);
+}
+
+template<typename T>
+T Vec4T<T>::lengthSquared() const {
+	return x * x + y * y + z * z + w * w;
+}
+
+template<typename T>
+T Vec4T<T>::length() const {
+	return sqrt(lengthSquared());
+}
+
+template<typename T>
+Vec4T<T> Vec4T<T>::normalized() const {
+	// TODO: handle 0?
+	return *this / length();
 }
 
 template<typename T>

@@ -14,4 +14,5 @@ void main() {
 	//fragColor = vec4(vec3(clamp(d, 0, 1) + 0.2), 1);
 	//fragColor = vec4((normal + vec3(1.0)) / 2.0, 1);
 	fragColor = vec4((normalize(normal) + vec3(1.0)) / 2.0, 1);
+	//fragColor = vec4(vec3(d), 1);
 }

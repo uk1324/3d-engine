@@ -40,3 +40,8 @@ void FpsController::update(float dt) {
 Quat FpsController::cameraForwardRotation() const {
 	return Quat(angleAroundUpAxis, Vec3::UP) * Quat(angleAroundRightAxis, Vec3::RIGHT);
 }
+
+Mat4 FpsController::viewMatrix() const {
+	auto target = position + cameraForwardRotation() * Vec3::FORWARD;
+	return Mat4::lookAt(position, target, Vec3::UP);
+}

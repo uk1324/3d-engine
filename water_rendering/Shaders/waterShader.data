@@ -1,0 +1,28 @@
+`
+#include <engine/Math/Mat4.hpp>
+`
+
+struct WaterShaderVertex {
+	Vec2 position;
+
+	`
+	bool operator==(const WaterShaderVertex&) const = default;
+	`
+}
+
+shader WaterShader {
+	vertexStruct = WaterShaderVertex;
+	vertInstance = {
+		Mat4 transform;
+	};
+	vertOut = {
+		Vec3 unnormalizedNormal;
+		Vec3 fragmentWorldPosition;
+	};
+	fragUniforms = {
+		Vec3 cameraPosition;
+	};
+	vertUniforms = {
+		float time;
+	};
+}

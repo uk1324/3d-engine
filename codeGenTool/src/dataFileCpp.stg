@@ -46,12 +46,15 @@ Json::Value toJson(const <struct.name>Index& value) {
 <endif>
 
 <if(struct.isGui)>
-void gui(<struct.name>& value) {
+bool gui(<struct.name>& value) {
     using namespace Gui;
     ImGui::PushID(&value);
+    bool changed = false;
 
     <struct.fields : { field | <gui(field.dataType, fieldAccess("value", field.name), field.displayName)>} >
     ImGui::PopID();
+
+    return changed;
 }
 <endif>
 
@@ -88,20 +91,20 @@ void shaderSetUniforms(ShaderProgram& shader, const <struct.name>& value) {
 gui(dataType, name, displayedName) ::= <<
 <\\>
 <if(dataType.isRangedFloat)><\\>
-sliderFloat("<displayedName>", <name>, <dataType.min>, <dataType.max>);
+changed |= sliderFloat("<displayedName>", <name>, <dataType.min>, <dataType.max>);
 <elseif(dataType.isFloat)><\\>
-inputFloat("<displayedName>", <name>);
+changed |= inputFloat("<displayedName>", <name>);
 <elseif(dataType.isBool)><\\>
-checkbox("<displayedName>", <name>);
+changed |= checkbox("<displayedName>", <name>);
 <elseif(dataType.isColor || dataType.isColor3)><\\>
-inputColor("<displayedName>", <name>);
+changed |= inputColor("<displayedName>", <name>);
 <elseif(dataType.isVec2)><\\>
-inputVec2("<displayedName>", <name>);
+changed |= inputVec2("<displayedName>", <name>);
 <elseif(dataType.isVec3)><\\>
-inputVec3("<displayedName>", <name>);
+changed |= inputVec3("<displayedName>", <name>);
 <elseif(dataType.isIdentifier)><\\>
 if (node("<displayedName>")) {
-    gui(<name>);
+    changed |= gui(<name>);
     nodeEnd();
 }
 <else><\\>

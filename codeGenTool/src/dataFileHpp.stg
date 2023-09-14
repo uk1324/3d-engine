@@ -73,7 +73,7 @@ struct <struct.name> <if(struct.isNetworkMessage)>: yojimbo::Message <endif>{
 };
 
 <if(struct.isGui)>
-void gui(<struct.name>& value);
+bool gui(<struct.name>& value);
 <endif>
 
 <if(struct.isJson)>

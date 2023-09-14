@@ -27,44 +27,44 @@ void Gui::update() {
 }
 
 // Remember to always use prependWithHashHash
-void Gui::inputI32(const char* name, i32& value) {
+bool Gui::inputI32(const char* name, i32& value) {
 	leafNodeBegin(name);
-	ImGui::InputScalar(name, ImGuiDataType_S32, reinterpret_cast<void*>(&value));
+	return ImGui::InputScalar(name, ImGuiDataType_S32, reinterpret_cast<void*>(&value));
 }
 
-void Gui::inputFloat(const char* name, float& value) {
+bool Gui::inputFloat(const char* name, float& value) {
 	leafNodeBegin(name);
-	ImGui::InputFloat(prependWithHashHash(name), &value);
+	return ImGui::InputFloat(prependWithHashHash(name), &value);
 }
 
-void Gui::sliderFloat(const char* name, float& value, float min, float max) {
+bool Gui::sliderFloat(const char* name, float& value, float min, float max) {
 	leafNodeBegin(name);
-	ImGui::SliderFloat(prependWithHashHash(name), &value, min, max);
+	return ImGui::SliderFloat(prependWithHashHash(name), &value, min, max);
 }
 
-void Gui::inputVec2(const char* name, Vec2& value) {
+bool Gui::inputVec2(const char* name, Vec2& value) {
 	leafNodeBegin(name);
-	InputFloat2(name, value.data());
+	return InputFloat2(name, value.data());
 }
 
-void Gui::inputVec3(const char* name, Vec3& value) {
+bool Gui::inputVec3(const char* name, Vec3& value) {
 	leafNodeBegin(name);
-	InputFloat3(name, value.data());
+	return InputFloat3(name, value.data());
 }
 
-void Gui::checkbox(const char* name, bool& value) {
+bool Gui::checkbox(const char* name, bool& value) {
 	leafNodeBegin(name);
-	ImGui::Checkbox(prependWithHashHash(name), &value);
+	return ImGui::Checkbox(prependWithHashHash(name), &value);
 }
 
-void Gui::inputColor(const char* name, Vec4& value) {
+bool Gui::inputColor(const char* name, Vec4& value) {
 	leafNodeBegin(name);
-	ImGui::ColorEdit4(prependWithHashHash(name), value.data());
+	return ImGui::ColorEdit4(prependWithHashHash(name), value.data());
 }
 
-void Gui::inputColor(const char* name, Vec3& value) {
+bool Gui::inputColor(const char* name, Vec3& value) {
 	leafNodeBegin(name);
-	ImGui::ColorEdit3(prependWithHashHash(name), value.data());
+	return ImGui::ColorEdit3(prependWithHashHash(name), value.data());
 }
 
 bool Gui::beginPropertyEditor() {

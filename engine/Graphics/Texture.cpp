@@ -7,13 +7,11 @@ Texture::Texture(uint32_t handle)
 	: handle_(handle)
 {}
 
-static constexpr u32 TARGET = GL_TEXTURE_2D;
-
 Texture::Texture(const Image32& img, const Settings& settings) {
 	glGenTextures(1, &handle_);
 	bind();
 	glTexImage2D(
-		TARGET, 
+		DEFAULT_TARGET,
 		0, 
 		GL_RGBA, 
 		img.width(), 
@@ -24,12 +22,12 @@ Texture::Texture(const Image32& img, const Settings& settings) {
 		reinterpret_cast<const void*>(img.data())
 	);
 
-	glTexParameteri(TARGET, GL_TEXTURE_WRAP_S, static_cast<GLint>(settings.wrapS));
-	glTexParameteri(TARGET, GL_TEXTURE_WRAP_T, static_cast<GLint>(settings.wrapT));
-	glTexParameteri(TARGET, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(settings.minFilter));
-	glTexParameteri(TARGET, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(settings.magFilter));
+	glTexParameteri(DEFAULT_TARGET, GL_TEXTURE_WRAP_S, static_cast<GLint>(settings.wrapS));
+	glTexParameteri(DEFAULT_TARGET, GL_TEXTURE_WRAP_T, static_cast<GLint>(settings.wrapT));
+	glTexParameteri(DEFAULT_TARGET, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(settings.minFilter));
+	glTexParameteri(DEFAULT_TARGET, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(settings.magFilter));
 
-	glGenerateMipmap(TARGET);
+	glGenerateMipmap(DEFAULT_TARGET);
 }
 
 Texture::Texture(std::string_view path) {
@@ -42,15 +40,15 @@ Texture::Texture(std::string_view path) {
 
 	glGenTextures(1, &handle_);
 	bind();
-	glTexImage2D(TARGET, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	glTexImage2D(DEFAULT_TARGET, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
-	glTexParameteri(TARGET, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(TARGET, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(TARGET, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(DEFAULT_TARGET, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(DEFAULT_TARGET, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTexParameteri(DEFAULT_TARGET, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
 	//glTexParameteri(TARGET, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(TARGET, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(DEFAULT_TARGET, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	glGenerateMipmap(TARGET);
+	glGenerateMipmap(DEFAULT_TARGET);
 
 	stbi_image_free(data);
 }
@@ -74,9 +72,8 @@ Texture& Texture::operator=(Texture&& other) noexcept
 	return *this;
 }
 
-void Texture::bind() const
-{
-	glBindTexture(TARGET, handle_);
+void Texture::bind(u32 target) const {
+	glBindTexture(target, handle_);
 }
 
 GLuint Texture::handle() const

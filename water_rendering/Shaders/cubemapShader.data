@@ -1,0 +1,17 @@
+struct CubemapVertex {
+	Vec3 position;
+}
+
+shader CubemapShader {
+	vertexStruct = CubemapVertex;
+	vertUniforms = {
+		Mat4 transform;
+	};
+	vertOut = {
+		Vec3 unnormalizedDirection;
+	};
+	fragUniforms = [[Json, Gui]] {
+		color3 c0;
+		color3 c1;
+	};
+}

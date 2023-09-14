@@ -12,14 +12,14 @@ namespace Gui {
 
 void update();
 
-void inputI32(const char* name, i32& value);
-void inputFloat(const char* name, float& value);
-void sliderFloat(const char* name, float& value, float min, float max);
-void inputVec2(const char* name, Vec2& value);
-void inputVec3(const char* name, Vec3& value);
-void checkbox(const char* name, bool& value);
-void inputColor(const char* name, Vec4& value);
-void inputColor(const char* name, Vec3& value);
+bool inputI32(const char* name, i32& value);
+bool inputFloat(const char* name, float& value);
+bool sliderFloat(const char* name, float& value, float min, float max);
+bool inputVec2(const char* name, Vec2& value);
+bool inputVec3(const char* name, Vec3& value);
+bool checkbox(const char* name, bool& value);
+bool inputColor(const char* name, Vec4& value);
+bool inputColor(const char* name, Vec3& value);
 
 bool beginPropertyEditor();
 void endPropertyEditor();
