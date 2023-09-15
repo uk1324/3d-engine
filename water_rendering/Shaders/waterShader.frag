@@ -55,7 +55,7 @@ void main() {
     vec3 viewDirection = normalize(fragmentWorldPosition - cameraPosition);
     vec3 ray = viewDirection;
     float fresnel = (0.04 + (1.0-0.04)*(pow(1.0 - max(0.0, dot(-N, ray)), 5.0)));
-    fresnel = clamp(fresnel, 0.7, 1.0);
+    fresnel = clamp(fresnel, 0.5, 5.0);
 
     // reflect the ray and make sure it bounces up
     vec3 R = normalize(reflect(ray, N));

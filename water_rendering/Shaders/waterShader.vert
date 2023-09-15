@@ -72,10 +72,10 @@ out vec3 fragmentWorldPosition;
 #define DRAG_MULT 0.28 // changes how much waves pull on the water
 #define WATER_DEPTH 1.0 // how deep is the water
 #define CAMERA_HEIGHT 1.5 // how high the camera should be
+//#define ITERATIONS_RAYMARCH 12 // waves iterations of raymarching
+//#define ITERATIONS_NORMAL 24 // waves iterations when calculating normals
 #define ITERATIONS_RAYMARCH 12 // waves iterations of raymarching
-#define ITERATIONS_NORMAL 40 // waves iterations when calculating normals
-
-#define NormalizedMouse (iMouse.xy / iResolution.xy) // normalize mouse coords
+#define ITERATIONS_NORMAL 18 // waves iterations when calculating normals
 
 // Calculates wave value and its derivative, 
 // for the wave direction, position in space, wave frequency and time
@@ -123,12 +123,15 @@ float getwaves(vec2 position, int iterations) {
 // Calculate normal at point by calculating the height at the pos and 2 additional points very close to pos
 vec3 normal(vec2 pos, float e, float depth) {
   vec2 ex = vec2(e, 0);
-  float H = getwaves(pos.xy, ITERATIONS_NORMAL) * depth;
+    //int iterations = int(smoothstep(50.0, 500.0, length(pos)) * ITERATIONS_NORMAL);
+    int iterations = int(exp(-smoothstep(50.0, 500.0, length(pos))) * ITERATIONS_NORMAL);
+    //int iterations = ITERATIONS_NORMAL;
+  float H = getwaves(pos.xy, iterations) * depth;
   vec3 a = vec3(pos.x, H, pos.y);
   return normalize(
     cross(
-      a - vec3(pos.x - e, getwaves(pos.xy - ex.xy, ITERATIONS_NORMAL) * depth, pos.y), 
-      a - vec3(pos.x, getwaves(pos.xy + ex.yx, ITERATIONS_NORMAL) * depth, pos.y + e)
+      a - vec3(pos.x - e, getwaves(pos.xy - ex.xy, iterations) * depth, pos.y), 
+      a - vec3(pos.x, getwaves(pos.xy + ex.yx, iterations) * depth, pos.y + e)
     )
   );
 }

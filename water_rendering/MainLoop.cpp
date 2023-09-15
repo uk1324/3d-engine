@@ -103,7 +103,7 @@ std::pair<std::vector<u32>, std::vector<Vertex>> makeIndexedMeshExact(const std:
 	return { indices, vertices };
 }
 
-const auto WATER_TILE_SIZE = 40.0f;
+const auto WATER_TILE_SIZE = 50.0f;
 
 MainLoop MainLoop::make() {
 	Vbo instancesVbo(1024ull * 10);
@@ -246,14 +246,14 @@ void MainLoop::update() {
 	{
 		// @Performance: Frustum culling?
 		std::vector<WaterShaderInstance> waterInstances;
-		const auto count = 8;
+		const auto count = 6;
 		int rendered = 0;
 		for (i32 xi = -count; xi < count; xi++) {
 			for (i32 yi = -count; yi < count; yi++) {
 				const auto center = Vec2(xi, yi) * WATER_TILE_SIZE;
 				const auto min = center - Vec2(WATER_TILE_SIZE / 2.0f);
 				const auto max = center + Vec2(WATER_TILE_SIZE / 2.0f);
-				const auto aabb = Aabb3::fromMinMax(Vec3(min.x, -5.0f, min.y), Vec3(max.x, 5.0f, max.y));
+				const auto aabb = Aabb3::fromMinMax(Vec3(min.x, -19.0f, min.y), Vec3(max.x, 10.0f, max.y));
 				const auto corners = aabb.corners();
 				/*for (auto& corner : corners) {
 					addPoint(corner);
