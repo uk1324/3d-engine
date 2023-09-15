@@ -1,0 +1,13 @@
+struct DebugPointVertex {
+	Vec3 position;
+}
+
+shader DebugPointShader {
+	vertexStruct = DebugPointVertex;
+	vertInstance = {
+		Mat4 transform;
+	};
+	fragInstance = {
+		Vec3 color;
+	};
+}

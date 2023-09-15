@@ -1,10 +1,13 @@
 #include <water_rendering/MainLoop.hpp>
 #include <water_rendering/ShaderManager.hpp>
 #include <water_rendering/Shaders/waterShaderData.hpp>
+#include <water_rendering/Shaders/debugPointShaderData.hpp>
 #include <glad/glad.h>
 #include <engine/Window.hpp>
 #include <engine/Input/Input.hpp>
 #include <engine/Graphics/Texture.hpp>
+#include <engine/Math/Frustum.hpp>
+#include <engine/Math/Color.hpp>
 #include <array>
 
 namespace CubemapDirection {
@@ -100,32 +103,38 @@ std::pair<std::vector<u32>, std::vector<Vertex>> makeIndexedMeshExact(const std:
 	return { indices, vertices };
 }
 
+const auto WATER_TILE_SIZE = 40.0f;
+
 MainLoop MainLoop::make() {
 	Vbo instancesVbo(1024ull * 10);
 
 	std::vector<WaterShaderVertex> waterVertices;
-	const auto COUNT = 500;
+	const auto COUNT = 200;
 	for (i32 ix = 0; ix < COUNT; ix++) {
 		for (i32 iy = 0; iy < COUNT; iy++) {
-			const auto SIZE = 100.0f;
 			auto convert = [&](Vec2 v) -> WaterShaderVertex {
-				return WaterShaderVertex{ ((v / COUNT) - Vec2(0.5f)) * SIZE };
+				return WaterShaderVertex{ ((v / COUNT) - Vec2(0.5f)) * WATER_TILE_SIZE };
 			};
 			const auto v0 = convert(Vec2(ix, iy));
 			const auto v1 = convert(Vec2(ix + 1, iy));
 			const auto v2 = convert(Vec2(ix + 1, iy + 1));
 			const auto v3 = convert(Vec2(ix, iy + 1));
 			waterVertices.push_back(v0);
-			waterVertices.push_back(v1);
 			waterVertices.push_back(v2);
+			waterVertices.push_back(v1);
 
 			waterVertices.push_back(v0);
-			waterVertices.push_back(v2);
 			waterVertices.push_back(v3);
+			waterVertices.push_back(v2);
 		}
 	}
 	//usize waterVertexCount = static_cast<usize>(COUNT) * COUNT * 6;
-	const auto [indices, vertices] = makeIndexedMeshExact(waterVertices);
+	//const auto [indices, vertices] = makeIndexedMeshExact(waterVertices);
+	std::vector<u32> indices;
+	for (int i = 0; i < waterVertices.size(); i++) {
+		indices.push_back(i);
+	}
+	auto& vertices = waterVertices;
 
 	auto waterVbo = Vbo(std::span<const WaterShaderVertex>(vertices));
 	auto waterIbo = Ibo(indices.data(), indices.size() * sizeof(u32));
@@ -138,6 +147,11 @@ MainLoop MainLoop::make() {
 	auto cubemapVao = Vao::generate();
 	auto cubemapVbo = Vbo(cubeVertices, sizeof(cubeVertices));
 	CubemapShaderInstances::addAttributesToVao(cubemapVao, cubemapVbo, instancesVbo);
+
+	Vec3 point(0.0f);
+	auto debugPointVao = Vao::generate();
+	auto debugPointVbo = Vbo(point.data(), sizeof(point));
+	DebugPointShaderInstances::addAttributesToVao(debugPointVao, debugPointVbo, instancesVbo);
 
 	Window::disableCursor();
 #define MOVE(name) .name = std::move(name)
@@ -153,7 +167,11 @@ MainLoop MainLoop::make() {
 		MOVE(cubemapVao),
 		MOVE(cubemapVbo),
 		.cubemapVertexCount = std::size(cubeVertices),
-		.cubemapShader = MAKE_GENERATED_SHADER(CUBEMAP_SHADER)
+		.cubemapShader = MAKE_GENERATED_SHADER(CUBEMAP_SHADER),
+
+		MOVE(debugPointVao),
+		MOVE(debugPointVbo),
+		.debugPointShader = MAKE_GENERATED_SHADER(DEBUG_POINT_SHADER)
 	};
 }
 
@@ -185,6 +203,7 @@ void MainLoop::update() {
 	} else {
 		movementController.lastMousePosition = std::nullopt;
 	}
+	ImGui::InputFloat3("test", movementController.position.data());
 
 	ShaderManager::update();
 	
@@ -198,6 +217,15 @@ void MainLoop::update() {
 	const auto projection = Mat4::perspective(90.0f, Window::aspectRatio(), 0.1f, 1000.0f);
 	const auto viewProjection = view * projection;
 	const auto directionalLightDirection = Vec3(1, -1, 0).normalized();
+	const auto frustum = Frustum::fromMatrix(viewProjection);
+
+	std::vector<DebugPointShaderInstance> points;
+	auto addPoint = [&](Vec3 p) {
+		points.push_back(DebugPointShaderInstance{
+			.transform = Mat4::translation(p) * viewProjection,
+			.color = Color3::RED,
+		});
+	};
 
 	{
 		glDepthMask(GL_FALSE);
@@ -216,10 +244,37 @@ void MainLoop::update() {
 	}
 
 	{
+		// @Performance: Frustum culling?
 		std::vector<WaterShaderInstance> waterInstances;
-		waterInstances.push_back(WaterShaderInstance{
-			.transform = viewProjection
-		});
+		const auto count = 8;
+		int rendered = 0;
+		for (i32 xi = -count; xi < count; xi++) {
+			for (i32 yi = -count; yi < count; yi++) {
+				const auto center = Vec2(xi, yi) * WATER_TILE_SIZE;
+				const auto min = center - Vec2(WATER_TILE_SIZE / 2.0f);
+				const auto max = center + Vec2(WATER_TILE_SIZE / 2.0f);
+				const auto aabb = Aabb3::fromMinMax(Vec3(min.x, -5.0f, min.y), Vec3(max.x, 5.0f, max.y));
+				const auto corners = aabb.corners();
+				/*for (auto& corner : corners) {
+					addPoint(corner);
+				}*/
+
+				if (!frustum.intersects(aabb)) {
+					continue;
+				}
+				rendered++;
+
+				waterInstances.push_back(WaterShaderInstance{
+					.transform = viewProjection,
+					.offset = WATER_TILE_SIZE * Vec2(xi, yi)
+				});
+			}
+		}
+		Gui::put("rendered: %\ntotal: %", rendered, pow(count * 2.0f, 2.0f));
+		/*waterInstances.push_back(WaterShaderInstance{
+			.transform = viewProjection,
+			.offset = Vec2(0.0f, 0.0f)
+		});*/
 		waterShader.use();
 		shaderSetUniforms(waterShader, WaterShaderVertUniforms{
 			.time = elapsed
@@ -228,9 +283,33 @@ void MainLoop::update() {
 			.cameraPosition = movementController.position,
 			.directionalLightDirection = directionalLightDirection
 		});
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_FRONT);
 		drawInstances(waterVao, instancesVbo, waterInstances, [&](usize count) {
 			//glDrawArraysInstanced(GL_TRIANGLES, 0, waterI, count);
-			glDrawElements(GL_TRIANGLES, waterIndexCount, GL_UNSIGNED_INT, nullptr);
+			glDrawElementsInstanced(GL_TRIANGLES, waterIndexCount, GL_UNSIGNED_INT, nullptr, count);
+		});
+	}
+
+	static std::vector<Vec3> frustumPoints;
+	if (Input::isKeyDown(KeyCode::H)) {
+		frustumPoints.clear();
+
+		//const auto corners = Frustum::corners(viewProjection);
+		const auto corners = Frustum::corners(view * Mat4::perspective(90.0f, Window::aspectRatio(), 0.1f, 20.0f));
+		for (auto& corner : corners) {
+			frustumPoints.push_back(corner);
+		}
+	}
+	for (auto& p : frustumPoints) {
+		addPoint(p);
+	}
+
+	{
+		debugPointShader.use();
+		drawInstances(debugPointVao, instancesVbo, points, [&](usize count) {
+			glPointSize(10.0f);
+			glDrawArraysInstanced(GL_POINTS, 0, 1, count);
 		});
 	}
 }

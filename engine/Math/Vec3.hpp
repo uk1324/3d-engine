@@ -28,6 +28,8 @@ struct Vec3T {
 	Vec3T roundedToDecimalDigits(int digitsCount) const;
 	T distanceTo(Vec3T p) const;
 	T distanceSquaredTo(Vec3T p) const;
+	Vec3T min(const Vec3T& other) const;
+	Vec3T max(const Vec3T& other) const;
 
 	bool operator==(const Vec3T&) const = default;
 
@@ -52,6 +54,9 @@ Vec3T<T> operator*(const T& s, const Vec3T<T>& v);
 
 template<typename T>
 Vec3T<T> cross(const Vec3T<T>& a, const Vec3T<T>& b);
+
+template<typename T>
+T dot(const Vec3T<T>& a, const Vec3T<T>& b);
 
 template<typename T>
 struct std::hash<Vec3T<T>> {
@@ -171,6 +176,16 @@ T Vec3T<T>::distanceSquaredTo(Vec3T p) const {
 }
 
 template<typename T>
+Vec3T<T> Vec3T<T>::min(const Vec3T& other) const {
+	return Vec3(std::min(x, other.x), std::min(y, other.y), std::min(z, other.z));
+}
+
+template<typename T>
+Vec3T<T> Vec3T<T>::max(const Vec3T& other) const {
+	return Vec3(std::max(x, other.x), std::max(y, other.y), std::max(z, other.z));
+}
+
+template<typename T>
 inline auto Vec3T<T>::data() -> T* {
 	return &x;
 }
@@ -207,6 +222,11 @@ Vec3T<T> cross(const Vec3T<T>& a, const Vec3T<T>& b) {
 		(a.z * b.x) - (a.x * b.z),
 		(a.x * b.y) - (a.y * b.x)
 	);
+}
+
+template<typename T>
+T dot(const Vec3T<T>& a, const Vec3T<T>& b) {
+	return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 
 template<typename T>

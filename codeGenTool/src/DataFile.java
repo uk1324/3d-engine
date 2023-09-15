@@ -239,7 +239,7 @@ class Shader extends Declaration {
         } else if (type.getName().equals("Mat3x2")) {
             return 3;
         } else if (type.getName().equals("Mat4")) {
-            return 3;
+            return 4;
         } else {
             throw new RuntimeException("TODO");
         }
