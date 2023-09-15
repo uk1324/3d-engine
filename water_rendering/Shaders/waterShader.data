@@ -20,9 +20,10 @@ shader WaterShader {
 		Vec3 unnormalizedNormal;
 		Vec3 fragmentWorldPosition;
 	};
-	fragUniforms = {
-		Vec3 cameraPosition;
-		Vec3 directionalLightDirection;
+	fragUniforms = [[Gui, Json]] {
+		Vec3 [[NoJsonSerialize, NoGui]] cameraPosition;
+		Vec3 [[NoJsonSerialize, NoGui]] directionalLightDirection;
+		color3 scatteringColor;
 	};
 	vertUniforms = {
 		float time;

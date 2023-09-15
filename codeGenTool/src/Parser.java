@@ -213,6 +213,8 @@ public class Parser {
             return new FieldAttributeNoNetworkSerialize();
         } else if (matchIdentifier("NoJsonSerialize")) {
             return new FieldAttributeNoJsonSerialize();
+        } else if (matchIdentifier("NoGui")) {
+            return new FieldAttributeNoGui();
         } else {
             throw new ParserError("expected field attribute");
         }

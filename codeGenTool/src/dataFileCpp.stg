@@ -51,7 +51,7 @@ bool gui(<struct.name>& value) {
     ImGui::PushID(&value);
     bool changed = false;
 
-    <struct.fields : { field | <gui(field.dataType, fieldAccess("value", field.name), field.displayName)>} >
+    <struct.fields : { field | <if(!field.isNoGui)><gui(field.dataType, fieldAccess("value", field.name), field.displayName)><endif>} >
     ImGui::PopID();
 
     return changed;

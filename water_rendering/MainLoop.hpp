@@ -5,6 +5,8 @@
 #include <engine/Graphics/Ibo.hpp>
 #include <water_rendering/SavableUniforms.hpp>
 #include <water_rendering/Shaders/cubemapShaderData.hpp>
+#include <water_rendering/Shaders/waterShaderData.hpp>
+
 
 struct MainLoop {
 	static MainLoop make();
@@ -26,6 +28,9 @@ struct MainLoop {
 	Vbo cubemapVbo;
 	const usize cubemapVertexCount;
 	SavableUniforms<CubemapShaderFragUniforms> cubemapShaderFragUniforms = SavableUniforms<CubemapShaderFragUniforms>("water_rendering/cubemapFragUniforms.json");
+
+	SavableUniforms<WaterShaderFragUniforms> waterShaderFragUniforms = SavableUniforms<WaterShaderFragUniforms>("water_rendering/waterShaderFragUniforms.json");
+
 	ShaderProgram& cubemapShader;
 
 	Vao debugPointVao;

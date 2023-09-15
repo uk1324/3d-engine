@@ -1,6 +1,5 @@
 #include <water_rendering/MainLoop.hpp>
 #include <water_rendering/ShaderManager.hpp>
-#include <water_rendering/Shaders/waterShaderData.hpp>
 #include <water_rendering/Shaders/debugPointShaderData.hpp>
 #include <glad/glad.h>
 #include <engine/Window.hpp>
@@ -103,7 +102,7 @@ std::pair<std::vector<u32>, std::vector<Vertex>> makeIndexedMeshExact(const std:
 	return { indices, vertices };
 }
 
-const auto WATER_TILE_SIZE = 50.0f;
+const auto WATER_TILE_SIZE = 100.0f;
 
 MainLoop MainLoop::make() {
 	Vbo instancesVbo(1024ull * 10);
@@ -248,6 +247,10 @@ void MainLoop::update() {
 		std::vector<WaterShaderInstance> waterInstances;
 		const auto count = 6;
 		int rendered = 0;
+		/*waterInstances.push_back(WaterShaderInstance{
+			.transform = viewProjection,
+			.offset = WATER_TILE_SIZE * Vec2(0)
+		});*/
 		for (i32 xi = -count; xi < count; xi++) {
 			for (i32 yi = -count; yi < count; yi++) {
 				const auto center = Vec2(xi, yi) * WATER_TILE_SIZE;
@@ -276,13 +279,16 @@ void MainLoop::update() {
 			.offset = Vec2(0.0f, 0.0f)
 		});*/
 		waterShader.use();
+
 		shaderSetUniforms(waterShader, WaterShaderVertUniforms{
 			.time = elapsed
 		});
-		shaderSetUniforms(waterShader, WaterShaderFragUniforms{
-			.cameraPosition = movementController.position,
-			.directionalLightDirection = directionalLightDirection
-		});
+
+		waterShaderFragUniforms.update();
+		waterShaderFragUniforms.cameraPosition = movementController.position;
+		waterShaderFragUniforms.directionalLightDirection = directionalLightDirection;
+
+ 		shaderSetUniforms(waterShader, waterShaderFragUniforms);
 		glEnable(GL_CULL_FACE);
 		glCullFace(GL_FRONT);
 		drawInstances(waterVao, instancesVbo, waterInstances, [&](usize count) {

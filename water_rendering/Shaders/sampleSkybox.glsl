@@ -1,14 +1,6 @@
 #include "Utils/perlin2d.glsl"
 
-float fbm(vec2 p) {
-    return (octave01(p, 7) - 0.5) * 2.0;
-}
-
-float noise(vec2 p) {
-    return (perlin01(p) - 0.5) * 2.0;
-}
-
-vec3 sampleClouds(vec2 p, float time) {
+float sampleClouds(vec2 p, float time) {
     const mat2 m = mat2(1.6, 1.2, -1.2, 1.6);
     const float cloudscale = 1.1;
     const float speed = 0.03;
@@ -20,45 +12,75 @@ vec3 sampleClouds(vec2 p, float time) {
     const vec3 skycolour1 = vec3(0.2, 0.4, 0.6);
     const vec3 skycolour2 = vec3(0.4, 0.7, 1.0);
     time /= 4.0;
-    vec2 uv = p;
-    float q = fbm(uv * cloudscale * 0.5 + time);
-    vec3 result;
-    //time = 0.0;
-    //ridged noise shape
+    //vec2 uv = p;
+    //float q = octave01(uv * cloudscale * 0.5 + time, 7);
+    //vec3 result;
+    ////time = 0.0;
+    ////ridged noise shape
+    //float r = 0.0;
+    //uv *= cloudscale;
+    //uv -= q - time;
+    //float weight = 0.8;
+    //for (int i = 0; i < 8; i++) {
+    //    r += abs(weight * perlin01(uv));
+    //    uv = m * uv + time;
+    //    weight *= 0.7;
+    //}
+    //result = vec3(r / 4.0);
+    //float rs = r / 4.0;
+   
     float r = 0.0;
-    uv *= cloudscale;
-    uv -= q - time;
+    //uv *= cloudscale;
+    //uv -= q - time;
     float weight = 0.8;
-    for (int i = 0; i < 8; i++) {
-        r += abs(weight * noise(uv));
-        uv = m * uv + time;
+    p /= 20.0;
+    time /= 20.0;
+    for (int i = 0; i < 6; i++) {
+        r += abs(weight * (perlin01(p) - 0.5) * 2.0);
+        p = m * p + time;
         weight *= 0.7;
     }
 
-    result = vec3(q * r);
+    //r = octave01(p / 50.0, 7);
+    r *= octave01(p / 5.0 + r + time / 0.1, 7);
+    r *= perlin01(p / 10.0);
+    r *= 2.0;
 
-    return result;
+    float ret = r;
+    return ret;
 }
 
 //vec3 skyboxSunColor = vec3(97, 98, 47) / 255.0;
 vec3 skyboxSunColor = vec3(1.0);
+
+vec3 blend(vec3 old, vec3 new, float newAlpha) {
+    return old * (1.0 - newAlpha) + new * newAlpha;
+}
 
 vec3 sampleSkybox(vec3 direction) {
 	vec3 color;
 	vec3 c0 = vec3(0.518001, 0.670929, 0.918919);
 	vec3 c1 = vec3(0.329154, 0.622619, 0.888031);
 	float angle = atan(direction.y, length(vec2(direction.x, direction.z))) / (3.141 / 2);
+    float a = 0.0;
+
+    color += pow(clamp(dot(direction, -directionalLightDirection), 0, 1), 140.0) * skyboxSunColor * 2.0;
+
 	if (direction.y > 0.0) {
-        color = mix(c0, c1, angle);
+        color += mix(c0, c1, angle);
         vec3 intersectWithPlane = direction;
         intersectWithPlane /= intersectWithPlane.y;
 
         vec2 pos = intersectWithPlane.xz;
         
         float dist = length(pos);
-        vec3 result = sampleClouds(pos, time / 30.0);
+        float result = sampleClouds(pos, time / 30.0);
+        a = result;
         result *= smoothstep(15.0, 0.5, dist);
-        color += result;
+        color = mix(color, vec3(1.0), result);
+        //color = vec3(result);
+        //color += result;
+        //color += result;
 		//color = mix(c0, c1, angle);
 		//vec3 intersectWithPlane = direction;
 		//// make y == 1.0
@@ -74,7 +96,6 @@ vec3 sampleSkybox(vec3 direction) {
 	}
 	//color += smoothstep(0., 0.1, -angle) * c0;
 
-	color += pow(clamp(dot(direction, -directionalLightDirection), 0, 1), 140.0) * skyboxSunColor * 2.0;
 	return color;
 }
 
