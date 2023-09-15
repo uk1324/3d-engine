@@ -1,0 +1,5 @@
+{
+    "maxQualityDistance": 50,
+    "maxIterations": 29,
+    "minQualityDistance": 500
+}

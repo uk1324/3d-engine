@@ -29,7 +29,7 @@ void Gui::update() {
 // Remember to always use prependWithHashHash
 bool Gui::inputI32(const char* name, i32& value) {
 	leafNodeBegin(name);
-	return ImGui::InputScalar(name, ImGuiDataType_S32, reinterpret_cast<void*>(&value));
+	return ImGui::InputScalar(prependWithHashHash(name), ImGuiDataType_S32, reinterpret_cast<void*>(&value));
 }
 
 bool Gui::inputFloat(const char* name, float& value) {
@@ -44,12 +44,12 @@ bool Gui::sliderFloat(const char* name, float& value, float min, float max) {
 
 bool Gui::inputVec2(const char* name, Vec2& value) {
 	leafNodeBegin(name);
-	return InputFloat2(name, value.data());
+	return InputFloat2(prependWithHashHash(name), value.data());
 }
 
 bool Gui::inputVec3(const char* name, Vec3& value) {
 	leafNodeBegin(name);
-	return InputFloat3(name, value.data());
+	return InputFloat3(prependWithHashHash(name), value.data());
 }
 
 bool Gui::checkbox(const char* name, bool& value) {

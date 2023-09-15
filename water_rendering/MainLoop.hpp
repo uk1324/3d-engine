@@ -29,6 +29,7 @@ struct MainLoop {
 	const usize cubemapVertexCount;
 	SavableUniforms<CubemapShaderFragUniforms> cubemapShaderFragUniforms = SavableUniforms<CubemapShaderFragUniforms>("water_rendering/cubemapFragUniforms.json");
 
+	SavableUniforms<WaterShaderVertUniforms> waterShaderVertUniforms = SavableUniforms<WaterShaderVertUniforms>("water_rendering/waterShaderVertUniforms.json");
 	SavableUniforms<WaterShaderFragUniforms> waterShaderFragUniforms = SavableUniforms<WaterShaderFragUniforms>("water_rendering/waterShaderFragUniforms.json");
 
 	ShaderProgram& cubemapShader;

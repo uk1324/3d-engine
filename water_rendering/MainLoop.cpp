@@ -241,11 +241,10 @@ void MainLoop::update() {
 
 		glDepthMask(GL_TRUE);
 	}
-
 	{
 		// @Performance: Frustum culling?
 		std::vector<WaterShaderInstance> waterInstances;
-		const auto count = 6;
+		const auto count = 8;
 		int rendered = 0;
 		/*waterInstances.push_back(WaterShaderInstance{
 			.transform = viewProjection,
@@ -280,9 +279,9 @@ void MainLoop::update() {
 		});*/
 		waterShader.use();
 
-		shaderSetUniforms(waterShader, WaterShaderVertUniforms{
-			.time = elapsed
-		});
+		waterShaderVertUniforms.update();
+		waterShaderVertUniforms.time = elapsed;
+		shaderSetUniforms(waterShader, waterShaderVertUniforms);
 
 		waterShaderFragUniforms.update();
 		waterShaderFragUniforms.cameraPosition = movementController.position;
@@ -296,6 +295,8 @@ void MainLoop::update() {
 			glDrawElementsInstanced(GL_TRIANGLES, waterIndexCount, GL_UNSIGNED_INT, nullptr, count);
 		});
 	}
+	static i32 val;
+	GUI_PROPERTY_EDITOR(Gui::inputI32("test", val));
 
 	static std::vector<Vec3> frustumPoints;
 	if (Input::isKeyDown(KeyCode::H)) {

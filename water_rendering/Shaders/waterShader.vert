@@ -5,9 +5,13 @@ layout(location = 1) in mat4 instanceTransform;
 layout(location = 5) in vec2 instanceOffset; 
 
 uniform float time; 
+uniform float maxQualityDistance; 
+uniform float minQualityDistance; 
+uniform int maxIterations; 
 
 out vec3 unnormalizedNormal; 
 out vec3 fragmentWorldPosition; 
+out flat int iterations; 
 
 /*generated end*/
 
@@ -283,14 +287,14 @@ float getwaves(vec2 position, int iterations) {
 }
 
 // Calculate normal at point by calculating the height at the pos and 2 additional points very close to pos
-vec3 normal(vec2 pos, float e, float depth) {
+vec3 normal(vec2 pos, float e, float depth, int iterations) {
   vec2 ex = vec2(e, 0);
-  float H = getwaves(pos.xy, ITERATIONS_NORMAL) * depth;
+  float H = getwaves(pos.xy, iterations) * depth;
   vec3 a = vec3(pos.x, H, pos.y);
   return normalize(
     cross(
-      a - vec3(pos.x - e, getwaves(pos.xy - ex.xy, ITERATIONS_NORMAL) * depth, pos.y), 
-      a - vec3(pos.x, getwaves(pos.xy + ex.yx, ITERATIONS_NORMAL) * depth, pos.y + e)
+      a - vec3(pos.x - e, getwaves(pos.xy - ex.xy, iterations) * depth, pos.y), 
+      a - vec3(pos.x, getwaves(pos.xy + ex.yx, iterations) * depth, pos.y + e)
     )
   );
 }
@@ -345,7 +349,9 @@ void main() {
     height *= 10.0;
     float dist = length(position);
 
-    vec3 N = normal(position, 0.01, WATER_DEPTH);
+    iterations = ITERATIONS_NORMAL;
+    iterations = int(mix(maxIterations, 1, smoothstep(maxQualityDistance, minQualityDistance, length(vertexPosition + instanceOffset))));
+    vec3 N = normal(position, 0.01, WATER_DEPTH, iterations);
 
     // smooth the normal with distance to avoid disturbing high frequency noise
     N = mix(N, vec3(0.0, 1.0, 0.0), 0.8 * min(1.0, sqrt(dist*0.01) * 1.1));
