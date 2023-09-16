@@ -59,6 +59,7 @@ void main() {
     color = fresnel * reflection + (1.0 - fresnel) * scattering;
 
     fragColor = vec4(color, 1.0);
+    //fragColor = vec4(vec3(abs(fragmentWorldPosition.y) / 5.0), 1.0);
     //fragColor = vec4(vec3(float(iter) / 64), 1.0);
     //fragColor = vec4(vec3(max(dFdx(abs(fragmentWorldPosition.x)), dFdx(abs(fragmentWorldPosition.y)))), 1.0);
 }

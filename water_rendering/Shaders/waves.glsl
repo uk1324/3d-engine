@@ -39,6 +39,28 @@ float sampleWaves(vec2 position, int iterations) {
         noise += 1232.399963;
     }
 
+    frequency = 0.3;
+    speed = 0.15;
+    weight = 1.0;
+    for (int i = 0; i < 3; i++) {
+        vec2 direction = vec2(sin(noise), cos(noise));
+
+        Wave wave = sampleWave(position, direction, frequency, time * speed);
+
+        float waveDrag = 0.28;
+        position += direction * wave.derivative * weight * waveDrag;
+
+        sumOfValues += wave.height * weight;
+        sumOfWeights += weight;
+
+        weight *= 0.82;
+        frequency *= 1.18;
+        speed *= 1.07;
+
+        noise += 1232.399963;
+    }
+
+    //return sumOfValues / sumOfWeights * 1.5;
     return sumOfValues / sumOfWeights * 1.5;
 }
 

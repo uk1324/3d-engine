@@ -7,6 +7,7 @@
 #include <engine/Graphics/Texture.hpp>
 #include <engine/Math/Frustum.hpp>
 #include <engine/Math/Color.hpp>
+#include <Timer.hpp>
 #include <array>
 
 namespace CubemapDirection {
@@ -191,6 +192,8 @@ void MainLoop::update() {
 		elapsed += dt;
 	}
 
+	Timer timer;
+
 	if (Input::isKeyDown(KeyCode::X)) {
 		Window::close();
 		return;
@@ -351,4 +354,6 @@ void MainLoop::update() {
 			glDrawArraysInstanced(GL_POINTS, 0, 1, count);
 		});
 	}
+
+	Gui::put("elapsed: %", timer.elapsedMilliseconds());
 }
