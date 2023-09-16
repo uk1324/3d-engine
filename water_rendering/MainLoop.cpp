@@ -152,6 +152,13 @@ MainLoop MainLoop::make() {
 	auto debugPointVbo = Vbo(point.data(), sizeof(point));
 	DebugPointShaderInstances::addAttributesToVao(debugPointVao, debugPointVbo, instancesVbo);
 
+	u32 ubo;
+	glGenBuffers(1, &ubo);
+	glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+	//glBufferData(GL_UNIFORM_BUFFER, sizeof(SkyboxSettings), NULL, GL_DYNAMIC_DRAW);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(SkyboxSettings) + 8, NULL, GL_STATIC_DRAW);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
 	Window::disableCursor();
 #define MOVE(name) .name = std::move(name)
 	return MainLoop{
@@ -170,7 +177,9 @@ MainLoop MainLoop::make() {
 
 		MOVE(debugPointVao),
 		MOVE(debugPointVbo),
-		.debugPointShader = MAKE_GENERATED_SHADER(DEBUG_POINT_SHADER)
+		.debugPointShader = MAKE_GENERATED_SHADER(DEBUG_POINT_SHADER),
+
+		.ubo = ubo
 	};
 }
 
@@ -225,9 +234,23 @@ void MainLoop::update() {
 			.color = Color3::RED,
 		});
 	};
+	skyboxSettings.update();
 
+	glBindBuffer(GL_UNIFORM_BUFFER, ubo);
+	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(SkyboxSettings), static_cast<SkyboxSettings*>(&skyboxSettings));
+
+	auto shaderSetUbo = [](ShaderProgram& shader, const char* uniformBlockName, u32 uniformBlockIndex, u32 ubo) {
+		unsigned int index = glGetUniformBlockIndex(shader.handle(), uniformBlockName);
+		ASSERT(index != GL_INVALID_INDEX);
+
+		glBindBufferBase(GL_UNIFORM_BUFFER, uniformBlockIndex, ubo);
+		glUniformBlockBinding(shader.handle(), index, uniformBlockIndex);
+	};
+
+	
 	{
-		glDepthMask(GL_FALSE);
+		shaderSetUbo(cubemapShader, "SkyboxSettings", 0, ubo);
+
 		shaderSetUniforms(cubemapShader, CubemapShaderVertUniforms{
 			.transform = view.removedTranslation() * projection,
 		});
@@ -237,8 +260,9 @@ void MainLoop::update() {
 		cubemapShader.use();
 		cubemapVao.bind(); 
 		cubemapShaderFragUniforms.update();
-		glDrawArrays(GL_TRIANGLES, 0, cubemapVertexCount);
 
+		glDepthMask(GL_FALSE);
+		glDrawArrays(GL_TRIANGLES, 0, cubemapVertexCount);
 		glDepthMask(GL_TRUE);
 	}
 	{
@@ -277,6 +301,9 @@ void MainLoop::update() {
 			.transform = viewProjection,
 			.offset = Vec2(0.0f, 0.0f)
 		});*/
+
+		shaderSetUbo(waterShader, "SkyboxSettings", 0, ubo);
+
 		waterShader.use();
 
 		waterShaderVertUniforms.update();

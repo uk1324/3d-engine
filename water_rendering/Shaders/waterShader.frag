@@ -12,6 +12,8 @@ out vec4 fragColor;
 
 /*generated end*/
 
+#include "SkyboxSettingsData.glsl"
+
 uniform float time;
 
 #include "sampleSkybox.glsl"
@@ -25,31 +27,24 @@ void main() {
         fragColor = vec4(vec3(float(iterations) / float(maxIterations)), 1.0);
         return;
     }
-//	vec3 color;
-//
-//	color = vec3(1, 0, 0);
-//
-//	fragColor = vec4(normalize(unnormalizedNormal), 1.0);
- // calculate fresnel coefficient
+
     vec3 normal = normalize(unnormalizedNormal);
-    vec3 N = normal;
     vec3 viewDirection = normalize(fragmentWorldPosition - cameraPosition);
     vec3 ray = viewDirection;
-    float fresnel = (0.04 + (1.0-0.04)*(pow(1.0 - max(0.0, dot(-N, ray)), 5.0)));
+    float fresnel = (0.04 + (1.0 - 0.04) * (pow(1.0 - max(0.0, dot(-normal, ray)), 5.0)));
     fresnel = clamp(fresnel, 0.7, 1.0);
 
-    // reflect the ray and make sure it bounces up
-    vec3 R = normalize(reflect(ray, N));
-    R.y = abs(R.y);
-  
+    vec3 reflectionDirection = normalize(reflect(ray, normal));
+
     // calculate the reflection and approximate subsurface scattering
-    vec3 reflection = sampleSkybox(R);
+    vec3 reflection = sampleSkybox(reflectionDirection);
     vec3 waterHitPos = fragmentWorldPosition;
     //vec3 scattering = vec3(0.0293, 0.0698, 0.1717) * (0.2 + (waterHitPos.y + WATER_DEPTH) / WATER_DEPTH);
+    //vec3 scattering = vec3(41) / 255 * (0.2 + (waterHitPos.y + WATER_DEPTH) / WATER_DEPTH);
     vec3 scattering = scatteringColor * (0.2 + (waterHitPos.y + WATER_DEPTH) / WATER_DEPTH);
 
-    // return the combined result
-    vec3 C = fresnel * reflection + (1.0 - fresnel) * scattering;
-    //fragColor = vec4(aces_tonemap(C * 2.0), 1.0);
-    fragColor = vec4(C, 1.0);
+    vec3 color;
+    color = fresnel * reflection + (1.0 - fresnel) * scattering;
+
+    fragColor = vec4(color, 1.0);
 }

@@ -6,17 +6,19 @@
 #include <FileIo.hpp>
 #include <fstream>
 
+// could make a version for uniforms that only sends the uniforms if the gui was modified.
 template<typename T>
-struct SavableUniforms : T {
-	SavableUniforms(const char* path);
+struct SerializedSettings : T {
+	SerializedSettings(const char* path);
 
 	void update();
 
+	// Could try passing the path as a template argument somehow. The address of the path shouldn't matter so this should probably work. 
 	const char* path;
 };
 
 template<typename T>
-SavableUniforms<T>::SavableUniforms(const char* path) 
+SerializedSettings<T>::SerializedSettings(const char* path) 
 	: path(path)
 	, T([&]() {
 		std::ifstream file(path);
@@ -34,7 +36,7 @@ SavableUniforms<T>::SavableUniforms(const char* path)
 }
 
 template<typename T>
-void SavableUniforms<T>::update() {
+void SerializedSettings<T>::update() {
 	bool changed = false;
 
 	GUI_PROPERTY_EDITOR({
@@ -48,3 +50,5 @@ void SavableUniforms<T>::update() {
 		Json::prettyPrint(file, json);
 	}
 }
+
+//#define SERIALIZED_SETTINGS()

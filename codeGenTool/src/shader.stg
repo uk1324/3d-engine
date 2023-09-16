@@ -81,3 +81,9 @@ bool <name>
 <dataType.nameFirstLetterLowercase> <name>
 <endif>
 %>
+
+uniformBlock(struct) ::= <<
+layout (std140) uniform <struct.name> {
+    <struct.fields : { field | <uniform(field.dataType, field.name)>; }; separator="\n">
+};
+>>

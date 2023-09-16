@@ -8,6 +8,8 @@ out vec4 fragColor;
 
 /*generated end*/
 
+#include "SkyboxSettingsData.glsl"
+
 #include "sampleSkybox.glsl"
 
 void main() {

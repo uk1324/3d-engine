@@ -1,3 +1,4 @@
+import javax.swing.text.html.Option;
 import java.util.Optional;
 
 enum TokenType {
@@ -14,7 +15,8 @@ enum TokenType {
     CPP,
     CPP_TYPE,
     INT,
-    FLOAT
+    FLOAT,
+    STRING,
 }
 
 class Token {
@@ -37,6 +39,12 @@ class Token {
     }
 
     String cppType() {
+        if (type != TokenType.CPP_TYPE)
+            return "";
+        return text.substring(1, text.length() - 1);
+    }
+
+    String string() {
         if (type != TokenType.CPP_TYPE)
             return "";
         return text.substring(1, text.length() - 1);
@@ -116,6 +124,15 @@ public class Lexer {
                 while (!isAtEnd()) {
                     if (match('$')) {
                         return Optional.of(makeToken(TokenType.CPP_TYPE));
+                    }
+                    eat();
+                }
+                break;
+
+            case '"':
+                while (!isAtEnd()) {
+                    if (match('"')) {
+                        return Optional.of(makeToken(TokenType.STRING));
                     }
                     eat();
                 }

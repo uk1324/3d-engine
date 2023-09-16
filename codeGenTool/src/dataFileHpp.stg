@@ -97,7 +97,7 @@ declarationInStruct(declaration) ::= <%
 <endif>
 %>
 
-field(field) ::= "<field.dataType.name> <field.name><if(field.hasDefaultValue)> = <field.defaultValue><endif>;"
+field(field) ::= "<if(field.hasNonDefaultAlignment)>alignas(<field.alignment>) <endif><field.dataType.name> <field.name><if(field.hasDefaultValue)> = <field.defaultValue><endif>;"
 
 enum(enum) ::= <<
 enum class <enum.name> {

@@ -108,6 +108,12 @@ public class Parser {
             return shader();
         } else if (match(TokenType.CPP)) {
             return new Cpp(previousToken.cppSource());
+        } else if (matchIdentifier("import")) {
+            match(TokenType.STRING);
+            var path = previousToken.string();
+//            var paths = new GeneratedFilesPaths();
+//            new Parser()
+            expect(TokenType.SEMICOLON);
         }
         throw new ParserError("expected declaration");
     }
@@ -171,6 +177,8 @@ public class Parser {
             return new StructAttributeNetworkMessage();
         } else if (matchIdentifier("Bullet")) {
             return new StructAttributeBullet();
+        } else if (matchIdentifier("LayoutStd140")) {
+            return new StructAttributeLayoutStd140();
         }
         throw new ParserError("expected struct attribute");
     }

@@ -6,7 +6,7 @@
 #include <water_rendering/SavableUniforms.hpp>
 #include <water_rendering/Shaders/cubemapShaderData.hpp>
 #include <water_rendering/Shaders/waterShaderData.hpp>
-
+#include <water_rendering/Shaders/SkyboxSettingsData.hpp>
 
 struct MainLoop {
 	static MainLoop make();
@@ -27,14 +27,19 @@ struct MainLoop {
 	Vao cubemapVao;
 	Vbo cubemapVbo;
 	const usize cubemapVertexCount;
-	SavableUniforms<CubemapShaderFragUniforms> cubemapShaderFragUniforms = SavableUniforms<CubemapShaderFragUniforms>("water_rendering/cubemapFragUniforms.json");
 
-	SavableUniforms<WaterShaderVertUniforms> waterShaderVertUniforms = SavableUniforms<WaterShaderVertUniforms>("water_rendering/waterShaderVertUniforms.json");
-	SavableUniforms<WaterShaderFragUniforms> waterShaderFragUniforms = SavableUniforms<WaterShaderFragUniforms>("water_rendering/waterShaderFragUniforms.json");
+	SerializedSettings<SkyboxSettings> skyboxSettings{ "water_rendering/skyboxSettings.json" };
+
+	SerializedSettings<CubemapShaderFragUniforms> cubemapShaderFragUniforms{ "water_rendering/cubemapFragUniforms.json" };
+
+	SerializedSettings<WaterShaderVertUniforms> waterShaderVertUniforms{ "water_rendering/waterShaderVertUniforms.json" };
+	SerializedSettings<WaterShaderFragUniforms> waterShaderFragUniforms{ "water_rendering/waterShaderFragUniforms.json" };
 
 	ShaderProgram& cubemapShader;
 
 	Vao debugPointVao;
 	Vbo debugPointVbo;
 	ShaderProgram& debugPointShader;
+	
+	u32 ubo;
 };

@@ -75,9 +75,21 @@ class Struct extends Declaration {
         this.declarations = declarations;
         this.attributes = attributes;
 
+
+        boolean isLayoutStd140 = getIsLayoutStd140();
+
         for (var declaration : declarations) {
             if (declaration instanceof Field) {
-                fields.add((Field)declaration);
+                var field = (Field)declaration;
+                var floatAlignment = 4;
+                if (isLayoutStd140) {
+                    if (field.dataType.getIsVec3() || field.dataType.getIsVec4()) {
+                        field.alignment = floatAlignment * 4;
+                    } else if (field.dataType.getIsBool() || field.dataType.getIsI32() || field.dataType.getIsFloat()) {
+                        field.alignment = 4;
+                    }
+                }
+                fields.add(field);
             }
         }
     }
@@ -119,6 +131,9 @@ class Struct extends Declaration {
     public boolean getIsBullet() {
         return attributes.stream().anyMatch(a -> a instanceof StructAttributeBullet);
     }
+    public boolean getIsLayoutStd140() {
+        return attributes.stream().anyMatch(a -> a instanceof StructAttributeLayoutStd140);
+    }
 }
 
 abstract class StructAttribute { }
@@ -133,6 +148,7 @@ class StructAttributeUniform extends StructAttribute { }
 // And you would also need to be able to add attributes to types and not fields because of things like map<key[[CustomNetworkSerialize()]], value>
 // Or could just use u64, but then it would be harder to modify and the variable names would need to do used instead of types.
 class StructAttributeBullet extends StructAttribute { }
+class StructAttributeLayoutStd140 extends StructAttribute { }
 
 class Enum extends Declaration {
     public String name;
@@ -299,6 +315,7 @@ class Field extends DeclarationInStruct {
     public String name;
     public Optional<String> defaultValueCppSource;
     public List<FieldAttribute> attributes;
+    public int alignment = -1;
 
     Field(DataType dataType, String name, Optional<String> defaultValueCppSource, List<FieldAttribute> attributes) {
         this.dataType = dataType;
@@ -331,6 +348,10 @@ class Field extends DeclarationInStruct {
 
     public boolean getIsNoGui() {
         return attributes.stream().anyMatch(a -> a instanceof FieldAttributeNoGui);
+    }
+
+    public boolean getHasNonDefaultAlignment() {
+        return alignment != -1;
     }
 }
 

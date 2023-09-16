@@ -17,6 +17,7 @@ class GeneratedFilesPaths {
     public String fileDirectory;
     public String hppFilePath;
     public String cppFilePath;
+    public String glslFilePath;
     public String hppFilePathRelativeToCppFile;
 
     GeneratedFilesPaths(String file, String generatedOutDirectory, String cppExecutableWorkingDirectory) {
@@ -38,6 +39,7 @@ class GeneratedFilesPaths {
 
         this.hppFilePath = Paths.get(fileDirectory, fileNameWithoutExtension + "Data.hpp").normalize().toString();
         this.cppFilePath = Paths.get(generatedOutDirectory, fileNameWithoutExtension + "DataGenerated.cpp").normalize().toString();
+        this.glslFilePath = Paths.get(fileDirectory, fileNameWithoutExtension + "Data.glsl").normalize().toString();
         this.hppFilePathRelativeToCppFile = Paths.get(generatedOutDirectory).relativize(Paths.get(this.hppFilePath)).toString();
     }
 
@@ -201,28 +203,44 @@ public class Main {
             writeStringToFile(paths.cppFilePath, st.render());
         }
 
+        String generatedGlslSource = "";
         for (var declaration : dataFile.declarations) {
-            if (!(declaration instanceof Shader)) {
-                continue;
-            }
-            var shader = (Shader)declaration;
-            var group = new STGroupFile("shader.stg");
+            if (declaration instanceof Shader) {
+                var shader = (Shader)declaration;
+                var group = new STGroupFile("shader.stg");
 
-            // TODO: Error handling
-            // https://stackoverflow.com/questions/27268522/how-to-retrieve-error-message-in-stringtemplate
-            if (shader.generateVert) {
-                ST st = group.getInstanceOf("vert");
-                st.add("shader", shader);
-                System.out.format("generating %s\n", relativeToThisProgramWorkingDirectory(shader.vertPath));
-                createIfNotExistsElseMerge(st, shader.vertPath);
-            }
+                // TODO: Error handling
+                // https://stackoverflow.com/questions/27268522/how-to-retrieve-error-message-in-stringtemplate
+                if (shader.generateVert) {
+                    ST st = group.getInstanceOf("vert");
+                    st.add("shader", shader);
+                    System.out.format("generating %s\n", relativeToThisProgramWorkingDirectory(shader.vertPath));
+                    createIfNotExistsElseMerge(st, shader.vertPath);
+                }
 
-            {
-                ST st = group.getInstanceOf("frag");
-                st.add("shader", shader);
-                System.out.format("generating %s\n", relativeToThisProgramWorkingDirectory(shader.fragPath));
-                createIfNotExistsElseMerge(st, shader.fragPath);
+                {
+                    ST st = group.getInstanceOf("frag");
+                    st.add("shader", shader);
+                    System.out.format("generating %s\n", relativeToThisProgramWorkingDirectory(shader.fragPath));
+                    createIfNotExistsElseMerge(st, shader.fragPath);
+                }
+            } else if (declaration instanceof Struct) {
+                var struct = (Struct)declaration;
+                if (!struct.getIsLayoutStd140()) {
+                    continue;
+                }
+                var group = new STGroupFile("shader.stg");
+
+                ST st = group.getInstanceOf("uniformBlock");
+                st.add("struct", struct);
+                var structSource = st.render();
+                generatedGlslSource += structSource;
+                generatedGlslSource += "\n\n";
             }
+        }
+
+        if (generatedGlslSource.length() > 0) {
+            writeStringToFile(paths.glslFilePath, generatedGlslSource);
         }
     }
 
