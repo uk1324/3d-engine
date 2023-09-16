@@ -22,15 +22,26 @@ uniform float time;
 
 uniform int maxIterations; 
 
+#include "waves.glsl"
+
 void main() {
+    float dx = max(abs(dFdx(fragmentWorldPosition.x)), abs(dFdy(fragmentWorldPosition.x)));
+    float dy = max(abs(dFdx(fragmentWorldPosition.y)), abs(dFdy(fragmentWorldPosition.y)));
+    int iterations = clamp(int(16.0 / max(dx, dy)), 1, maxIterations);
+
     if (displayLodLevels) {
         fragColor = vec4(vec3(float(iterations) / float(maxIterations)), 1.0);
         return;
     }
+    
+    //fragColor = vec4(vec3(x * y), 1.0);
+    //fragColor = vec4(vec3(), 1.0);
 
-    vec3 normal = normalize(unnormalizedNormal);
+    //vec3 normal = normalize(unnormalizedNormal);
+    //vec3 normal = sampleWaveNormal(fragmentWorldPosition.xz / 10.0, 1.0, iterations);
+    //vec3 normal = sampleWaveNormal(fragmentWorldPosition.xz / 10.0, 1.0, 64);
+    vec3 normal = sampleWaveNormal(fragmentWorldPosition.xz / 10.0, 1.0, iterations);
     vec3 viewDirection = normalize(fragmentWorldPosition - cameraPosition);
-
     vec3 ray = viewDirection;
     float fresnel = (0.04 + (1.0 - 0.04) * (pow(1.0 - max(0.0, dot(-normal, ray)), 5.0)));
     fresnel = clamp(fresnel, 0.7, 1.0);
@@ -48,4 +59,6 @@ void main() {
     color = fresnel * reflection + (1.0 - fresnel) * scattering;
 
     fragColor = vec4(color, 1.0);
+    //fragColor = vec4(vec3(float(iter) / 64), 1.0);
+    //fragColor = vec4(vec3(max(dFdx(abs(fragmentWorldPosition.x)), dFdx(abs(fragmentWorldPosition.y)))), 1.0);
 }

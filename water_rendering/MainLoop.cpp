@@ -102,18 +102,18 @@ std::pair<std::vector<u32>, std::vector<Vertex>> makeIndexedMeshExact(const std:
 	return { indices, vertices };
 }
 
-const auto WATER_TILE_SIZE = 25.0f;
+const auto WATER_TILE_SIZE = 100.0f;
 
 MainLoop MainLoop::make() {
 	Vbo instancesVbo(1024ull * 10);
 
 	std::vector<WaterShaderVertex> waterVertices;
-	const auto COUNT = 200;
+	const auto COUNT = 100;
 	for (i32 ix = 0; ix < COUNT; ix++) {
 		for (i32 iy = 0; iy < COUNT; iy++) {
 			auto convert = [&](Vec2 v) -> WaterShaderVertex {
-				/*return WaterShaderVertex{ ((v / COUNT) - Vec2(0.5f)) * WATER_TILE_SIZE };*/
-				return WaterShaderVertex{ (v / COUNT) * WATER_TILE_SIZE };
+				return WaterShaderVertex{ ((v / COUNT) - Vec2(0.5f)) * WATER_TILE_SIZE };
+				//return WaterShaderVertex{ (v / COUNT) * WATER_TILE_SIZE };
 			};
 			const auto v0 = convert(Vec2(ix, iy));
 			const auto v1 = convert(Vec2(ix + 1, iy));
@@ -272,7 +272,7 @@ void MainLoop::update() {
 	{
 		// @Performance: Frustum culling?
 		std::vector<WaterShaderInstance> waterInstances;
-		const auto count = 7;
+		const auto count = 14;
 		//const auto count = 8;
 		int rendered = 0;
 		/*waterInstances.push_back(WaterShaderInstance{
