@@ -107,6 +107,8 @@ if (node("<displayedName>")) {
     changed |= gui(<name>);
     nodeEnd();
 }
+<elseif(dataType.isRangedSignedInt)><\\>
+changed |= sliderI32("<displayedName>", <name>, <dataType.min>, <dataType.max>);
 <elseif(dataType.isI32)><\\>
 changed |= inputI32("<displayedName>", <name>);
 <else><\\>

@@ -32,6 +32,11 @@ bool Gui::inputI32(const char* name, i32& value) {
 	return ImGui::InputScalar(prependWithHashHash(name), ImGuiDataType_S32, reinterpret_cast<void*>(&value));
 }
 
+bool Gui::sliderI32(const char* name, i32& value, i32 min, i32 max) {
+	leafNodeBegin(name);
+	return ImGui::SliderInt(prependWithHashHash(name), &value, min, max);
+}
+
 bool Gui::inputFloat(const char* name, float& value) {
 	leafNodeBegin(name);
 	return ImGui::InputFloat(prependWithHashHash(name), &value);

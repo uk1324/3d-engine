@@ -12,6 +12,7 @@ struct MainLoop {
 	static MainLoop make();
 	void update();
 
+	bool paused = false;
 	float elapsed = 0.0f;
 
 	FpsController movementController;

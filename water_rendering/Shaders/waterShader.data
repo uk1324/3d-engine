@@ -32,6 +32,6 @@ shader WaterShader {
 		float [[NoJsonSerialize, NoGui]] time;
 		float maxQualityDistance;
 		float minQualityDistance;
-		i32 maxIterations;
+		ranged_int<`1`, `64`> maxIterations;
 	};
 }
