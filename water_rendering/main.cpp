@@ -4,7 +4,7 @@
 
 
 int main() {
-	Engine::initAll(Window::Settings{});
+	Engine::initAll(Window::Settings{ .multisamplingSamplesPerPixel = 4 });
 
 	EngineUpdateLoop loop(60.0);
 	auto mainLoop = MainLoop::make();

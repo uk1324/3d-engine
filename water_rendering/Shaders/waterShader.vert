@@ -8,6 +8,7 @@ uniform float time;
 uniform float maxQualityDistance; 
 uniform float minQualityDistance; 
 uniform int maxIterations; 
+uniform bool useAnalyticalDerivatives; 
 
 out vec3 unnormalizedNormal; 
 out vec3 fragmentWorldPosition; 
@@ -22,9 +23,7 @@ void main() {
     float scale = 10.0;
     vec2 waveCooridnate = position / scale;
 
-    float WATER_DEPTH = 1.0;
-
-    float height = sampleWaves(waveCooridnate, 12) * WATER_DEPTH - WATER_DEPTH;
+    float height = sampleWaves(waveCooridnate, 12);
     height *= scale;
 
     iterations = int(mix(maxIterations, 1, smoothstep(maxQualityDistance, minQualityDistance, length(vertexPosition + instanceOffset))));

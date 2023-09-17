@@ -4,5 +4,6 @@
         "y": 0.204633,
         "z": 0.204633
     },
-    "displayLodLevels": false
+    "displayLodLevels": false,
+    "useAnalyticalDerivatives": true
 }

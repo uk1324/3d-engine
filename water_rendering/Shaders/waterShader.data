@@ -27,11 +27,13 @@ shader WaterShader {
 		color3 scatteringColor;
 
 		bool displayLodLevels;
+		bool useAnalyticalDerivatives = `false`;
 	};
 	vertUniforms = [[Gui, Json]] {
 		float [[NoJsonSerialize, NoGui]] time;
 		float maxQualityDistance;
 		float minQualityDistance;
 		ranged_int<`1`, `64`> maxIterations;
+		bool useAnalyticalDerivatives = `false`;
 	};
 }
