@@ -5,8 +5,6 @@ struct Wave {
 
 
 #define DRAG_MULT 0.28 // changes how much waves pull on the water
-//#define WATER_DEPTH 1.0 // how deep is the water
-#define CAMERA_HEIGHT 1.5 // how high the camera should be
 #define ITERATIONS_RAYMARCH 12 // waves iterations of raymarching
 #define ITERATIONS_NORMAL 40 // waves iterations when calculating normals
 
@@ -17,7 +15,6 @@ Wave sampleWave(vec2 position, vec2 direction, float frequency, float translatio
     r.derivative = -(r.height * cos(x));
     return r;
 }
-
 
 vec2 wavedx(vec2 position, vec2 direction, float frequency, float timeshift) {
     float x = dot(direction, position) * frequency + timeshift;
@@ -83,6 +80,23 @@ float sampleWaves(vec2 position, int iterations) {
     //    noise += 1232.399963;
     //}
     //return sumOfValues / sumOfWeights;
+}
+
+vec2 h = vec2(0.001, 0.0);
+vec2 derivatives(vec2 pos, int iterations) {
+    float a = sampleWaves(pos, iterations);
+    return vec2(
+        (sampleWaves(pos + h.xy, iterations) - a) / h.x,
+        (sampleWaves(pos + h.yx, iterations) - a) / h.x
+    );
+}
+
+vec4 jacobian(vec2 pos, int iterations) {
+    float a = sampleWaves(pos, iterations);
+    return vec4(
+        (derivatives(pos + h.xy, iterations) - a) / h.x,
+        (derivatives(pos + h.yx, iterations) - a) / h.x
+    );
 }
 
 vec3 sampleWaveNormal(vec2 pos, float depth, int iterations) {

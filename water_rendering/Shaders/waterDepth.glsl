@@ -1,0 +1,1 @@
+const float WATER_DEPTH = 1.0;

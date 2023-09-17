@@ -17,9 +17,10 @@ out vec4 fragColor;
 
 uniform float time;
 
+#include "waterDepth.glsl"
 #include "sampleSkybox.glsl"
 
-#define WATER_DEPTH 1.0 
+//#define WATER_DEPTH 1.0 
 
 uniform int maxIterations; 
 
@@ -58,16 +59,25 @@ void main() {
     //vec3 normal = normalize(unnormalizedNormal);
     //vec3 normal = sampleWaveNormal(fragmentWorldPosition.xz / 10.0, 1.0, iterations);
     //vec3 normal = sampleWaveNormal(fragmentWorldPosition.xz / 10.0, 1.0, 64);
-    vec3 normal = sampleWaveNormal(fragmentWorldPosition.xz / 10.0, 1.0, iterations);
+    vec3 normal = sampleWaveNormal(fragmentWorldPosition.xz / 10.0, WATER_DEPTH, iterations);
+    vec2 d = derivatives(fragmentWorldPosition.xz / 10.0, iterations);
+    vec4 j = jacobian(fragmentWorldPosition.xz / 10.0, iterations);
 
     normal = normalize(normal);
     vec3 N = normal;
     vec3 viewDirection = normalize(fragmentWorldPosition - cameraPosition);
     vec3 ray = viewDirection;
-    float fresnel = (0.04 + (1.0-0.04)*(pow(1.0 - max(0.0, dot(N, -ray)), 5.0)));
+    float waterIndexOfRefraction = 1.33;
+    float airIndexOfRefrection = 1.0;
+    float r0 = pow((airIndexOfRefrection - waterIndexOfRefraction) / (airIndexOfRefrection + waterIndexOfRefraction), 2.0);
+    //float fresnel = (0.04 + (1.0-0.04)*(pow(1.0 - max(0.0, dot(N, -ray)), 5.0)));
+    float fresnel = r0 + (1.0 - r0) * pow((1.0 - dot(N, -ray)), 5.0);
+    //float fresnel = (0.04 + (1.0-0.04)*(pow(1.0 - max(0.0, dot(N, -ray)), 5.0)));
+    //float fresnel = r0 + (1.0 - r0) * pow((1.0 - clamp(dot(N, -ray), 0.0, 1.0)), 5.0);
+    //float fresnel = r0 + (1.0 - r0) * pow((1.0 - dot(N, -ray)), 5.0);
     //fresnel = clamp(fresnel, 0.0, 1.0);
 
-    //fresnel = clamp(fresnel, 0.7, 1.0);
+    //fresnel = clamp(fresnel, 0.4, 1.0);
 
     // reflect the ray and make sure it bounces up
     vec3 R = normalize(reflect(ray, N));
@@ -77,7 +87,9 @@ void main() {
     vec3 reflection = sampleSkybox(R);
     vec3 waterHitPos = fragmentWorldPosition;
     //vec3 scattering = vec3(0.0293, 0.0698, 0.1717) * (0.2 + (waterHitPos.y + WATER_DEPTH) / WATER_DEPTH);
-    vec3 scattering = vec3(0.0293, 0.0698, 0.1717) * (0.2 + (waterHitPos.y / 10.0 + WATER_DEPTH) / WATER_DEPTH);
+    //float WATER_DEPTH = 1.0;
+    //vec3 scattering = vec3(0.0293, 0.0698, 0.1717) * (0.2 + (waterHitPos.y / 10.0 + WATER_DEPTH) / WATER_DEPTH);
+    vec3 scattering = scatteringColor * (0.2 + (waterHitPos.y / 10.0 + WATER_DEPTH) / WATER_DEPTH);
 
     // return the combined result
     vec3 C;
@@ -93,9 +105,29 @@ void main() {
     C = vec3(fresnel);
     C = scattering;
     C = fresnel * reflection + (1.0 - fresnel) * scattering;
+
+    float foam = smoothstep(1.5 / 6, 0.6, length(d));
+    //float foam = step(2.5 / 6, length(d));
+    C = mix(C, vec3(1.0), foam);
+    //C += vec3(foam);
+    //C = reflection;
+    //C = vec3(fresnel < 1.0 && fresnel > 0.0);
     fragColor = vec4(C, 1.0);
 
-    fragColor = vec4(aces_tonemap(C * 2.0), 1.0);
+    //float h = j.x * j.w - j.y * j.z;
+    //float h = (j.x + 1.0) * (j.w + 1.0) - (j.y + 1.0) * (j.z + 1.0);
+//    fragColor = j;
+//    //h = abs(0.01 - length(d));
+//    fragColor = vec4(vec3(d, 0.0), 1.0);
+//    //fragColor = vec4(vec3(length(d) > 2.5 / 6), 1.0);
+//    //fragColor = vec4(vec3(smoothstep(2.5 / 6, 0.6, length(d))), 1.0);
+//    float foam = smoothstep(2.1 / 6, 0.6, length(d));
+    
+    //fragColor = vec4(vec3()), 1.0);
+    //fragColor = vec4(aces_tonemap(C * 2.0), 1.0);
+//    C = vec3(dot(N, -ray));
+//    C = viewDirection;
+    //fragColor = vec4(C, 1.0);
 
 //    vec3 viewDirection = normalize(fragmentWorldPosition - cameraPosition);
 //    vec3 ray = viewDirection;

@@ -17,6 +17,7 @@ out flat int iterations;
 /*generated end*/
 
 #include "waves.glsl"
+#include "waterDepth.glsl"
 
 void main() {
     vec2 position = vertexPosition + instanceOffset;
@@ -24,7 +25,6 @@ void main() {
     vec2 waveCooridnate = position / scale;
 
 //    float height = sampleWaves(waveCooridnate, 12);
-    float WATER_DEPTH = 1.0;
 
     float height = sampleWaves(waveCooridnate, 12) * WATER_DEPTH - WATER_DEPTH;
     height *= scale;
@@ -32,7 +32,9 @@ void main() {
     iterations = int(mix(maxIterations, 1, smoothstep(maxQualityDistance, minQualityDistance, length(vertexPosition + instanceOffset))));
     //unnormalizedNormal = sampleWaveNormal(waveCooridnate, WATER_DEPTH, iterations);
 
+    vec2 ds = derivatives(waveCooridnate, 12);
+
     position = vertexPosition + instanceOffset;
-    fragmentWorldPosition = vec3(position.x, height, position.y);
+    fragmentWorldPosition = vec3(position.x, height, position.y) + vec3(ds.x, 0.0, ds.y);
     gl_Position = instanceTransform * vec4(fragmentWorldPosition, 1.0);
 }
