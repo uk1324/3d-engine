@@ -92,7 +92,7 @@ vec2 derivatives(vec2 pos, int iterations) {
 }
 
 vec4 jacobian(vec2 pos, int iterations) {
-    float a = sampleWaves(pos, iterations);
+    vec2 a = derivatives(pos, iterations);
     return vec4(
         (derivatives(pos + h.xy, iterations) - a) / h.x,
         (derivatives(pos + h.yx, iterations) - a) / h.x
