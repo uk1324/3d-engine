@@ -3,6 +3,13 @@ struct Wave {
     float derivative;
 };
 
+
+#define DRAG_MULT 0.28 // changes how much waves pull on the water
+//#define WATER_DEPTH 1.0 // how deep is the water
+#define CAMERA_HEIGHT 1.5 // how high the camera should be
+#define ITERATIONS_RAYMARCH 12 // waves iterations of raymarching
+#define ITERATIONS_NORMAL 40 // waves iterations when calculating normals
+
 Wave sampleWave(vec2 position, vec2 direction, float frequency, float translation) {
     float x = dot(direction, position) * frequency + translation;
     Wave r;
@@ -11,38 +18,54 @@ Wave sampleWave(vec2 position, vec2 direction, float frequency, float translatio
     return r;
 }
 
+
+vec2 wavedx(vec2 position, vec2 direction, float frequency, float timeshift) {
+    float x = dot(direction, position) * frequency + timeshift;
+    float wave = exp(sin(x) - 1.0);
+    float dx = wave * cos(x);
+    return vec2(wave, -dx);
+}
+
 float sampleWaves(vec2 position, int iterations) {
-    float frequency = 1.0;
-    float speed = 0.15;
-    float weight = 1.0;
-
-    float sumOfValues = 0.0;
-    // For normalizing.
-    float sumOfWeights = 0.0; // Could compute this using sum of geometric series.
-
-    float noise = 0.0;
+    float iter = 0.0; // this will help generating well distributed wave directions
+    float frequency = 1.0; // frequency of the wave, this will change every iteration
+    float timeMultiplier = 0.15; // time multiplier for the wave, this will change every iteration
+    float weight = 1.0;// weight in final sum for the wave, this will change every iteration
+    float sumOfValues = 0.0; // will store final sum of values
+    float sumOfWeights = 0.0; // will store final sum of weights
     for (int i = 0; i < iterations; i++) {
-        vec2 direction = vec2(sin(noise), cos(noise));
+        // generate some wave direction that looks kind of random
+        vec2 p = vec2(sin(iter), cos(iter));
+        // calculate wave data
+        vec2 res = wavedx(position, p, frequency, time * timeMultiplier);
 
-        Wave wave = sampleWave(position, direction, frequency, time * speed);
+        // shift position around according to wave drag and derivative of the wave
+        position += p * res.y * weight * DRAG_MULT;
 
-        float waveDrag = 0.28;
-        position += direction * wave.derivative * weight * waveDrag;
-
-        sumOfValues += wave.height * weight;
+        // add the results to sums
+        sumOfValues += res.x * weight;
         sumOfWeights += weight;
 
+        // modify next octave parameters
         weight *= 0.82;
         frequency *= 1.18;
-        speed *= 1.07;
+        timeMultiplier *= 1.07;
 
-        noise += 1232.399963;
+        // add some kind of random value to make next wave look random too
+        iter += 1232.399963;
     }
+    // calculate and return
+    return sumOfValues / sumOfWeights;
+    //float frequency = 1.0;
+    //float speed = 0.15;
+    //float weight = 1.0;
 
-    //frequency = 0.3;
-    //speed = 0.15;
-    //weight = 1.0;
-    //for (int i = 0; i < 3; i++) {
+    //float sumOfValues = 0.0;
+    //// For normalizing.
+    //float sumOfWeights = 0.0; // Could compute this using sum of geometric series.
+
+    //float noise = 0.0;
+    //for (int i = 0; i < iterations; i++) {
     //    vec2 direction = vec2(sin(noise), cos(noise));
 
     //    Wave wave = sampleWave(position, direction, frequency, time * speed);
@@ -59,89 +82,28 @@ float sampleWaves(vec2 position, int iterations) {
 
     //    noise += 1232.399963;
     //}
-
-    //return sumOfValues / sumOfWeights * 1.5;
-    //return sumOfValues / sumOfWeights * 1.5 - 1.0;
     //return sumOfValues / sumOfWeights;
-    return sumOfValues;
-    //return sin(position.x);
 }
 
-vec3 sampleWaveNormal(vec2 pos, int iterations) {
-    vec2 position = pos;
-    float frequency = 1.0;
-    float speed = 0.15;
-    float weight = 1.0;
-
-    float sumOfValues = 0.0;
-    // For normalizing.
-    float sumOfWeights = 0.0; // Could compute this using sum of geometric series.
-
-    float noise = 0.0;
-
-    float dhdx = 0.0;
-    float dhdy = 0.0;
-
-    for (int i = 0; i < iterations; i++) {
-        vec2 direction = vec2(sin(noise), cos(noise));
-
-        Wave wave = sampleWave(position, direction, frequency, time * speed);
-        // The derivative at the perpendicular direction to `direction` is equal to 0.
-        dhdx += direction.x * -wave.derivative;
-        dhdy += direction.y * -wave.derivative;
-
-        float waveDrag = 0.28;
-        position += direction * wave.derivative * weight * waveDrag;
-
-        //sumOfValues += wave.height * weight;
-        //sumOfWeights += weight;
-
-        weight *= 0.82;
-        frequency *= 1.18;
-        speed *= 1.07;
-
-        noise += 1232.399963;
-    }
-    //sumOfValues /= sumOfWeights * 1.5;
-    //dhdx *= sumOfWeights * 1.5;
-    //dhdy *= sumOfWeights * 1.5;
-    //dhdy = abs(dhdy);
-    //dhdx = abs(dhdx);
-
-    vec2 h = vec2(0.00001, 0);
-    float height = sampleWaves(pos.xy, iterations);
-    vec3 a = vec3(pos.x, height, pos.y);
-
-    if (useAnalyticalDerivatives) {
-        //return normalize(cross(vec3(1.0, dhdx, 0.0), vec3(0.0, dhdy, 1.0)));
-        /*return normalize(cross(
-            vec3(h.x, height - sampleWaves(pos.xy - h.xy, iterations), 0.0),
-            vec3(0.0, height - sampleWaves(pos.xy + h.yx, iterations), h.x)
-        ));*/
-        return vec3(dhdx, dhdy, 0.0);
-    }
-    
-
-    return vec3(
-        (sampleWaves(pos.xy + h.xy, iterations) - height) / h.x,
-        (sampleWaves(pos.xy + h.yx, iterations) - height) / h.x,
-        0.0f
+vec3 sampleWaveNormal(vec2 pos, float depth, int iterations) {
+    float e = 0.001;
+    vec2 ex = vec2(e, 0);
+    float H = sampleWaves(pos.xy, iterations) * depth;
+    vec3 a = vec3(pos.x, H, pos.y);
+    return normalize(
+    cross(
+    a - vec3(pos.x - e, sampleWaves(pos.xy - ex.xy, iterations) * depth, pos.y),
+    a - vec3(pos.x, sampleWaves(pos.xy + ex.yx, iterations) * depth, pos.y + e)
+    )
     );
-    //return normalize(cross(
-    //    a - vec3(pos.x - h.x, sampleWaves(pos.xy - h.xy, iterations), pos.y),
-    //    a - vec3(pos.x, sampleWaves(pos.xy + h.yx, iterations), pos.y + h.x)
-    //));
-    /*return normalize(cross(
-        a - vec3(pos.x - h.x, sampleWaves(pos.xy - h.xy, iterations), pos.y),
-        a - vec3(pos.x, sampleWaves(pos.xy + h.yx, iterations), pos.y + h.x)
-    ));*/
-
-
-    //vec2 h = vec2(0.01, 0);
-    //float height = sampleWaves(pos.xy, iterations) * depth;
-    //vec3 a = vec3(pos.x, height, pos.y);
-    //return normalize(cross(
-    //    a - vec3(pos.x - h.x, sampleWaves(pos.xy - h.xy, iterations) * depth, pos.y),
-    //    a - vec3(pos.x, sampleWaves(pos.xy + h.yx, iterations) * depth, pos.y + h.x)
-    //));
 }
+//
+//vec3 sampleWaveNormal(vec2 pos, float depth, int iterations) {
+//    vec2 h = vec2(0.01, 0);
+//    float height = sampleWaves(pos.xy, iterations) * depth;
+//    vec3 a = vec3(pos.x, height, pos.y);
+//    return normalize(cross(
+//        a - vec3(pos.x - h.x, sampleWaves(pos.xy - h.xy, iterations) * depth, pos.y),
+//        a - vec3(pos.x, sampleWaves(pos.xy + h.yx, iterations) * depth, pos.y + h.x)
+//    ));
+//}

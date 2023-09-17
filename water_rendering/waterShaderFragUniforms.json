@@ -1,9 +1,9 @@
 {
     "scatteringColor": {
-        "x": 0.204633,
-        "y": 0.204633,
-        "z": 0.204633
+        "x": 0,
+        "y": 0.428571,
+        "z": 0.105902
     },
-    "displayLodLevels": false,
-    "useAnalyticalDerivatives": true
+    "displayLodLevels": true,
+    "useAnalyticalDerivatives": false
 }
