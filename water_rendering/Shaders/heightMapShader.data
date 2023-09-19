@@ -1,0 +1,15 @@
+struct HeightMapVertex {
+	Vec3 position;
+	Vec3 normal;
+}
+
+shader HeightMapShader {
+	vertexStruct = HeightMapVertex;
+	vertInstance = {
+		Mat4 transform;
+	};
+	vertOut = {
+		vec3 fragmentPosition;
+		vec3 normal;
+	};
+}

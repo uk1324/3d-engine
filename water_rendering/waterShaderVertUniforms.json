@@ -1,6 +1,6 @@
 {
     "maxQualityDistance": 50,
-    "maxIterations": 40,
+    "maxIterations": 19,
     "minQualityDistance": 300,
     "useAnalyticalDerivatives": false
 }

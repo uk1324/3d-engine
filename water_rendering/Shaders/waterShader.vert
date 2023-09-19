@@ -32,8 +32,10 @@ void main() {
     iterations = int(mix(maxIterations, 1, smoothstep(maxQualityDistance, minQualityDistance, length(vertexPosition + instanceOffset))));
     //unnormalizedNormal = sampleWaveNormal(waveCooridnate, WATER_DEPTH, iterations);
 
-    // 
+    //vec2 ds = normalize(derivatives(waveCooridnate, 12));
+    vec2 ds = derivatives(waveCooridnate, 12) * 12.0;
+
     position = vertexPosition + instanceOffset;
-    fragmentWorldPosition = vec3(position.x, height, position.y);
+    fragmentWorldPosition = vec3(position.x, height, position.y) + vec3(ds.x, 0.0, ds.y);
     gl_Position = instanceTransform * vec4(fragmentWorldPosition, 1.0);
 }

@@ -61,7 +61,7 @@ void main() {
     //vec3 normal = sampleWaveNormal(fragmentWorldPosition.xz / 10.0, 1.0, 64);
     vec3 normal = sampleWaveNormal(fragmentWorldPosition.xz / 10.0, WATER_DEPTH, iterations);
     vec2 d = derivatives(fragmentWorldPosition.xz / 10.0, iterations);
-    vec4 j = jacobian(fragmentWorldPosition.xz / 10.0, 12);
+    vec4 j = jacobian(fragmentWorldPosition.xz / 10.0, 9 );
 
     normal = normalize(normal);
     vec3 N = normal;
@@ -107,14 +107,17 @@ void main() {
     C = fresnel * reflection + (1.0 - fresnel) * scattering;
 
     float foam = smoothstep(1.5 / 6, 0.6, length(d));
-    float h = (j.x + 1.0) * (j.w + 1.0) - (j.y) * (j.z);
-    foam = max(0, -h);
+    //foam /= 2.0;
+    //float h = (j.x + 1.0) * (j.w + 1.0) - (j.y) * (j.z);
+    float h = (j.x) * (j.w) - (j.y) * (j.z);
+    foam = max(-h, 0.0);
     //float foam = step(2.5 / 6, length(d));
     C = mix(C, vec3(1.0), foam);
     //C += vec3(foam);
     //C = reflection;
     //C = vec3(fresnel < 1.0 && fresnel > 0.0);
     fragColor = vec4(C, 1.0);
+    fragColor = vec4(vec3(foam), 1.0);
 
     //float h = j.x * j.w - j.y * j.z;
 //    float l = 1.0;

@@ -35,7 +35,7 @@ public:
 	const u32 handle() const;
 
 private:
-	Vbo(u32 handle);
+	explicit Vbo(u32 handle);
 	u32 handle_;
 };
 
