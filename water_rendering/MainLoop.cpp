@@ -11,32 +11,6 @@
 #include <Timer.hpp>
 #include <array>
 
-int GRID_SIZE = 300;
-
-struct Grid
-{
-
-	std::vector<std::vector<float>> mesh;
-
-	Grid(float init)
-	{
-		std::vector<float> i_grid(GRID_SIZE, 0);
-		mesh = std::vector<std::vector<float>>(GRID_SIZE, i_grid);
-
-		for (int ii = 0; ii < GRID_SIZE; ii++)
-		{
-			for (int jj = 0; jj < GRID_SIZE; jj++)
-			{
-
-				mesh[ii][jj] = init;
-			}
-		}
-	}
-};
-Grid water_h(1.0f); // water hight
-Grid vel_u(0.0f);	// water velocity in x direction
-Grid vel_v(0.0f);	// water velocity in y dirction
-
 namespace CubemapDirection {
 	enum {
 		POSITIVE_X = GL_TEXTURE_CUBE_MAP_POSITIVE_X,
@@ -176,8 +150,10 @@ MainLoop MainLoop::make() {
 	auto cubemapVbo = Vbo(cubeVertices, sizeof(cubeVertices));
 	CubemapShaderInstances::addAttributesToVao(cubemapVao, cubemapVbo, instancesVbo);
 
+	ShallowWaterSimulation shallowWaterSimulation(200, 200, 0.2f);
+
 	auto heightMapVao = Vao::generate();
-	auto heightMapVbo = Vbo(GRID_SIZE * GRID_SIZE * 6ull * sizeof(HeightMapVertex));
+	auto heightMapVbo = Vbo(shallowWaterSimulation.gridSizeX() * shallowWaterSimulation.gridSizeY() * 6ull * sizeof(HeightMapVertex));
 	HeightMapShaderInstances::addAttributesToVao(heightMapVao, heightMapVbo, instancesVbo);
 	auto heightMap = Texture::generate();
 	heightMap.bind();
@@ -185,30 +161,20 @@ MainLoop MainLoop::make() {
 		GL_TEXTURE_2D,
 		0,
 		GL_R32F,
-		GRID_SIZE,
-		GRID_SIZE,
+		shallowWaterSimulation.gridSizeX(),
+		shallowWaterSimulation.gridSizeY(),
 		0,
 		GL_RED,
 		GL_FLOAT,
 		nullptr
 	);
-	/*glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);*/
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-	/*glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);*/
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	//glGenerateMipmap(GL_TEXTURE_2D);
 
-	/*glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, static_cast<GLint>(settings.wrapS));
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, static_cast<GLint>(settings.wrapT));
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, static_cast<GLint>(settings.minFilter));
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, static_cast<GLint>(settings.magFilter));*/
-
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
 	Vec3 point(0.0f);
 	auto debugPointVao = Vao::generate();
@@ -250,22 +216,10 @@ MainLoop MainLoop::make() {
 		MOVE(debugPointVbo),
 		.debugPointShader = MAKE_GENERATED_SHADER(DEBUG_POINT_SHADER),
 
+		MOVE(shallowWaterSimulation),
+
 		.ubo = ubo
 	};
-	for (int i = 0; i < GRID_SIZE; i++) {
-		for (int j = 0; j < GRID_SIZE; j++) {
-			ret.height[i][j] = 3.0f;
-			ret.vel[i][j] = Vec2(0.0f);
-		}
-	}
-
-	for (int ii = 20; ii < 30; ii++)
-	{
-		for (int jj = 20; jj < 30; jj++)
-		{
-			water_h.mesh[ii][jj] = 3.0f;
-		}
-	}
 	return ret;
 }
 
@@ -359,15 +313,17 @@ void MainLoop::update() {
 
 
 	auto sample = [&](i64 x, i64 y) -> float {
-		return height[std::clamp(x - 1, 0ll, GRID_SIZE - 1)][std::clamp(y - 1, 0ll, GRID_SIZE - 1)];
+		return shallowWaterSimulation.height(
+			std::clamp(x - 1, 0ll, shallowWaterSimulation.gridSizeX() - 1),
+			std::clamp(y - 1, 0ll, shallowWaterSimulation.gridSizeY() - 1)
+		);
 	};
 
-	auto heightMapToMesh = [](float* height, i64 size) -> std::vector<HeightMapVertex> {
+	auto heightMapToMesh = [](float* height, i64 sizeX, i64 sizeY) -> std::vector<HeightMapVertex> {
 		std::vector<HeightMapVertex> v;
-		for (i32 ix = 0; ix < size - 1; ix++) {
-			for (i32 iy = 0; iy < size - 1; iy++) {
+		for (i32 ix = 0; ix < sizeX - 1; ix++) {
+			for (i32 iy = 0; iy < sizeY - 1; iy++) {
 				auto convert = [&](i64 x, i64 y) -> HeightMapVertex {
-					//return HeightMapVertex{ Vec3(static_cast<float>(x), height[x * size + y], static_cast<float>(y)) };
 					return HeightMapVertex{ Vec3(static_cast<float>(x), 0.0f, static_cast<float>(y)) };
 				};
 				auto v0 = convert(ix, iy);
@@ -395,152 +351,9 @@ void MainLoop::update() {
 		return v;
 	};
 
-	float physicsDt = 1.0f / 60.0f;
-	//float physicsDt = 1.0f;
-
-	float g = 9.81f;
-	//float dt = 0.1f;
-	int GRID_SIZE = 50;
-	float dxdy = 0.4f;
-	float pix_step = 5.0f;
-
-	if (Input::isKeyDown(KeyCode::H)) {
-		water_h.mesh[5][5] = 128.0f;
-		/*for (int ii = 5; ii < 10; ii++) {
-			for (int jj = 5; jj < 10; jj++) {
-				height[ii][jj] += 128.0f;
-			}
-		}*/
-	}
-
-
-	//ImGui::Begin("Simulation", nullptr, window_flags);
-	ImDrawList* draw_list = ImGui::GetWindowDrawList();
-
-
-	for (int ii = 1; ii < GRID_SIZE - 1; ii++)
-	{
-
-		for (int jj = 1; jj < GRID_SIZE - 1; jj++)
-		{
-
-			float dh_dx = [=]()
-			{
-				float f = (water_h.mesh[ii + 1][jj] - water_h.mesh[ii - 1][jj]) / (2 * dxdy);
-
-				return f;
-			}();
-
-			float dh_dy = [=]()
-			{
-				float f = (water_h.mesh[ii][jj + 1] - water_h.mesh[ii][jj - 1]) / (2 * dxdy);
-
-				return f;
-			}();
-
-			vel_u.mesh[ii][jj] = vel_u.mesh[ii][jj] - dt * g * dh_dx;
-			vel_v.mesh[ii][jj] = vel_v.mesh[ii][jj] - dt * g * dh_dy;
-
-			float du_dx = [=]()
-			{
-				float f = (vel_u.mesh[ii + 1][jj] - vel_u.mesh[ii - 1][jj]) / (2 * dxdy);
-
-				return f;
-			}();
-
-			float dv_dy = [=]()
-			{
-				float f = (vel_v.mesh[ii][jj + 1] - vel_v.mesh[ii][jj - 1]) / (2 * dxdy);
-
-				return f;
-			}();
-
-			water_h.mesh[ii][jj] = water_h.mesh[ii][jj] + dt * (-(du_dx + dv_dy));
-		}
-	}
-
-	for (int ii = 0; ii < GRID_SIZE; ii++)
-	{
-		for (int jj = 0; jj < GRID_SIZE; jj++)
-		{
-			float D = 0.0;
-			ImVec2 p0;
-			ImVec2 p1;
-			p0 = { (float)ii * pix_step, (float)jj * pix_step };
-			p1 = { ((float)ii * pix_step) + pix_step, ((float)jj * pix_step) + pix_step };
-
-			float hi = water_h.mesh[ii][jj] * 50.0f;
-
-			ImVec4 pix = ImVec4(0.0f, 0.0f, hi - 0.3f, 1.0f);
-
-			draw_list->AddRectFilled(p0, p1, ImColor(pix));
-
-		}
-	}
-
-
-	//for (int ii = 1; ii < GRID_SIZE - 1; ii++)
-	//{
-
-	//	for (int jj = 1; jj < GRID_SIZE - 1; jj++)
-	//	{
-
-	//		float dh_dx = [=]()
-	//		{
-	//			//float f = (height[ii + 1][jj] - height[ii - 1][jj]) / (2 * dxdy);
-	//			float f = (height[ii + 1][jj] - height[ii - 1][jj]) / (2 * dxdy);
-
-	//			return f;
-	//		}();
-
-	//		float dh_dy = [=]()
-	//		{
-	//			float f = (height[ii][jj + 1] - height[ii][jj - 1]) / (2 * dxdy);
-
-	//			return f;
-	//		}();
-
-	//		vel[ii][jj].x = vel[ii][jj].x - physicsDt * g * dh_dx;
-	//		vel[ii][jj].y = vel[ii][jj].y - physicsDt * g * dh_dy;
-
-	//		float du_dx = [=]()
-	//		{
-	//			float f = (vel[ii + 1][jj].x - vel[ii - 1][jj].x) / (2 * dxdy);
-
-	//			return f;
-	//		}();
-
-	//		float dv_dy = [=]()
-	//		{
-	//			float f = (vel[ii][jj + 1].y - vel[ii][jj - 1].y) / (2 * dxdy);
-
-	//			return f;
-	//		}();
-
-	//		height[ii][jj] = height[ii][jj] + physicsDt * (-(du_dx + dv_dy));
-	//	}
-	//}
-
-	/*if (Input::isKeyDown(KeyCode::H)) {
-		height[0][0] = 1.0;
-	}
-	for (i64 ix = 0; ix < GRID_SIZE; ix++) {
-		for (i64 iy = 0; iy < GRID_SIZE; iy++) {
-			float dhdx = (sample(ix - 1, iy) - sample(ix + 1, iy)) / 2.0f;
-			float dhdy = (sample(ix, iy - 1) - sample(ix, iy + 1)) / 2.0f;
-			dhdt[ix][iy] = -(dhdx + dhdy);
-		}
-	}
-
-	for (i64 ix = 0; ix < GRID_SIZE; ix++) {
-		for (i64 iy = 0; iy < GRID_SIZE; iy++) {
-			height[ix][iy] += physicsDt * dhdt[ix][iy];
-		}
-	}*/
-
 	heightMap.bind();
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, GRID_SIZE, GRID_SIZE, GL_RED, GL_FLOAT, height);
-	auto mesh = heightMapToMesh(reinterpret_cast<float*>(height), GRID_SIZE);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, shallowWaterSimulation.gridSizeX(), shallowWaterSimulation.gridSizeY(), GL_RED, GL_FLOAT, shallowWaterSimulation.height.data());
+	auto mesh = heightMapToMesh(reinterpret_cast<float*>(shallowWaterSimulation.height.data()), shallowWaterSimulation.gridSizeX(), shallowWaterSimulation.gridSizeY());
 	heightMapVbo.bind();
 	/*GLint size;
 	glGetBufferParameteriv(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &size);*/
@@ -558,7 +371,13 @@ void MainLoop::update() {
 	drawInstances(heightMapVao, instancesVbo, inst, [&](usize count) {
 		glDrawArraysInstanced(GL_TRIANGLES, 0, mesh.size(), count);
 	});
+	{
+		Timer t;
+		shallowWaterSimulation.step(1.0f / 60.0f);
+		//t.tookSeconds("shallowWaterSimulation.step()");
+	}
 	//ImGui::Image(reinterpret_cast<void*>(heightMap.handle()), ImVec2(1.0f, 1.0f));
+
  //	for (i64 ix = 0; ix < GRID_SIZE; ix++) {
 	//	for (i64 iy = 0; iy < GRID_SIZE; iy++) {
 	//		auto convert = [](i64 v) {
@@ -652,24 +471,94 @@ void MainLoop::update() {
 		});
 	}
 
-	for (int ii = 0; ii < GRID_SIZE; ii++)
-	{
-		for (int jj = 0; jj < GRID_SIZE; jj++)
-		{
+	Gui::put("elapsed: %", timer.elapsedMilliseconds());
+}
+
+//\frac{d\eta}{dt} + \frac{d(\eta u)}{dx} + \frac{d(\eta v)}{dx} = 0 \\
+//\frac{d\eta}{dt} = -\frac{d(\eta u)}{dx} - \frac{d(\eta v)}{dx} \\
+//
+//\frac{d(\eta u)}{dt} + \frac{d}{dx}(\eta u ^ 2 + \frac{1}{2}g \eta ^ 2) + \frac{d(\eta uv)}{dy} \\
+//\frac{d(\eta u)}{dt} = -\frac{d}{dx}(\eta u ^ 2 + \frac{1}{2}g \eta ^ 2) - \frac{d(\eta uv)}{dy} \\
+//\frac{d(\eta u)}{dt} = \frac{d(\eta)}{dt} u + \frac{d(u)}{dt} \eta \\
+//\frac{d(\eta)}{dt} u + \frac{d(u)}{dt} \eta = -\frac{d}{dx}(\eta u ^ 2 + \frac{1}{2}g \eta ^ 2) - \frac{d(\eta uv)}{dy} \\
+//\frac{d(u)}{dt} \eta = -\frac{d}{dx}(\eta u ^ 2 + \frac{1}{2}g \eta ^ 2) - \frac{d(\eta uv)}{dy} - \frac{d(\eta)}{dt} u \\
+//\frac{d(u)}{dt} = \frac{-\frac{d}{dx}(\eta u ^ 2 + \frac{1}{2}g \eta ^ 2) - \frac{d(\eta uv)}{dy} - \frac{d(\eta)}{dt} u}{\eta} \\
+
+
+ShallowWaterSimulation::ShallowWaterSimulation(i64 gridSizeX, i64 gridSizeY, float gridCellSize)
+	: gridCellSize(gridCellSize)
+	, height(Array2d<float>::withAllSetTo(gridSizeX, gridSizeY, 1.0f))
+	, velX(Array2d<float>::withAllSetTo(gridSizeX, gridSizeY, 0.0f))
+	, velY(Array2d<float>::withAllSetTo(gridSizeX, gridSizeY, 0.0f)) {
+
+}
+
+void ShallowWaterSimulation::step(float dt, float gravity) {
+
+	if (Input::isKeyDown(KeyCode::H)) {
+		i64 rectangleSize = 40;
+		const auto offset = gridSize() / 2 - Vec2T(rectangleSize) / 2;
+		for (i64 y = 0; y < rectangleSize; y++) {
+			for (i64 x = 0; x < rectangleSize; x++) {
+				if ((Vec2(x + 0.5f, y + 0.5f) / rectangleSize - Vec2(0.5f)).length() < 0.49f) {
+					height(offset.x + x, offset.y + y) = 5.0f;
+				}
+			}
+		}
+	}
+		
+	for (i64 y = 1; y < gridSizeY() - 1; y++) {
+		for (i64 x = 1; x < gridSizeX() - 1; x++) {
+			const auto dh_dx = (height(x + 1, y) - height(x - 1, y)) / (2 * gridCellSize);
+			const auto dh_dy = (height(x, y + 1) - height(x, y - 1)) / (2 * gridCellSize);
+
+			velX(x, y) = velX(x, y) - dt * gravity * dh_dx;
+			velY(x, y) = velY(x, y) - dt * gravity * dh_dy;
+		}
+	}
+
+	for (i64 y = 1; y < gridSizeY() - 1; y++) {
+		for (i64 x = 1; x < gridSizeX() - 1; x++) {
+			const auto du_dx = (velX(x + 1, y) - velX(x - 1, y)) / (2 * gridCellSize);
+			const auto dv_dy = (velY(x, y + 1) - velY(x, y - 1)) / (2 * gridCellSize);
+
+			height(x, y) += dt * -(du_dx + dv_dy);
+		}
+	}
+
+	ImDrawList* draw_list = ImGui::GetWindowDrawList();
+
+	float pix_step = 5.0f / 2.0;
+	for (int ii = 0; ii < gridSizeY(); ii++) {
+		for (int jj = 0; jj < gridSizeX(); jj++) {
 			float D = 0.0;
 			ImVec2 p0;
 			ImVec2 p1;
 			p0 = { (float)ii * pix_step, (float)jj * pix_step };
 			p1 = { ((float)ii * pix_step) + pix_step, ((float)jj * pix_step) + pix_step };
 
-			float hi = height[ii][jj] / 10.0f;
+			float hi = abs(height(ii, jj)); 
 
-			ImVec4 pix = ImVec4(0.0f, 0.0f, hi - 0.3f, 1.0f);
+			const auto a = Color::scientificColoring(hi, 0.0f, 3.0f);
+			ImVec4 pix = ImVec4(0.0f, 0.0f, hi, 1.0f);
+			pix.x = a.x;
+			pix.y = a.y;
+			pix.z = a.z;
 
-			ImGui::GetWindowDrawList()->AddRectFilled(p0, p1, ImColor(pix));
+			draw_list->AddRectFilled(p0, p1, ImColor(pix));
 
 		}
 	}
+}
 
-	Gui::put("elapsed: %", timer.elapsedMilliseconds());
+i64 ShallowWaterSimulation::gridSizeX() const {
+	return height.size().x;
+}
+
+i64 ShallowWaterSimulation::gridSizeY() const {
+	return height.size().y;
+}
+
+Vec2T<i64> ShallowWaterSimulation::gridSize() const {
+	return Vec2T<i64>{ gridSizeX(), gridSizeY() };
 }

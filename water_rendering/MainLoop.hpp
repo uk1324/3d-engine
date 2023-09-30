@@ -8,6 +8,24 @@
 #include <water_rendering/Shaders/cubemapShaderData.hpp>
 #include <water_rendering/Shaders/waterShaderData.hpp>
 #include <water_rendering/Shaders/SkyboxSettingsData.hpp>
+#include <engine/Utils/Array2d.hpp>
+
+struct ShallowWaterSimulation {
+	ShallowWaterSimulation(i64 gridSizeX, i64 gridSizeY, float gridCellSize);
+
+	void step(float dt, float gravity = 9.81f);
+
+	i64 gridSizeX() const;
+	i64 gridSizeY() const;
+	Vec2T<i64> gridSize() const;
+
+	// Storing the size thrice for no reason.
+	Array2d<float> height;
+	Array2d<float> velX;
+	Array2d<float> velY;
+
+	float gridCellSize;
+};
 
 struct MainLoop {
 	static MainLoop make();
@@ -48,10 +66,7 @@ struct MainLoop {
 	Vbo debugPointVbo;
 	ShaderProgram& debugPointShader;
 	
-	static constexpr i64 GRID_SIZE = 100;
-	float height[GRID_SIZE][GRID_SIZE]{ 0.0f };
-	//float dhdt[GRID_SIZE][GRID_SIZE]{ 0.0f };
-	Vec2 vel[GRID_SIZE][GRID_SIZE];
+	ShallowWaterSimulation shallowWaterSimulation;
 
 	u32 ubo;
 };

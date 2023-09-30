@@ -2,6 +2,7 @@
 
 #include <engine/Math/Vec2.hpp>
 
+// For efficient cache use outer loop over Y inner loop over X.
 template<typename T>
 class Array2d {
 public:
