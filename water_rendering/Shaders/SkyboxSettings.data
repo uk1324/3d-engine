@@ -2,4 +2,6 @@ struct [[Json, Gui, LayoutStd140]] SkyboxSettings {
 	color3 skyboxBottom;
 	color3 skyboxTop;
 	color3 skyboxSunColor = `Vec3(1.0f)`;
+	Vec3 [[NoJsonSerialize]] skyboxDirectionalLightDirection;
+	float [[NoJsonSerialize]] skyboxTime;
 }

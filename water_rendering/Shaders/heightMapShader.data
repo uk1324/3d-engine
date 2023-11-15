@@ -8,6 +8,9 @@ shader HeightMapShader {
 	vertInstance = {
 		Mat4 transform;
 	};
+	fragUniforms = {
+		Vec3 cameraPosition;
+	};
 	vertOut = {
 		vec3 fragmentPosition;
 		vec3 normal;

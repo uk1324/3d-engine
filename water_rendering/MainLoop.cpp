@@ -1,5 +1,5 @@
 #include <water_rendering/MainLoop.hpp>
-#include <water_rendering/ShaderManager.hpp>
+#include <framework/ShaderManager.hpp>
 #include <water_rendering/Shaders/debugPointShaderData.hpp>
 #include <water_rendering/Shaders/heightMapShaderData.hpp>
 #include <glad/glad.h>
@@ -9,6 +9,7 @@
 #include <engine/Math/Frustum.hpp>
 #include <engine/Math/Color.hpp>
 #include <Timer.hpp>
+#include <Dbg.hpp>
 #include <array>
 
 namespace CubemapDirection {
@@ -170,8 +171,8 @@ MainLoop MainLoop::make() {
 	);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	/*glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);*/
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -228,6 +229,7 @@ void MainLoop::update() {
 	auto dt = 1.0f / 6.0f;
 	if (!paused) {
 		elapsed += dt;
+		framesElapsed++;
 	}
 
 	Timer timer;
@@ -242,6 +244,11 @@ void MainLoop::update() {
 
 	if (!Window::isCursorEnabled()) {
 		movementController.update(dt);
+
+		movementController.movementSpeed = 1.0f;
+		if (Input::isKeyHeld(KeyCode::LEFT_CTRL)) {
+			movementController.movementSpeed = 20.0f;
+		}
 
 		if (Input::isKeyDown(KeyCode::V)) {
 			GLint polygonMode;
@@ -281,6 +288,8 @@ void MainLoop::update() {
 	};
 	skyboxSettings.update();
 
+	skyboxSettings.skyboxTime = elapsed;
+	skyboxSettings.skyboxDirectionalLightDirection = directionalLightDirection;
 	glBindBuffer(GL_UNIFORM_BUFFER, ubo);
 	glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(SkyboxSettings), static_cast<SkyboxSettings*>(&skyboxSettings));
 
@@ -351,8 +360,30 @@ void MainLoop::update() {
 		return v;
 	};
 
+	
+	static Array2d<float> blurred(shallowWaterSimulation.gridSize());
+	memcpy(blurred.data(), shallowWaterSimulation.height.data(), blurred.dataBytesSize());
+	chk(blur, true) {
+		const i64 radius = 3;
+		for (i64 y = radius; y < shallowWaterSimulation.gridSizeY() - radius; y++) {
+			for (i64 x = radius; x < shallowWaterSimulation.gridSizeX() - radius; x++) {
+				float sum = 0.0f;
+				for (i64 kY = -radius; kY <= radius; kY++) {
+					for (i64 kX = -radius; kX <= radius; kX++) {
+						sum += shallowWaterSimulation.height(x + kX, y + kY);
+					}
+				}
+				sum /= pow(2 * radius + 1, 2.0f);
+				blurred(x, y) = sum;
+			}
+		}
+	}
+
+
+	/*heightMap.bind();
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, shallowWaterSimulation.gridSizeX(), shallowWaterSimulation.gridSizeY(), GL_RED, GL_FLOAT, shallowWaterSimulation.height.data());*/
 	heightMap.bind();
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, shallowWaterSimulation.gridSizeX(), shallowWaterSimulation.gridSizeY(), GL_RED, GL_FLOAT, shallowWaterSimulation.height.data());
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, shallowWaterSimulation.gridSizeX(), shallowWaterSimulation.gridSizeY(), GL_RED, GL_FLOAT, blurred.data());
 	auto mesh = heightMapToMesh(reinterpret_cast<float*>(shallowWaterSimulation.height.data()), shallowWaterSimulation.gridSizeX(), shallowWaterSimulation.gridSizeY());
 	heightMapVbo.bind();
 	/*GLint size;
@@ -360,20 +391,40 @@ void MainLoop::update() {
 	boundVboSetData(0, mesh.data(), mesh.size() * sizeof(HeightMapVertex));
 
 	heightMapShader.use();
+	shaderSetUniforms(heightMapShader, HeightMapShaderFragUniforms{
+		.cameraPosition = movementController.position
+	});
 	std::vector<HeightMapShaderInstance> inst;
-	inst.push_back(HeightMapShaderInstance{ .transform = viewProjection });
+	//inst.push_back(HeightMapShaderInstance{ .transform = viewProjection });
 	
-	glActiveTexture(GL_TEXTURE0);
-	heightMap.bind();
-	glActiveTexture(GL_TEXTURE0);
-	heightMapShader.setTexture("heightMap", 0);
+	//glActiveTexture(GL_TEXTURE0);
+	//heightMap.bind();
+	//glActiveTexture(GL_TEXTURE0);
+	//heightMapShader.setActiveTexture("heightMap", 0);
+	heightMapShader.setTexture("heightMap", 0, heightMap);
+	shaderSetUbo(heightMapShader, "SkyboxSettings", 0, ubo);
 
 	drawInstances(heightMapVao, instancesVbo, inst, [&](usize count) {
 		glDrawArraysInstanced(GL_TRIANGLES, 0, mesh.size(), count);
 	});
 	{
 		Timer t;
-		shallowWaterSimulation.step(1.0f / 60.0f);
+		ShallowWaterSimulation::Config c {
+			.dt = 1.0f / 60.0f,
+			.viscousDrag = 1.0f
+		};
+		//shallowWaterSimulation.step(c);
+		const auto cumulativeHeight = shallowWaterSimulation.totalHeight(); // Maybe rename to accumulateHeight.
+		ImGui::Begin("shallow water simulation");
+		Gui::put("total: %", cumulativeHeight);
+		static std::vector<float> heights;
+		if (framesElapsed % 20 == 0) {
+			heights.push_back(cumulativeHeight);
+		}
+		
+		ImGui::PlotLines("heights", heights.data(), heights.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(-1.0f, -1.0f));
+
+		ImGui::End();
 		//t.tookSeconds("shallowWaterSimulation.step()");
 	}
 	//ImGui::Image(reinterpret_cast<void*>(heightMap.handle()), ImVec2(1.0f, 1.0f));
@@ -389,63 +440,63 @@ void MainLoop::update() {
 	//		/*addPoint(Vec3(x, height[ix][iy], y));*/
 	//	}
 	//}
-	//{
-	//	std::vector<WaterShaderInstance> waterInstances;
-	//	const auto count = 14;
-	//	//const auto count = 8;
-	//	int rendered = 0;
-	//	/*waterInstances.push_back(WaterShaderInstance{
-	//		.transform = viewProjection,
-	//		.offset = WATER_TILE_SIZE * Vec2(0)
-	//	});*/
-	//	for (i32 xi = -count; xi < count; xi++) {
-	//		for (i32 yi = -count; yi < count; yi++) {
-	//			const auto center = Vec2(xi, yi) * WATER_TILE_SIZE;
-	//			const auto min = center - Vec2(WATER_TILE_SIZE / 2.0f);
-	//			const auto max = center + Vec2(WATER_TILE_SIZE / 2.0f);
-	//			const auto aabb = Aabb3::fromMinMax(Vec3(min.x, -19.0f, min.y), Vec3(max.x, 10.0f, max.y));
-	//			const auto corners = aabb.corners();
-	//			/*for (auto& corner : corners) {
-	//				addPoint(corner);
-	//			}*/
+	{
+		std::vector<WaterShaderInstance> waterInstances;
+		const auto count = 14;
+		//const auto count = 8;
+		int rendered = 0;
+		/*waterInstances.push_back(WaterShaderInstance{
+			.transform = viewProjection,
+			.offset = WATER_TILE_SIZE * Vec2(0)
+		});*/
+		for (i32 xi = -count; xi < count; xi++) {
+			for (i32 yi = -count; yi < count; yi++) {
+				const auto center = Vec2(xi, yi) * WATER_TILE_SIZE;
+				const auto min = center - Vec2(WATER_TILE_SIZE / 2.0f);
+				const auto max = center + Vec2(WATER_TILE_SIZE / 2.0f);
+				const auto aabb = Aabb3::fromMinMax(Vec3(min.x, -19.0f, min.y), Vec3(max.x, 10.0f, max.y));
+				const auto corners = aabb.corners();
+				/*for (auto& corner : corners) {
+					addPoint(corner);
+				}*/
 
-	//			if (!frustum.intersects(aabb)) {
-	//				continue;
-	//			}
-	//			rendered++;
+				if (!frustum.intersects(aabb)) {
+					continue;
+				}
+				rendered++;
 
-	//			waterInstances.push_back(WaterShaderInstance{
-	//				.transform = viewProjection,
-	//				.offset = WATER_TILE_SIZE * Vec2(xi, yi)
-	//			});
-	//		}
-	//	}
-	//	Gui::put("rendered: %\ntotal: %", rendered, pow(count * 2.0f, 2.0f));
-	//	/*waterInstances.push_back(WaterShaderInstance{
-	//		.transform = viewProjection,
-	//		.offset = Vec2(0.0f, 0.0f)
-	//	});*/
+				waterInstances.push_back(WaterShaderInstance{
+					.transform = viewProjection,
+					.offset = WATER_TILE_SIZE * Vec2(xi, yi)
+				});
+			}
+		}
+		Gui::put("rendered: %\ntotal: %", rendered, pow(count * 2.0f, 2.0f));
+		/*waterInstances.push_back(WaterShaderInstance{
+			.transform = viewProjection,
+			.offset = Vec2(0.0f, 0.0f)
+		});*/
 
-	//	shaderSetUbo(waterShader, "SkyboxSettings", 0, ubo);
+		shaderSetUbo(waterShader, "SkyboxSettings", 0, ubo);
 
-	//	waterShader.use();
+		waterShader.use();
 
-	//	waterShaderVertUniforms.update();
-	//	waterShaderVertUniforms.time = elapsed;
-	//	shaderSetUniforms(waterShader, waterShaderVertUniforms);
+		waterShaderVertUniforms.update();
+		waterShaderVertUniforms.time = elapsed;
+		shaderSetUniforms(waterShader, waterShaderVertUniforms);
 
-	//	waterShaderFragUniforms.update();
-	//	waterShaderFragUniforms.cameraPosition = movementController.position;
-	//	waterShaderFragUniforms.directionalLightDirection = directionalLightDirection;
+		waterShaderFragUniforms.update();
+		waterShaderFragUniforms.cameraPosition = movementController.position;
+		waterShaderFragUniforms.directionalLightDirection = directionalLightDirection;
 
- //		shaderSetUniforms(waterShader, waterShaderFragUniforms);
-	//	glEnable(GL_CULL_FACE);
-	//	glCullFace(GL_FRONT);
-	//	drawInstances(waterVao, instancesVbo, waterInstances, [&](usize count) {
-	//		//glDrawArraysInstanced(GL_TRIANGLES, 0, waterI, count);
-	//		glDrawElementsInstanced(GL_TRIANGLES, waterIndexCount, GL_UNSIGNED_INT, nullptr, count);
-	//	});
-	//}
+ 		shaderSetUniforms(waterShader, waterShaderFragUniforms);
+		glEnable(GL_CULL_FACE);
+		glCullFace(GL_FRONT);
+		drawInstances(waterVao, instancesVbo, waterInstances, [&](usize count) {
+			//glDrawArraysInstanced(GL_TRIANGLES, 0, waterI, count);
+			glDrawElementsInstanced(GL_TRIANGLES, waterIndexCount, GL_UNSIGNED_INT, nullptr, count);
+		});
+	}
 	static i32 val;
 	GUI_PROPERTY_EDITOR(Gui::inputI32("test", val));
 
@@ -464,11 +515,13 @@ void MainLoop::update() {
 	}*/
 
 	{
+		//glDisable(GL_CULL_FACE);
 		debugPointShader.use();
 		drawInstances(debugPointVao, instancesVbo, points, [&](usize count) {
 			glPointSize(10.0f);
 			glDrawArraysInstanced(GL_POINTS, 0, 1, count);
 		});
+		//glEnable(GL_CULL_FACE);
 	}
 
 	Gui::put("elapsed: %", timer.elapsedMilliseconds());
@@ -491,9 +544,10 @@ ShallowWaterSimulation::ShallowWaterSimulation(i64 gridSizeX, i64 gridSizeY, flo
 	, velX(Array2d<float>::withAllSetTo(gridSizeX, gridSizeY, 0.0f))
 	, velY(Array2d<float>::withAllSetTo(gridSizeX, gridSizeY, 0.0f)) {
 
+	height.fillRectSize(1, 1, gridSizeX - 2, gridSizeY - 2, 1.0f);
 }
 
-void ShallowWaterSimulation::step(float dt, float gravity) {
+void ShallowWaterSimulation::step(const Config& c) {
 
 	if (Input::isKeyDown(KeyCode::H)) {
 		i64 rectangleSize = 40;
@@ -506,23 +560,36 @@ void ShallowWaterSimulation::step(float dt, float gravity) {
 			}
 		}
 	}
+
+	auto clampX = [&](i64 x) {
+		return std::clamp(x, i64(1), gridSizeX() - 2);
+	};
+
+	auto clampY = [&](i64 y) {
+		return std::clamp(y, i64(1), gridSizeY() - 2);
+	};
 		
 	for (i64 y = 1; y < gridSizeY() - 1; y++) {
 		for (i64 x = 1; x < gridSizeX() - 1; x++) {
-			const auto dh_dx = (height(x + 1, y) - height(x - 1, y)) / (2 * gridCellSize);
-			const auto dh_dy = (height(x, y + 1) - height(x, y - 1)) / (2 * gridCellSize);
+			/*const auto du_dx = (velX(x + 1, y) - velX(x - 1, y)) / (2 * gridCellSize);
+			const auto dv_dy = (velY(x, y + 1) - velY(x, y - 1)) / (2 * gridCellSize);*/
+			const auto du_dx = (velX(clampX(x + 1), y) - velX(clampX(x - 1), y)) / (2 * gridCellSize);
+			const auto dv_dy = (velY(x, clampY(y + 1)) - velY(x, clampY(y - 1))) / (2 * gridCellSize);
 
-			velX(x, y) = velX(x, y) - dt * gravity * dh_dx;
-			velY(x, y) = velY(x, y) - dt * gravity * dh_dy;
+			// Assues the average pressure surfce height is equal to 1.
+			height(x, y) += c.dt * -(du_dx + dv_dy);
 		}
 	}
 
+
 	for (i64 y = 1; y < gridSizeY() - 1; y++) {
 		for (i64 x = 1; x < gridSizeX() - 1; x++) {
-			const auto du_dx = (velX(x + 1, y) - velX(x - 1, y)) / (2 * gridCellSize);
-			const auto dv_dy = (velY(x, y + 1) - velY(x, y - 1)) / (2 * gridCellSize);
+			const auto dh_dx = (height(clampX(x + 1), y) - height(clampX(x - 1), y)) / (2 * gridCellSize);
+			const auto dh_dy = (height(x, clampY(y + 1)) - height(x, clampY(y - 1))) / (2 * gridCellSize);
 
-			height(x, y) += dt * -(du_dx + dv_dy);
+			// Viscous drag causes exponential decay.
+			velX(x, y) -= c.dt * (c.gravity * dh_dx + velX(x, y) * c.viscousDrag);
+			velY(x, y) -= c.dt * (c.gravity * dh_dy + velY(x, y) * c.viscousDrag);
 		}
 	}
 
@@ -562,3 +629,12 @@ i64 ShallowWaterSimulation::gridSizeY() const {
 Vec2T<i64> ShallowWaterSimulation::gridSize() const {
 	return Vec2T<i64>{ gridSizeX(), gridSizeY() };
 }
+
+float ShallowWaterSimulation::totalHeight() const {
+	float total = 0.0f;
+	for (const auto& height : height.span()) {
+		total += height;
+	}
+	return total;
+}
+ 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <engine/Graphics/Shader.hpp>
+#include <engine/Graphics/Texture.hpp>
 #include <engine/Math/Vec2.hpp>
 #include <engine/Math/Vec3.hpp>
 #include <engine/Math/Vec4.hpp>
@@ -46,7 +47,10 @@ public:
 	void set(std::string_view name, const Vec4& vec);
 	void set(std::string_view name, int32_t value);
 	void set(std::string_view name, uint32_t value);
-	void setTexture(std::string_view name, int value);
+	static constexpr auto TEXTURE_2D = 0x0DE1;
+	void setTexture(std::string_view name, int index, Texture& texture, u32 target = TEXTURE_2D);
+	void setTexture(std::string_view name, int index, u32 textureHandle, u32 target = TEXTURE_2D);
+	void setActiveTexture(std::string_view name, int value);
 	void set(std::string_view name, float value);
 	void set(std::string_view name, bool value);
 	void set(std::string_view name, const Mat3x2& value);

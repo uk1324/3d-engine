@@ -1,6 +1,6 @@
 #pragma once
 #include <game/FpsController.hpp>
-#include <water_rendering/Instancing.hpp>
+#include <framework/Instancing.hpp>
 #include <engine/Graphics/ShaderProgram.hpp>
 #include <engine/Graphics/Ibo.hpp>
 #include <engine/Graphics/Texture.hpp>
@@ -13,16 +13,26 @@
 struct ShallowWaterSimulation {
 	ShallowWaterSimulation(i64 gridSizeX, i64 gridSizeY, float gridCellSize);
 
-	void step(float dt, float gravity = 9.81f);
+	struct Config {
+		float dt;
+		float gravity = 9.81f;
+		float viscousDrag = 0.0f;
+	};
+	void step(const Config& config);
 
 	i64 gridSizeX() const;
 	i64 gridSizeY() const;
 	Vec2T<i64> gridSize() const;
 
+	float totalHeight() const;
+
 	// Storing the size thrice for no reason.
 	Array2d<float> height;
 	Array2d<float> velX;
 	Array2d<float> velY;
+
+	// Is it better to seperate the configuration state and the update state. In cases where there might be multiple shallow water simulations storing a single config struct instead of one per simulation might be good. Then the config struct would just be passed to functions.
+	// Instead of using a struct could just pass the arguments normally.
 
 	float gridCellSize;
 };
@@ -33,6 +43,7 @@ struct MainLoop {
 
 	bool paused = false;
 	float elapsed = 0.0f;
+	i64 framesElapsed = 0;
 
 	FpsController movementController;
 

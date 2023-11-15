@@ -29,7 +29,7 @@ vec3 sampleSkybox(vec3 direction) {
     float angle = atan(direction.y, length(vec2(direction.x, direction.z))) / (3.141 / 2);
     float a = 0.0;
 
-    color += pow(clamp(dot(direction, -directionalLightDirection), 0, 1), 140.0) * skyboxSunColor * 2.0;
+    color += pow(clamp(dot(direction, -skyboxDirectionalLightDirection), 0, 1), 140.0) * skyboxSunColor * 2.0;
 
     if (direction.y > 0.0) {
         color += mix(c0, c1, angle);
@@ -39,7 +39,7 @@ vec3 sampleSkybox(vec3 direction) {
         vec2 pos = intersectWithPlane.xz;
 
         float dist = length(pos);
-        float result = sampleClouds(pos, time / 30.0);
+        float result = sampleClouds(pos, skyboxTime / 30.0);
         a = result;
         result *= smoothstep(15.0, 0.5, dist);
         color = mix(color, vec3(1.0), result);

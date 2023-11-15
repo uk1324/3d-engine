@@ -12,9 +12,13 @@ out vec3 normal;
 uniform sampler2D heightMap;
 
 void main() {
+	vec3 position = vertexPosition;
+	float height = texture(heightMap, vertexPosition.xz / 200.0).r;
+	height = height * 2.5;
+	position.y += height;
+
 	normal = vertexNormal;
-	fragmentPosition = vertexPosition;
-	//float height = texture(heightMap, fragmentPosition.xz / 100.0).r;
-	gl_Position = instanceTransform * vec4(vertexPosition, 1.0);
+	fragmentPosition = position;
+	gl_Position = instanceTransform * vec4(position, 1.0);
 	//gl_Position = instanceTransform * vec4(vec3(vertexPosition.x, height, vertexPosition.z), 1.0);
 }

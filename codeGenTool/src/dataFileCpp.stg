@@ -71,11 +71,10 @@ template\<\>
     return <struct.name> {
         <struct.fields : { field
             |
-            <if(!field.isNoJsonSerialize)>
-            .<field.name> = <if(field.hasDefaultValue)>!json.contains("<field.name>") ? <field.defaultValue> : <endif><fromJson(field.dataType, jsonAccess("json", field.name))>
-            <endif>
-            };
-            separator=",\n"
+<if(!field.isNoJsonSerialize)>
+.<field.name> = <if(field.hasDefaultValue)>!json.contains("<field.name>") ? <field.defaultValue> : <endif><fromJson(field.dataType, jsonAccess("json", field.name))>,
+<endif>
+}
         >
     };
 }

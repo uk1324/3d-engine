@@ -1,0 +1,14 @@
+struct TexturedQuadVertex {
+	Vec2 position;
+	Vec2 texturePosition;
+}
+
+shader TexturedQuad {
+	vertexStruct = TexturedQuadVertex;
+	vertInstance = {
+		Mat3x2 transform;
+	};
+	vertOut = {
+		Vec2 fragTexturePosition;
+	};
+}

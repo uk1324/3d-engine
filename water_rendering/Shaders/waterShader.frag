@@ -112,12 +112,12 @@ void main() {
     float h = (j.x) * (j.w) - (j.y) * (j.z);
     foam = max(-h, 0.0);
     //float foam = step(2.5 / 6, length(d));
-    C = mix(C, vec3(1.0), foam);
+    //C = mix(C, vec3(1.0), foam);
     //C += vec3(foam);
     //C = reflection;
     //C = vec3(fresnel < 1.0 && fresnel > 0.0);
     fragColor = vec4(C, 1.0);
-    fragColor = vec4(vec3(foam), 1.0);
+    //fragColor = vec4(vec3(foam), 1.0);
 
     //float h = j.x * j.w - j.y * j.z;
 //    float l = 1.0;

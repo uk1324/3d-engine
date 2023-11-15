@@ -93,8 +93,18 @@ void ShaderProgram::set(std::string_view name, uint32_t value) {
 	glProgramUniform1ui(handle_, getUniformLocation(name.data()), value);
 }
 
+void ShaderProgram::setTexture(std::string_view name, int index, Texture& texture, u32 target) {
+	setTexture(name, index, texture.handle(), target);
+}
+
+void ShaderProgram::setTexture(std::string_view name, int index, u32 textureHandle, u32 target) {
+	glActiveTexture(GL_TEXTURE0 + index);
+	glBindTexture(target, textureHandle);
+	set(name, index);
+}
+
 // TODO make a utility function that takes the actual texture and an index and call glActiveTexture.
-void ShaderProgram::setTexture(std::string_view name, int value) {
+void ShaderProgram::setActiveTexture(std::string_view name, int value) {
 	set(name, value);
 }
 

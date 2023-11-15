@@ -5,7 +5,7 @@
 
 // For not displaying the same thing multiple times could create a static bool that stores if it was already displayed this frame. Then this bool would be registed to some object so it is reset at the end of the frame.
 
-#define chk(name) static bool name = false; ImGui::Checkbox(#name, &name); if (name)
+#define chk(name, initialValue) static bool name = (initialValue); ImGui::Checkbox(#name, &name); if (name)
 #define chkbox(name) static bool name = false; ImGui::Checkbox(#name, &name);
 #define infloat(name, initialValue) static float name = initialValue; ImGui::InputFloat(#name, &name)
 #define insliderfloat(name, initialValue, min, max) static float name = initialValue; ImGui::SliderFloat(#name, &name, min, max)

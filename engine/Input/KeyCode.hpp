@@ -44,5 +44,6 @@ enum class KeyCode {
 	TAB = 258,
 	F3 = 292,
 	LEFT_SHIFT = 340,
+	LEFT_CTRL = 341,
 	COUNT,
 };

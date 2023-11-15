@@ -36,6 +36,6 @@ void main() {
     vec2 ds = derivatives(waveCooridnate, 12) * 12.0;
 
     position = vertexPosition + instanceOffset;
-    fragmentWorldPosition = vec3(position.x, height, position.y) + vec3(ds.x, 0.0, ds.y);
+    fragmentWorldPosition = vec3(position.x, height, position.y); // + vec3(ds.x, 0.0, ds.y);
     gl_Position = instanceTransform * vec4(fragmentWorldPosition, 1.0);
 }

@@ -152,7 +152,7 @@ void RenderFrontToBackPeeling(auto DrawModel)
 	glBindTexture(GL_TEXTURE_2D, RenderRelatedIds[NORMAL_DEPTH_TEXTURE]);
 	//glBindTexture(GL_TEXTURE_2D, RenderRelatedIds[NORMAL_TEXTURE]);
 	glActiveTexture(GL_TEXTURE0);
-	g_shaderFrontInit->setTexture("depthTexture0", 0);
+	g_shaderFrontInit->setActiveTexture("depthTexture0", 0);
 	g_shaderFrontInit->set("screenSize", Window::size());
 
 		
@@ -933,7 +933,7 @@ void Renderer::update() {
 	auto sampler = function_sampler_1d_new(&options);
 
 	std::vector<float> discontinouties;
-	chk(disable);
+	chk(disable, false);
 	insliderfloat(val, 0.0f, -2.0f, 2.0f);
 
 	{
@@ -1080,7 +1080,7 @@ void Renderer::update() {
 	insliderfloat(c, 0.0f, 0.0f, 1.0f);
 	infloat(speed, 0.001f);
 	static float direction = 1.0f;
-	chk(animate) {
+	chk(animate, false) {
 		if (c > 1.0f || c < 0.0f) {
 			direction = -direction;
 		}

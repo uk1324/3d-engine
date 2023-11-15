@@ -1,4 +1,4 @@
-add_executable(water_rendering "main.cpp" "MainLoop.cpp" "../game/FpsController" "ShaderManager.cpp")
+add_executable(water_rendering "main.cpp" "MainLoop.cpp" "../game/FpsController" "../framework/ShaderManager.cpp")
 
 target_link_libraries(water_rendering engine)
 target_link_libraries(water_rendering glfw)
