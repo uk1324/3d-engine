@@ -165,6 +165,9 @@ Pixel32::Pixel32(const Vec4& color)
 	, b{ static_cast<u8>(std::clamp(color.z * 255.0f, 0.0f, 255.0f)) }
 	, a{ 255 } {}
 
+Pixel32::Pixel32(const Vec3& color)
+	: Pixel32(Vec4(color, 1.0f)) {}
+
 auto Image32::IndexedPixelRange::begin() -> IndexedPixelIterator {
 	return IndexedPixelIterator{ .pos = Vec2T<i64>{ 0 }, .data = image.data_, .rowWidth = static_cast<i64>(image.size_.x) };
 }

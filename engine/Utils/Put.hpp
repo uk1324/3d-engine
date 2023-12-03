@@ -51,3 +51,6 @@ template<typename ...Args>
 void putnn(const char* format, const Args&... args) {
 	putnn(std::cout, format, args...);
 }
+
+void putNewline(std::ostream& os);
+void putNewline();

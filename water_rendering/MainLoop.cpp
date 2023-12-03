@@ -606,7 +606,7 @@ void ShallowWaterSimulation::step(const Config& c) {
 
 			float hi = abs(height(ii, jj)); 
 
-			const auto a = Color::scientificColoring(hi, 0.0f, 3.0f);
+			const auto a = Color3::scientificColoring(hi, 0.0f, 3.0f);
 			ImVec4 pix = ImVec4(0.0f, 0.0f, hi, 1.0f);
 			pix.x = a.x;
 			pix.y = a.y;

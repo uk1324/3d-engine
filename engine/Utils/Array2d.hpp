@@ -2,6 +2,7 @@
 
 #include <engine/Math/Vec2.hpp>
 #include <span>
+#include <Span2d.hpp>
 
 // For efficient cache use outer loop over Y inner loop over X.
 template<typename T>
@@ -46,6 +47,8 @@ public:
 	i64 dataBytesSize() const { return cellCount() * sizeof(T); }
 	std::span<T> span();
 	std::span<const T> span() const;
+	Span2d<T> span2d();
+	Span2d<const T> span2d() const;
 };
 
 template<typename T>
@@ -172,4 +175,14 @@ std::span<T> Array2d<T>::span() {
 template<typename T>
 std::span<const T> Array2d<T>::span() const {
 	return std::span(data_, cellCount());
+}
+
+template<typename T>
+Span2d<T> Array2d<T>::span2d() {
+	return Span2d<T>(data_, size_.x, size_.y);
+}
+
+template<typename T>
+Span2d<const T> Array2d<T>::span2d() const {
+	return Span2d<const T>(data_, size_.x, size_.y);
 }

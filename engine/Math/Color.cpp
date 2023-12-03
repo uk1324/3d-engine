@@ -1,7 +1,7 @@
 #include "Color.hpp"
 #include <math.h>
 
-Vec4 Color::scientificColoring(float v, float minV, float maxV) {
+Vec3 Color3::scientificColoring(float v, float minV, float maxV) {
 	v = std::min(std::max(v, minV), maxV - 0.01f);
 	auto d = maxV - minV;
 	v = d == 0.0f ? 0.5f : (v - minV) / d;
@@ -22,10 +22,10 @@ Vec4 Color::scientificColoring(float v, float minV, float maxV) {
 		g = 1.0f;
 	}
 
-	return Vec4(r, g, b, 1.0f);
+	return Vec3(r, g, b);
 }
 
-Vec4 Color::fromHsv(float h, float s, float v) {
+Vec3 Color3::fromHsv(float h, float s, float v) {
 	h = fmodf(h, 1.0f);
 	float hue = h * 360.f;
 
@@ -45,10 +45,10 @@ Vec4 Color::fromHsv(float h, float s, float v) {
 		r = X, g = 0, b = C;
 	else
 		r = C, g = 0, b = X;
-	return Vec4(r + m, g + m, b + m, 1.0f);
+	return Vec3(r + m, g + m, b + m);
 }
 
-Vec4 Color::toGrayscale(const Vec4& c) {
+Vec3 Color3::toGrayscale(const Vec3& c) {
 	auto v = c.x * 0.3f + c.y * 0.59f + c.z * 0.11f;
-	return Vec4(v, v, v, c.w);
+	return Vec3(v, v, v);
 }

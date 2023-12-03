@@ -1,0 +1,3 @@
+// zoomOnCursor
+// moveOnKeys
+// moveOnWsad

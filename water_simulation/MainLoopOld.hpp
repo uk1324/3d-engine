@@ -5,24 +5,23 @@
 #include <engine/Graphics/Vbo.hpp>
 #include <engine/Graphics/Ibo.hpp>
 #include <engine/Graphics/ShaderProgram.hpp>
-#include <water_simulation/Fluid.hpp>
 #include <Array2d.hpp>
-#include <framework/ImageRenderer.hpp>
 
 struct MainLoop {
 	static MainLoop make();
 
-	/*Texture texture;
+	static constexpr Vec2T<i64> GRID_SIZE{ 200, 100 };
+	Array2d<float> array;
 
-	std::vector<float> imageData;
+	Texture texture;
 
-	EulerianFluid fluid;*/
-	float dt = 1.0f / 60.0f;
-	EulerianFluid fluid;
-	Array2d<float> smoke;
-	Image32 image;
-	//Array2d<float> r, g, b;
-	ImageRenderer renderer;
+	Vbo instancesVbo;
+
+	ShaderProgram& texturedQuadShader;
+	Vbo texturedQuadVbo;
+	Ibo texturedQuadIbo;
+	Vao texturedQuadVao;
+
 
 	void update();
 };

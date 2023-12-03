@@ -23,6 +23,7 @@ struct Vec3T {
 	Vec3T operator-() const;
 	constexpr auto operator/(const T& s) const -> Vec3T;
 	auto operator/=(const T& s) -> Vec3T&;
+	Vec3T operator/(const Vec3T& v);
 	auto length() const -> float;
 	auto normalized() const -> Vec3T;
 	Vec3T roundedToDecimalDigits(int digitsCount) const;
@@ -143,6 +144,11 @@ template<typename T>
 auto Vec3T<T>::operator/=(const T& s) -> Vec3T& {
 	*this = *this / s;
 	return *this;
+}
+
+template<typename T>
+Vec3T<T> Vec3T<T>::operator/(const Vec3T& v) {
+	return Vec3T(x / v.x, y / v.y, z / v.z);
 }
 
 template<typename T>

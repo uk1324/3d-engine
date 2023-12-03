@@ -1,4 +1,4 @@
-add_executable(water_simulation "main.cpp" "AdvecitonDemo.cpp" "MainLoop.cpp" "../framework/ShaderManager.cpp" "../framework/Camera.cpp")
+add_executable(water_simulation "main.cpp" "AdvecitonDemo.cpp" "MainLoop.cpp" "../framework/ShaderManager.cpp" "../framework/Camera.cpp" "../framework/ImageRenderer.cpp" "Fluid.cpp")
 
 target_link_libraries(water_simulation engine)
 target_link_libraries(water_simulation glfw)
