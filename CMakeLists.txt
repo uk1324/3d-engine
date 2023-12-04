@@ -26,3 +26,12 @@ add_subdirectory(water_simulation)
 # Working directory can be set by clicking debug > debug and launch settings for <target> and settings "currentDir": "${projectDir}"
 # Tasks https://learn.microsoft.com/en-us/visualstudio/ide/customize-build-and-debug-tasks-in-visual-studio?view=vs-2022
 # https://learn.microsoft.com/en-us/cpp/build/tasks-vs-json-schema-reference-cpp?view=msvc-170
+
+# The default configuration of RelWithDebInfo is a lot slower than the default configuration when creating a visual studio solution with Release mode. The incompresibility solve step of the fluid simulator is around 2 times slower when using RelWithDebInfo than when using cmake Release. The time using cmake Release mode seems the same as Visual studio Release option.
+# According to this
+# https://stackoverflow.com/questions/48754619/what-are-cmake-build-type-debug-release-relwithdebinfo-and-minsizerel
+# on gcc RelWithDebInfo uses O2 and Release used O3
+# Here are also some websites mentioning this issue.
+# https://reviews.llvm.org/D55056
+# https://groups.google.com/g/llvm-dev/c/8NjvujK0QzE
+# https://github.com/conan-io/conan/issues/4221

@@ -7,8 +7,8 @@
 struct Pixel32 {
 	Pixel32(u8 r, u8 g, u8 b, u8 a = 255);
 	explicit Pixel32(u8 v, u8 a = 255);
-	Pixel32(const Vec4& color);
-	Pixel32(const Vec3& color);
+	explicit Pixel32(const Vec4& color);
+	explicit Pixel32(const Vec3& color);
 
 	u8 r, g, b, a;
 };

@@ -34,12 +34,34 @@ MainLoop MainLoop::make() {
 
 	// TODO: Could use lambdas in some cases instead of moves. The issue is that function require a certain order or parameters. Also I won't be able to access previous values returned from a function. Not sure if there is another way to do it.
 
-	return MainLoop{
-		.fluid = EulerianFluid(gridSize, 0.01f),
-		.smoke = Array2d<float>(gridSize.x, gridSize.y),
+	auto image = *Image32::fromFile("assets/ignore/a.jpg");
+	Image32 imageResized(gridSize.x, gridSize.y);
+	imageResized.copyAndResize(image);
+
+	auto makeSmoke = [&]() -> Array2d<float> {
+		Array2d<float> smoke(gridSize.x, gridSize.y);
+		memset(smoke.data(), 0, smoke.dataBytesSize());
+		return smoke;
+	};
+
+	MainLoop value{
+		.fluid = EulerianFluid(gridSize, 0.02f),
+		.smokeR = makeSmoke(),
+		.smokeG = makeSmoke(),
+		.smokeB = makeSmoke(),
 		.image = Image32(gridSize.x, gridSize.y),
 		.renderer = ImageRenderer::make(),
 	};
+
+	for (i64 x = 0; x < gridSize.x; x++) {
+		for (i64 y = 0; y < gridSize.y; y++) {
+			value.smokeR(x, y) = imageResized(x, y).r / 255.0f;
+			value.smokeG(x, y) = imageResized(x, y).g / 255.0f;
+			value.smokeB(x, y) = imageResized(x, y).b / 255.0f;
+		}
+	}
+
+	return value;
 	/*return MainLoop{
 		.image = Image32(128, 128),
 		.renderer = ImageRenderer::make()
@@ -100,9 +122,10 @@ MainLoop MainLoop::make() {
 //	return test.get(1, 1);
 //}
 
+#include <Timer.hpp>
 
 void MainLoop::update() {
-	
+
 
 	//abc(a);
 	/*auto x = abc<Span2d<float>, float>(a);*/
@@ -113,9 +136,31 @@ void MainLoop::update() {
 	return;*/
 	Camera camera;
 	camera.aspectRatio = Window::aspectRatio();
-	
-	fluid.update(dt, 0.0f, 40);
-	fluid.advectQuantity(smoke.span2d(), dt);
+
+
+	float gravity = 0.0f;
+	i32 solverIterations = 40;
+	Timer timer;
+
+	timer.reset();
+	fluid.integrate(dt, gravity);
+	timer.guiTookMiliseconds("integrate");
+
+	timer.reset();
+	std::fill(fluid.pressure.begin(), fluid.pressure.end(), 0.0f);
+	fluid.solveIncompressibility(solverIterations, dt);
+	timer.guiTookMiliseconds("solve incompresibility");
+
+	timer.reset();
+	fluid.advectVelocity(dt);
+	timer.guiTookMiliseconds("advect velocity");
+
+	//fluid.update(dt, 0.0f, 40);
+	/*fluid.advectQuantity(smokeR.span2d(), dt);
+	fluid.advectQuantity(smokeG.span2d(), dt);
+	fluid.advectQuantity(smokeB.span2d(), dt);*/
+
+	//Gui::put("update took: %", timer.elapsedMilliseconds());
 
 	const auto gridSize = fluid.cellSpacing * Vec2(fluid.gridSize);
 	const auto gridCenter = gridSize / 2.0f;
@@ -161,11 +206,17 @@ void MainLoop::update() {
 					// This code just sets the value of the smoke to a changing value to better show changes and it also looks cool. Could just have different smokes values at different points and just move them.
 					//fluid.at(fluid.smoke, x, y) = 0.5f + 0.5f * sin(elapsed / Time::deltaTime() * 0.1f);
 					//fluid.spanFrom(fluid.smoke)(x, y) = 0.5f;
-					smoke(x, y) = 0.5f;
-					fluid.spanFrom(fluid.velX)(x, y) = vel.x;
+					//smoke(x, y) = 0.5f;
+
+					fluid.at(fluid.velX, x, y) = vel.x;
+					fluid.at(fluid.velX, x + 1, y) = vel.x;
+					fluid.at(fluid.velY, x, y) = vel.y;
+					fluid.at(fluid.velY, x, y + 1) = vel.y;
+
+					/*fluid.spanFrom(fluid.velX)(x, y) = vel.x;
 					fluid.spanFrom(fluid.velX)(x + 1, y) = vel.x;
 					fluid.spanFrom(fluid.velY)(x, y) = vel.y;
-					fluid.spanFrom(fluid.velY)(x, y + 1) = vel.y;
+					fluid.spanFrom(fluid.velY)(x, y + 1) = vel.y;*/
 				}
 
 			}
@@ -174,7 +225,7 @@ void MainLoop::update() {
 	if (Input::isMouseButtonUp(MouseButton::LEFT)) {
 		obstacleReleased = true;
 	}
-	
+
 	chk(showDivergence, false) {
 		for (auto pixel : image.indexed()) {
 			pixel = Pixel32(Vec3(fluid.at(fluid.divergence, pixel.pos.x, pixel.pos.y)));
@@ -182,12 +233,128 @@ void MainLoop::update() {
 	} else {
 		for (auto pixel : image.indexed()) {
 			/*pixel = Pixel32(Vec3(fluid.at(fluid.smoke, pixel.pos.x, pixel.pos.y)));*/
-			pixel = Pixel32(Vec3(smoke(pixel.pos.x, pixel.pos.y)));
+			/*pixel = Pixel32(Vec3(smoke(pixel.pos.x, pixel.pos.y)));*/
+			pixel = Pixel32(Vec3(smokeR(pixel.pos.x, pixel.pos.y), smokeG(pixel.pos.x, pixel.pos.y), smokeB(pixel.pos.x, pixel.pos.y)));
 			//pixel = Pixel32(Vec3(pixel.pos.x, pixel.pos.y, 0.0f) / Vec3(fluid.gridSize.x, fluid.gridSize.y, 0.0f));
 		}
 	}
-	
+
 	renderer.drawImage(image.data(), image.size(), transform);
 
 	renderer.update();
 }
+
+
+//void MainLoop::update() {
+//	
+//
+//	//abc(a);
+//	/*auto x = abc<Span2d<float>, float>(a);*/
+//	//auto x = abc<Span2d<float>>(a);
+//	/*auto x = abc<Span2d<float>>(a);*/
+//
+//	/*glClear(GL_COLOR_BUFFER_BIT);
+//	return;*/
+//	Camera camera;
+//	camera.aspectRatio = Window::aspectRatio();
+//	
+//
+//	float gravity = 0.0f;
+//	i32 solverIterations = 40;
+//	Timer timer;
+//
+//	timer.reset();
+//	fluid.integrate(dt, gravity);
+//	timer.guiTookMiliseconds("integrate");
+//
+//	timer.reset();
+//	std::fill(fluid.pressure.begin(), fluid.pressure.end(), 0.0f);
+//	fluid.solveIncompressibility(solverIterations, dt);
+//	timer.guiTookMiliseconds("solve incompresibility");
+//
+//	timer.reset();
+//	fluid.advectVelocity(dt);
+//	timer.guiTookMiliseconds("advect velocity");
+//
+//	//fluid.update(dt, 0.0f, 40);
+//	/*fluid.advectQuantity(smokeR.span2d(), dt);
+//	fluid.advectQuantity(smokeG.span2d(), dt);
+//	fluid.advectQuantity(smokeB.span2d(), dt);*/
+//
+//	//Gui::put("update took: %", timer.elapsedMilliseconds());
+//
+//	const auto gridSize = fluid.cellSpacing * Vec2(fluid.gridSize);
+//	const auto gridCenter = gridSize / 2.0f;
+//	camera.pos = gridCenter;
+//	camera.changeSizeToFitBox(gridSize);
+//
+//	auto transform = camera.makeTransform(gridCenter, 0.0f, gridSize / 2.0f);
+//	//auto transform = camera.makeTransform(Vec2(0.0f), 0.0f, Vec2(image.size().xOverY(), 1.0f));
+//	//transform[1][1] = -transform[1][1];
+//	//fluid.update(1.0f / 60.0f, 0.0f, 40);
+//
+//	const auto cursorPos = Input::cursorPosClipSpace() * camera.clipSpaceToWorldSpace();
+//	const auto cursorGridPos = Vec2T<i64>((cursorPos / fluid.cellSpacing).applied(floor));
+//
+//	static Vec2 obstaclePos(0.0f);
+//
+//	float obstacleRadius = fluid.cellSpacing * 5.0f;
+//	static bool obstacleReleased = true;
+//	if (Input::isMouseButtonHeld(MouseButton::LEFT)) {
+//		/*if (cursorGridPos.x > 0 && cursorGridPos.y > 0 && cursorGridPos.x < fluid.gridSize.x && cursorGridPos.y < fluid.gridSize.y) {
+//			fluid.at(fluid.smoke, cursorGridPos.x, cursorGridPos.y) = 0.0f;
+//			fluid.at(fluid.velX, cursorGridPos.x, cursorGridPos.y) = 5.0f;
+//		}*/
+//
+//		//Vec2 newPos = Vec2{ fluid.gridPos } *SPACE_BETWEEN_CELLS;
+//		const auto newPos = cursorPos;
+//		Vec2 vel;
+//		if (obstacleReleased) {
+//			obstacleReleased = false;
+//			vel = Vec2(0.0f);
+//		} else {
+//			vel = (newPos - obstaclePos) / dt;
+//		}
+//		obstaclePos = newPos;
+//
+//		for (i64 x = 1; x < fluid.gridSize.x - 2; x++) {
+//			for (i64 y = 1; y < fluid.gridSize.y - 2; y++) {
+//				const auto cellPos = Vec2(Vec2T(x, y)) * fluid.cellSpacing;
+//				const auto n = fluid.gridSize.y;
+//				if (!fluid.isWall(x, y) && (cellPos - obstaclePos).lengthSq() < pow(obstacleRadius, 2.0f)) {
+//					// Smoke doesn't impact velocities it only advectes (moves) with them. It is used to visualize how the fluid moves. The color doesn't represent the amount of fluid at a point. The fluid is incompressible so it has the same amount everywhere. The smoke is kind of like a fluid moving inside a fluid and it can vary from place to place. 
+//
+//					// This code just sets the value of the smoke to a changing value to better show changes and it also looks cool. Could just have different smokes values at different points and just move them.
+//					//fluid.at(fluid.smoke, x, y) = 0.5f + 0.5f * sin(elapsed / Time::deltaTime() * 0.1f);
+//					//fluid.spanFrom(fluid.smoke)(x, y) = 0.5f;
+//					//smoke(x, y) = 0.5f;
+//					fluid.spanFrom(fluid.velX)(x, y) = vel.x;
+//					fluid.spanFrom(fluid.velX)(x + 1, y) = vel.x;
+//					fluid.spanFrom(fluid.velY)(x, y) = vel.y;
+//					fluid.spanFrom(fluid.velY)(x, y + 1) = vel.y;
+//				}
+//
+//			}
+//		}
+//	}
+//	if (Input::isMouseButtonUp(MouseButton::LEFT)) {
+//		obstacleReleased = true;
+//	}
+//	
+//	chk(showDivergence, false) {
+//		for (auto pixel : image.indexed()) {
+//			pixel = Pixel32(Vec3(fluid.at(fluid.divergence, pixel.pos.x, pixel.pos.y)));
+//		}
+//	} else {
+//		for (auto pixel : image.indexed()) {
+//			/*pixel = Pixel32(Vec3(fluid.at(fluid.smoke, pixel.pos.x, pixel.pos.y)));*/
+//			/*pixel = Pixel32(Vec3(smoke(pixel.pos.x, pixel.pos.y)));*/
+//			pixel = Pixel32(Vec3(smokeR(pixel.pos.x, pixel.pos.y), smokeG(pixel.pos.x, pixel.pos.y), smokeB(pixel.pos.x, pixel.pos.y)));
+//			//pixel = Pixel32(Vec3(pixel.pos.x, pixel.pos.y, 0.0f) / Vec3(fluid.gridSize.x, fluid.gridSize.y, 0.0f));
+//		}
+//	}
+//	
+//	renderer.drawImage(image.data(), image.size(), transform);
+//
+//	renderer.update();
+//}

@@ -18,10 +18,11 @@ struct MainLoop {
 
 	EulerianFluid fluid;*/
 	float dt = 1.0f / 60.0f;
+	//EulerianFluid fluid;
 	EulerianFluid fluid;
-	Array2d<float> smoke;
+	//Array2d<float> smoke;
+	Array2d<float> smokeR, smokeG, smokeB;
 	Image32 image;
-	//Array2d<float> r, g, b;
 	ImageRenderer renderer;
 
 	void update();

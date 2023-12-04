@@ -163,7 +163,7 @@ Pixel32::Pixel32(const Vec4& color)
 	: r{ static_cast<u8>(std::clamp(color.x * 255.0f, 0.0f, 255.0f)) }
 	, g{ static_cast<u8>(std::clamp(color.y * 255.0f, 0.0f, 255.0f)) }
 	, b{ static_cast<u8>(std::clamp(color.z * 255.0f, 0.0f, 255.0f)) }
-	, a{ 255 } {}
+	, a{ static_cast<u8>(std::clamp(color.w * 255.0f, 0.0f, 255.0f)) } {}
 
 Pixel32::Pixel32(const Vec3& color)
 	: Pixel32(Vec4(color, 1.0f)) {}
