@@ -156,9 +156,9 @@ void MainLoop::update() {
 	timer.guiTookMiliseconds("advect velocity");
 
 	//fluid.update(dt, 0.0f, 40);
-	/*fluid.advectQuantity(smokeR.span2d(), dt);
+	fluid.advectQuantity(smokeR.span2d(), dt);
 	fluid.advectQuantity(smokeG.span2d(), dt);
-	fluid.advectQuantity(smokeB.span2d(), dt);*/
+	fluid.advectQuantity(smokeB.span2d(), dt);
 
 	//Gui::put("update took: %", timer.elapsedMilliseconds());
 
