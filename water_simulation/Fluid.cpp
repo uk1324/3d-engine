@@ -8,8 +8,6 @@ EulerianFluid::EulerianFluid(Vec2T<i64> gridSize, float cellSpacing, float overR
 	const auto cellCount = gridSize.x * gridSize.y;
 	velX.resize(cellCount);
 	velY.resize(cellCount);
-	newVelX.resize(cellCount);
-	newVelY.resize(cellCount);
 	oldVelX.resize(cellCount);
 	oldVelY.resize(cellCount);
 	pressure.resize(cellCount);
@@ -108,46 +106,6 @@ auto EulerianFluid::solveIncompressibility(i32 solverIterations, float dt) -> vo
 	}
 }
 
-//auto EulerianFluid::sampleField(Vec2 pos, FieldType type) -> float {
-//	//pos.x = std::clamp(pos.x, cellSpacing, gridSize.x * cellSpacing);
-//	//pos.y = std::clamp(pos.y, cellSpacing, gridSize.y * cellSpacing);
-//
-//	//std::vector<float>* field = nullptr;
-//
-//	//Vec2 cellOffset{ 0.0f };
-//	//switch (type) {
-//	//case FieldType::VEL_X:
-//	//	field = &velX;
-//	//	cellOffset.y = cellSpacing / 2.0f;
-//	//	break;
-//	//case FieldType::VEL_Y:
-//	//	field = &velY;
-//	//	cellOffset.x = cellSpacing / 2.0f;
-//	//	break;
-//	//case FieldType::SMOKE:
-//	//	field = &smoke;
-//	//	cellOffset = Vec2{ cellSpacing / 2.0f };
-//	//	break;
-//	//}
-//
-//	//// Could just use a single clamp here and remove the one from the top.
-//	//const auto x0 = std::min(static_cast<i64>(floor((pos.x - cellOffset.x) / cellSpacing)), gridSize.x - 1);
-//	//const auto tx = ((pos.x - cellOffset.x) - x0 * cellSpacing) / cellSpacing;
-//	//const auto x1 = std::min(x0 + 1, gridSize.x - 1);
-//
-//	//const auto y0 = std::min(static_cast<i64>(floor((pos.y - cellOffset.y) / cellSpacing)), gridSize.y - 1);
-//	//const auto ty = ((pos.y - cellOffset.y) - y0 * cellSpacing) / cellSpacing;
-//	//const auto y1 = std::min(y0 + 1, gridSize.y - 1);
-//
-//	//const auto bilerpedValue =
-//	//	(1.0f - tx) * (1.0f - ty) * at(*field, x0, y0) +
-//	//	(1.0f - tx) * ty * at(*field, x0, y1) +
-//	//	tx * (1.0f - ty) * at(*field, x1, y0) +
-//	//	tx * ty * at(*field, x1, y1);
-//
-//	//return bilerpedValue;
-//}
-
 float EulerianFluid::sampleField(Span2d<const float> field, Vec2 pos, Vec2 cellOffset) {
 	pos.x = std::clamp(pos.x, cellSpacing, gridSize.x * cellSpacing);
 	pos.y = std::clamp(pos.y, cellSpacing, gridSize.y * cellSpacing);
@@ -166,10 +124,6 @@ float EulerianFluid::sampleField(Span2d<const float> field, Vec2 pos, Vec2 cellO
 		(1.0f - tx) * ty * field(x0, y1) +
 		tx * (1.0f - ty) * field(x1, y0) +
 		tx * ty * field(x1, y1);
-		/*(1.0f - tx) * (1.0f - ty) * at(*field, x0, y0) +
-		(1.0f - tx) * ty * at(*field, x0, y1) +
-		tx * (1.0f - ty) * at(*field, x1, y0) +
-		tx * ty * at(*field, x1, y1);*/
 
 	return bilerpedValue;
 }
@@ -182,74 +136,15 @@ float EulerianFluid::sampleFieldVelY(const std::vector<float>& field, Vec2 pos) 
 	return sampleField(spanFrom(field).asConst(), pos, Vec2(cellSpacing / 2.0f, 0.0f));
 }
 
+Vec2 EulerianFluid::sampleVel(Vec2 pos) {
+	return Vec2(sampleFieldVelX(velX, pos), sampleFieldVelY(velY, pos));
+}
+
 float EulerianFluid::sampleQuantity(Span2d<const float> field, Vec2 pos) {
 	return sampleField(field, pos, Vec2(cellSpacing / 2.0f));
 }
 
-//auto EulerianFluid::advectVelocity(float dt) -> void {
-//	newVelX = velX;
-//	newVelY = velY;
-//
-//	for (i64 x = 1; x < gridSize.x; x++) {
-//		for (i64 y = 1; y < gridSize.y; y++) {
-//			if (isWall(x, y))
-//				continue;
-//
-//			// Going back at step in a straight line and sampling the average previous pos to get the new velocity is called semi-lagrangian advection. This introduces viscosity. An alternative to this would be to step the forward and distribute the values to the cells closest to the new position, which would be more difficult to implement especially in a staggered grid.
-//			if (!isWall(x - 1, y) && y < gridSize.y - 1) {
-//				const auto pos = Vec2{ x + 0.0f, y + 0.5f } *cellSpacing;
-//				const auto avgVelY = (at(velY, x - 1, y) + at(velY, x, y) + at(velY, x - 1, y + 1) + at(velY, x, y + 1)) / 4.0f;
-//				const Vec2 vel{ at(velX, x, y), avgVelY };
-//				const auto approximatePreviousPos = pos - vel * dt;
-//				at(newVelX, x, y) = sampleField(approximatePreviousPos, FieldType::VEL_X);
-//			}
-//
-//			if (!isWall(x, y - 1) && x < gridSize.x - 1) {
-//				const auto pos = Vec2{ x + 0.5f, y + 0.0f } *cellSpacing;
-//				const auto avgVelX = (at(velX, x, y - 1) + at(velX, x, y) + at(velX, x + 1, y - 1) + at(velX, x + 1, y)) / 4.0f;
-//				const Vec2 vel{ avgVelX, at(velY, x, y) };
-//				const auto approximatePreviousPos = pos - vel * dt;
-//				at(newVelY, x, y) = sampleField(approximatePreviousPos, FieldType::VEL_Y);
-//			}
-//		}
-//	}
-//
-//	velX = newVelX;
-//	velY = newVelY;
-//}
-
 auto EulerianFluid::advectVelocity(float dt) -> void {
-
-	//newVelX = velX;
-	//newVelY = velY;
-
-	//for (i64 x = 1; x < gridSize.x; x++) {
-	//	for (i64 y = 1; y < gridSize.y; y++) {
-	//		if (isWall(x, y))
-	//			continue;
-
-	//		// Going back at step in a straight line and sampling the average previous pos to get the new velocity is called semi-lagrangian advection. This introduces viscosity. An alternative to this would be to step the forward and distribute the values to the cells closest to the new position, which would be more difficult to implement especially in a staggered grid.
-	//		if (!isWall(x - 1, y) && y < gridSize.y - 1) {
-	//			const auto pos = Vec2{ x + 0.0f, y + 0.5f } *cellSpacing;
-	//			const auto avgVelY = (at(velY, x - 1, y) + at(velY, x, y) + at(velY, x - 1, y + 1) + at(velY, x, y + 1)) / 4.0f;
-	//			const Vec2 vel{ at(velX, x, y), avgVelY };
-	//			const auto approximatePreviousPos = pos - vel * dt;
-	//			at(newVelX, x, y) = sampleFieldVelX(velX, approximatePreviousPos);
-	//		}
-
-	//		if (!isWall(x, y - 1) && x < gridSize.x - 1) {
-	//			const auto pos = Vec2{ x + 0.5f, y + 0.0f } *cellSpacing;
-	//			const auto avgVelX = (at(velX, x, y - 1) + at(velX, x, y) + at(velX, x + 1, y - 1) + at(velX, x + 1, y)) / 4.0f;
-	//			const Vec2 vel{ avgVelX, at(velY, x, y) };
-	//			const auto approximatePreviousPos = pos - vel * dt;
-	//			at(newVelY, x, y) = sampleFieldVelX(velY, approximatePreviousPos);
-	//		}
-	//	}
-	//}
-
-	//velX = newVelX;
-	//velY = newVelY;
-
 	oldVelX = velX;
 	oldVelY = velY;
 
@@ -293,28 +188,9 @@ void EulerianFluid::advectQuantity(Span2d<float> quantity, float dt) {
 			const auto avgVel = Vec2{ at(velX, x, y) + at(velX, x + 1, y), at(velY, x, y) + at(velY, x, y + 1) } / 2.0f;
 			const auto pos = (Vec2{ Vec2T{ x, y } } + Vec2{ 0.5f })* cellSpacing;
 			const auto approximatePreviousPos = pos - dt * avgVel;
-			/*at(newSmoke, x, y) = sampleField(approximatePreviousPos, FieldType::SMOKE);*/
-			/*at(newSmoke, x, y) = sampleField(quantity.asConst(), approximatePreviousPos, Vec2(cellSpacing / 2.0f));*/
-			//quantity(newSmoke, x, y) = sampleField(spanFrom(advectedQuantityOld).asConst(), approximatePreviousPos, Vec2(cellSpacing / 2.0f));
 			quantity(x, y) = sampleQuantity(spanFrom(advectedQuantityOld).asConst(), approximatePreviousPos);
 		}
 	}
-
-	//for (i64 x = 1; x < gridSize.x - 1; x++) {
-	//	for (i64 y = 1; y < gridSize.y - 1; y++) {
-	//		if (isWall(x, y))
-	//			continue;
-
-	//		// Read advect velocity.
-	//		const auto avgVel = Vec2{ at(velX, x, y) + at(velX, x + 1, y), at(velY, x, y) + at(velY, x, y + 1) } / 2.0f;
-	//		const auto pos = (Vec2{ Vec2T{ x, y } } + Vec2{ 0.5f }) * cellSpacing;
-	//		const auto approximatePreviousPos = pos - dt * avgVel;
-	//		/*at(newSmoke, x, y) = sampleField(approximatePreviousPos, FieldType::SMOKE);*/
-	//		/*at(newSmoke, x, y) = sampleField(quantity.asConst(), approximatePreviousPos, Vec2(cellSpacing / 2.0f));*/
-	//		//quantity(newSmoke, x, y) = sampleField(spanFrom(advectedQuantityOld).asConst(), approximatePreviousPos, Vec2(cellSpacing / 2.0f));
-	//		quantity(x, y) = sampleQuantity(spanFrom(advectedQuantityOld).asConst(), approximatePreviousPos);
-	//	}
-	//}
 }
 
 auto EulerianFluid::update(float dt, float gravity, i32 solverIterations) -> void {

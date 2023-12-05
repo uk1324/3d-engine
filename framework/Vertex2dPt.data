@@ -1,0 +1,4 @@
+struct Vertex2dPt {
+	Vec2 position;
+	Vec2 texturePosition;
+}

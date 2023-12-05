@@ -7,23 +7,20 @@
 #include <engine/Graphics/ShaderProgram.hpp>
 #include <water_simulation/Fluid.hpp>
 #include <Array2d.hpp>
-#include <framework/ImageRenderer.hpp>
+#include <framework/Renderer2d.hpp>
 
 struct MainLoop {
 	static MainLoop make();
 
-	/*Texture texture;
-
-	std::vector<float> imageData;
-
-	EulerianFluid fluid;*/
 	float dt = 1.0f / 60.0f;
-	//EulerianFluid fluid;
+
 	EulerianFluid fluid;
-	//Array2d<float> smoke;
 	Array2d<float> smokeR, smokeG, smokeB;
 	Image32 image;
-	ImageRenderer renderer;
+	Renderer2d renderer;
+
+	std::vector<Vec2> particles;
+	float initialArea = -1.0f;
 
 	void update();
 };

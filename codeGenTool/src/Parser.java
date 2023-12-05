@@ -1,3 +1,4 @@
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -26,6 +27,8 @@ public class Parser {
 
     DataFile output = new DataFile();
 
+    List<Struct> importedStructs = new ArrayList<>();
+
     Parser(String source, GeneratedFilesPaths paths) {
         this.source = source;
         this.paths = paths;
@@ -41,11 +44,19 @@ public class Parser {
         this.currentToken = optToken.get();
 
         while (!isAtEnd) {
-            output.declarations.add(declaration());
+            if (matchIdentifier("import")) {
+                importStatement();
+            } else {
+                output.declarations.add(declaration());
+            }
         }
 
         return output;
     }
+
+//    Optional<Struct> resolveStruct(String name) {
+//        for (var declaration : )
+//    }
 
     List<Field> filterKeepOnlyFields(List<DeclarationInStruct> declarations) {
         List<Field> fields = new ArrayList<>();
@@ -55,6 +66,29 @@ public class Parser {
             }
         }
         return fields;
+    }
+
+    void importStatement() throws ParserError, LexerError {
+        expect(TokenType.STRING);
+        var path = previousToken.string();
+        expect(TokenType.SEMICOLON);
+        var importedFilePath = Paths.get(paths.fileDirectory, path).toString();
+
+        var importedFileGeneratedPaths = new GeneratedFilesPaths(importedFilePath, this.paths.generatedOutDirectory, this.paths.cppExecutableWorkingDirectory);
+        var optDataFile = Main.readAndParseDataFile(importedFilePath, importedFileGeneratedPaths);
+        // TODO: This might not always be needed. Need this from importing vertex struct in shaders. Could just make it manual.
+        output.addCppIncludePath(new IncludePath(importedFileGeneratedPaths.hppFilePath, false));
+
+        if (optDataFile.isEmpty()) {
+            throw new ParserError(String.format("failed to import file %s from %s", path, this.paths.absoluteFilePath));
+        }
+        var dataFile = optDataFile.get();
+
+        for (var declaration : dataFile.declarations) {
+            if (declaration.getIsStruct()) {
+                importedStructs.add((Struct)declaration);
+            }
+        }
     }
 
     Declaration declaration() throws LexerError, ParserError {
@@ -108,12 +142,6 @@ public class Parser {
             return shader();
         } else if (match(TokenType.CPP)) {
             return new Cpp(previousToken.cppSource());
-        } else if (matchIdentifier("import")) {
-            match(TokenType.STRING);
-            var path = previousToken.string();
-//            var paths = new GeneratedFilesPaths();
-//            new Parser()
-            expect(TokenType.SEMICOLON);
         }
         throw new ParserError("expected declaration");
     }
@@ -343,6 +371,16 @@ public class Parser {
                     continue;
                 }
                 var struct = (Struct)declaration;
+                if (!Objects.equals(struct.name, wantedStructName)) {
+                    continue;
+                }
+
+                vertexFields = struct.fields;
+                vertexStructName = struct.name;
+                break;
+            }
+
+            for (var struct : importedStructs) {
                 if (!Objects.equals(struct.name, wantedStructName)) {
                     continue;
                 }

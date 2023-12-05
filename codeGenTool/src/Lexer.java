@@ -39,14 +39,18 @@ class Token {
     }
 
     String cppType() {
-        if (type != TokenType.CPP_TYPE)
+        if (type != TokenType.CPP_TYPE) {
+            assert false;
             return "";
+        }
         return text.substring(1, text.length() - 1);
     }
 
     String string() {
-        if (type != TokenType.CPP_TYPE)
+        if (type != TokenType.STRING) {
+            assert false;
             return "";
+        }
         return text.substring(1, text.length() - 1);
     }
 

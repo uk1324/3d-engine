@@ -12,6 +12,7 @@ import java.util.stream.Stream;
 // TODO: rework how paths work, what are the inputs to the program (absolute / relative). Where is the working directory of the executable. etc. Slashes have to be escaped correctly.
 
 class GeneratedFilesPaths {
+    public String generatedOutDirectory;
     public String absoluteFilePath;
     public String cppExecutableWorkingDirectory;
     public String fileDirectory;
@@ -22,6 +23,7 @@ class GeneratedFilesPaths {
 
     GeneratedFilesPaths(String file, String generatedOutDirectory, String cppExecutableWorkingDirectory) {
         generatedOutDirectory = Paths.get(generatedOutDirectory).toAbsolutePath().toString();
+        this.generatedOutDirectory = generatedOutDirectory;
         this.cppExecutableWorkingDirectory = Paths.get(cppExecutableWorkingDirectory).toAbsolutePath().toString();
         var absolutePath = Paths.get(file).toAbsolutePath();
         this.absoluteFilePath = absolutePath.toString();

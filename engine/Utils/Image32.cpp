@@ -118,6 +118,14 @@ const Pixel32* Image32::data() const {
 	return data_;
 }
 
+Span2d<Pixel32> Image32::span2d() {
+	return Span2d<Pixel32>(data_, size_.x, size_.y);
+}
+
+Span2d<const Pixel32> Image32::span2d() const {
+	return Span2d<const Pixel32>(data_, size_.x, size_.y);
+}
+
 usize Image32::dataSizeBytes() const {
 	return 4 * size_.x * size_.y;
 }

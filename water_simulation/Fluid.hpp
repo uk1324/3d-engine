@@ -10,18 +10,15 @@ public:
 
 	auto integrate(float dt, float gravity) -> void;
 	auto solveIncompressibility(i32 solverIterations, float dt) -> void;
-	enum class FieldType {
-		VEL_X, VEL_Y, SMOKE
-	};
-	/*auto sampleField(Vec2 pos, FieldType type) -> float;*/
-	//auto sampleField(Vec2 pos, FieldType type) -> float;
 
 	float sampleField(Span2d<const float> field, Vec2 pos, Vec2 cellOffset);
 	float sampleFieldVelX(const std::vector<float>& field, Vec2 pos);
 	float sampleFieldVelY(const std::vector<float>& field, Vec2 pos);
+	Vec2 sampleVel(Vec2 pos);
 	float sampleQuantity(Span2d<const float> field, Vec2 pos);
+
 	void advectVelocity(float dt);
-	//auto advectSmoke(float dt) -> void;
+	// @Performance: Would it be faster in some cases to have a single "vector" of quantites that get advected all at once. It would need less computation, but there would probably be issues with caching.
 	void advectQuantity(Span2d<float> quantity, float dt);
 	auto update(float dt, float gravity, i32 solverIterations) -> void;
 	template<typename T>
@@ -41,8 +38,6 @@ public:
 	// @Performance: Could double buffer the velocities instead of copying them. Would need to profile to see if the extra level of indirection has any impact on performance.
 	std::vector<float> velX;
 	std::vector<float> velY;
-	std::vector<float> newVelX;
-	std::vector<float> newVelY;
 	std::vector<float> oldVelX;
 	std::vector<float> oldVelY;
 	std::vector<float> pressure;

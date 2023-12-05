@@ -1,0 +1,16 @@
+import "../../framework/Vertex2dPt.data";
+
+shader Disk {
+	vertexStruct = Vertex2dPt;
+	vertInstance = {
+		Mat3x2 transform;
+	};
+	fragInstance = {
+		color color;
+		float smoothing;
+		float depth;
+	};
+	vertOut = {
+		Vec2 position;
+	};
+}

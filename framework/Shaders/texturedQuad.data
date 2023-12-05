@@ -1,10 +1,7 @@
-struct TexturedQuadVertex {
-	Vec2 position;
-	Vec2 texturePosition;
-}
+import "../../framework/Vertex2dPt.data";
 
 shader TexturedQuad {
-	vertexStruct = TexturedQuadVertex;
+	vertexStruct = Vertex2dPt;
 	vertInstance = {
 		Mat3x2 transform;
 	};

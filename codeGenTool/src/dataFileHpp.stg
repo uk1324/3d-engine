@@ -117,12 +117,10 @@ shader(shader) ::= <<
 <struct(shader.fragUniforms)>
 <struct(shader.vertUniforms)>
 
-struct <shader.name>Instances {
-    std::vector\<<shader.name>Instance\> toDraw;
-
-    void drawCall(Vbo& instanceBuffer, usize instanceBufferSizeBytes, int indicesCount);
-    // For template use.
+// For template use.
+struct <shader.name>Shader {
     static void addAttributesToVao(Vao& vao, Vbo& verticesVbo, Vbo& instancesVbo);
+    // Could put the path constants here
 };
 
 static constexpr const char* <shader.nameUpperSnakeCase>_SHADER_VERT_PATH = "<shader.vertPathRelativeToWorkingDirectory>";

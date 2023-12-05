@@ -2,6 +2,7 @@
 
 #include "Iter2d.hpp"
 #include <engine/Math/Vec4.hpp>
+#include <Span2d.hpp>
 #include <optional>
 
 struct Pixel32 {
@@ -35,6 +36,9 @@ struct Image32 {
 	i64 height() const;
 	Pixel32* data();
 	const Pixel32* data() const;
+	Span2d<Pixel32> span2d();
+	Span2d<const Pixel32> span2d() const;
+
 	usize dataSizeBytes() const;
 	usize pixelCount() const;
 

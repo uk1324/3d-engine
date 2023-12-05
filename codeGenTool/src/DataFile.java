@@ -250,14 +250,14 @@ class Shader extends Declaration {
     }
 
     private int dataTypeLayoutSize(DataType type) {
-        if (type.getIsVec3() || type.getIsVec2() || type.getIsVec4()) {
+        if (type.getIsFloat() || type.getIsVec2() || type.getIsVec3() || type.getIsVec4()) {
             return 1;
         } else if (type.getName().equals("Mat3x2")) {
             return 3;
         } else if (type.getName().equals("Mat4")) {
             return 4;
         } else {
-            throw new RuntimeException("TODO");
+            throw new RuntimeException(String.format("TODO: %s", type.toString()));
         }
     }
 

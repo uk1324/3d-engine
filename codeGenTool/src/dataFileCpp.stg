@@ -175,21 +175,7 @@ shader(shader) ::= <<
 <struct(shader.fragUniforms)>
 <struct(shader.vertUniforms)>
 
-void <shader.name>Instances::drawCall(Vbo& instanceBuffer, usize instanceBufferSizeBytes, int indicesCount) {
-    const auto maxInstancesPerDrawCall = instanceBufferSizeBytes / sizeof(<shader.name>Instance);
-    auto drawn = 0;
-    instanceBuffer.bind();
-    <! Can't just put leftToDraw here and check in the while loop if > 0 because the subtraction would underflow. Have to do the check in the while loop and calculate leftToDraw after. !>
-    while (drawn \< toDraw.size()) {
-        const auto leftToDraw = toDraw.size() - drawn;
-        const auto toDrawInThisDrawCall = (leftToDraw > maxInstancesPerDrawCall) ? maxInstancesPerDrawCall : leftToDraw;
-        boundVboSetData(0, toDraw.data() + drawn, toDrawInThisDrawCall * sizeof(<shader.name>Instance));
-        glDrawElementsInstanced(GL_TRIANGLES, indicesCount, GL_UNSIGNED_INT, nullptr, toDrawInThisDrawCall);
-        drawn += toDrawInThisDrawCall;
-    }
-}
-
-void <shader.name>Instances::addAttributesToVao(Vao& vao, Vbo& verticesVbo, Vbo& instancesVbo) {
+void <shader.name>Shader::addAttributesToVao(Vao& vao, Vbo& verticesVbo, Vbo& instancesVbo) {
     using Vec1 = float;
     vao.bind();
     verticesVbo.bind();
