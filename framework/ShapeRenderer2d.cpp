@@ -8,6 +8,8 @@ ShapeRenderer2d ShapeRenderer2d::make(Vbo& fullscreenQuad2dPtVerticesVbo, Ibo& f
 	return ShapeRenderer2d{
 		.diskVao = createInstancingVao<DiskShader>(fullscreenQuad2dPtVerticesVbo, fullscreenQuad2dPtVerticesIbo, instancesVbo),
 		.diskShader = MAKE_GENERATED_SHADER(DISK),
+		.circleVao = createInstancingVao<CircleShader>(fullscreenQuad2dPtVerticesVbo, fullscreenQuad2dPtVerticesIbo, instancesVbo),
+		.circleShader = MAKE_GENERATED_SHADER(CIRCLE),
 		.lineVao = createInstancingVao<LineShader>(fullscreenQuad2dPtVerticesVbo, fullscreenQuad2dPtVerticesIbo, instancesVbo),
 		.lineShader = MAKE_GENERATED_SHADER(LINE),
 	};
@@ -18,8 +20,8 @@ void drawFullscreenQuad(usize instanceCount) {
 }
 
 void ShapeRenderer2d::update(Vbo& instancesVbo) {
-	glEnable(GL_DEPTH_TEST);
-	glDepthFunc(GL_LEQUAL);
+	//glEnable(GL_DEPTH_TEST);
+	//glDepthFunc(GL_LEQUAL);
 
 	glEnable(GL_BLEND);
 	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -28,10 +30,14 @@ void ShapeRenderer2d::update(Vbo& instancesVbo) {
 	drawInstances(diskVao, instancesVbo, diskInstances, drawFullscreenQuad);
 	diskInstances.clear();
 
+	circleShader.use();
+	drawInstances(circleVao, instancesVbo, circleInstances, drawFullscreenQuad);
+	circleInstances.clear();
+
 	lineShader.use();
 	drawInstances(lineVao, instancesVbo, lineInstances, drawFullscreenQuad);
 	lineInstances.clear();
 
-	glDisable(GL_DEPTH_TEST);
+	//glDisable(GL_DEPTH_TEST);
 	glDisable(GL_BLEND);
 }

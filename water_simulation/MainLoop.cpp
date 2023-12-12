@@ -45,188 +45,300 @@ MainLoop MainLoop::make() {
 		}
 	}
 
-	/*i32 size = 10;
-	for (i32 x = 0; x < size; x++) {
-		value.particles.push_back(Vec2((x / static_cast<float>(size)) * 0.2f + 0.5, 0.5f));
-	}*/
-
 	return value;
 }
 
+void MainLoop::setSmoke(i64 x, i64 y, Vec3 color) {
+	smokeR(x, y) = color.x;
+	smokeG(x, y) = color.y;
+	smokeB(x, y) = color.z;
+}
+
+// TODO: Using rk4 to advect control volumes in potential flows.
+
 void MainLoop::update() {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	fluid.update(dt, 0.0f, 40);
-	fluid.advectQuantity(smokeR.span2d(), dt);
-	fluid.advectQuantity(smokeG.span2d(), dt);
-	fluid.advectQuantity(smokeB.span2d(), dt);
-
 	const auto gridSize = fluid.cellSpacing * Vec2(fluid.gridSize);
 	const auto gridCenter = gridSize / 2.0f;
+
 	renderer.camera.pos = gridCenter;
 	renderer.camera.changeSizeToFitBox(gridSize);
-
-	auto transform = renderer.camera.makeTransform(gridCenter, 0.0f, gridSize / 2.0f);
 
 	const auto cursorPos = Input::cursorPosClipSpace() * renderer.camera.clipSpaceToWorldSpace();
 	const auto cursorGridPos = Vec2T<i64>((cursorPos / fluid.cellSpacing).applied(floor));
 
-	static Vec2 obstaclePos(0.0f);
-
-	float obstacleRadius = fluid.cellSpacing * 5.0f;
-	static bool obstacleReleased = true;
-	if (Input::isMouseButtonHeld(MouseButton::LEFT)) {
-		const auto newPos = cursorPos;
-		Vec2 vel;
-		if (obstacleReleased) {
-			obstacleReleased = false;
-			vel = Vec2(0.0f);
-		} else {
-			vel = (newPos - obstaclePos) / dt;
-		}
-		obstaclePos = newPos;
-
-		for (i64 x = 1; x < fluid.gridSize.x - 2; x++) {
-			for (i64 y = 1; y < fluid.gridSize.y - 2; y++) {
-				const auto cellPos = Vec2(Vec2T(x, y)) * fluid.cellSpacing;
-				const auto n = fluid.gridSize.y;
-				if (!fluid.isWall(x, y) && (cellPos - obstaclePos).lengthSq() < pow(obstacleRadius, 2.0f)) {
-					fluid.at(fluid.velX, x, y) = vel.x;
-					fluid.at(fluid.velX, x + 1, y) = vel.x;
-					fluid.at(fluid.velY, x, y) = vel.y;
-					fluid.at(fluid.velY, x, y + 1) = vel.y;
+	auto updateSimulation = [&] {
+		auto updateParticles = [&] {
+			for (auto& particle : particles) {
+				particle += fluid.sampleVel(particle) * dt;
+				if (particle.x < 0.0f) {
+					particle.x = 0.0f;
+				}
+				if (particle.y < 0.0f) {
+					particle.y = 0.0f;
 				}
 
+				if (particle.x > gridSize.x) {
+					particle.x = gridSize.x;
+				}
+				if (particle.y > gridSize.y) {
+					particle.y = gridSize.y;
+				}
+			}
+
+			std::vector<i64> particlesToRemoveIndices;
+
+			if (particles.size() > 0) {
+				Vec2 lastNotRemovedParticlePos = particles[0];
+
+				for (i64 i = 1; i < static_cast<i64>(particles.size()) - 1; i++) {
+					const auto dist = lastNotRemovedParticlePos.distanceTo(particles[i]);
+					if (dist < 0.01f) {
+						particlesToRemoveIndices.push_back(i);
+					} else {
+						lastNotRemovedParticlePos = particles[i];
+					}
+				}
+				// It would probably be most efficient to just rebuild the vector without the ereased elements.
+				for (auto it = particlesToRemoveIndices.crbegin(); it != particlesToRemoveIndices.crend(); ++it) {
+					particles.erase(particles.begin() + *it);
+				}
+			}
+
+			if (particles.size() > 0) {
+				std::vector<Vec2> newParticles;
+				for (i64 i = 0; i < static_cast<i64>(particles.size()) - 1; i++) {
+					const auto dist = particles[i].distanceTo(particles[i + 1]);
+					newParticles.push_back(particles[i]);
+					if (dist > 0.05f) {
+						newParticles.push_back((particles[i] + particles[i + 1]) / 2.0f);
+					}
+				}
+				newParticles.push_back(particles[particles.size() - 1]);
+				particles = newParticles;
+			}
+		};
+
+		if (!paused) {
+			fluid.update(dt, 0.0f, 40);
+			fluid.advectQuantity(smokeR.span2d(), dt);
+			fluid.advectQuantity(smokeG.span2d(), dt);
+			fluid.advectQuantity(smokeB.span2d(), dt);
+		}
+
+		for (i64 x = 0; x < fluid.gridSize.x; x++) {
+			for (i64 y = 0; y < fluid.gridSize.y; y++) {
+				if (fluid.isWall(x, y) || x == 0 || y == 0 || x == fluid.gridSize.x - 1 || y == fluid.gridSize.y - 1) {
+					setSmoke(x, y, Vec3(0.0f));
+				}
 			}
 		}
-	}
-	if (Input::isMouseButtonUp(MouseButton::LEFT)) {
-		obstacleReleased = true;
-	}
 
-	if (Input::isKeyDown(KeyCode::P)) {
-		i32 count = 1000;
-		for (i32 i = 0; i < count; i++) {
-			float angle = (i / static_cast<float>(count)) * TAU<float>;
-			particles.push_back(gridCenter + Vec2::oriented(angle) * 0.5f);
-		}
-	}
-
-	if (Input::isKeyDown(KeyCode::O)) {
-		i32 perSide = 100;
-		float size = 0.5f;
-
-		for (i32 xi = 0; xi < perSide; xi++) {
-			float t = xi / static_cast<float>(perSide);
-			const auto x = lerp(-size / 2.0f, size / 2.0f, t);
-			particles.push_back(gridCenter + Vec2(x, size / 2.0f));
+		for (i64 y = 0; y < fluid.gridSize.y - 1; y += 20) {
+			for (i64 yi = y; yi < y + 10; yi++) {
+				setSmoke(0, yi, Vec3(1.0f));
+			}
 		}
 
-		for (i32 yi = 1; yi < perSide - 1; yi++) {
-			float t = yi / static_cast<float>(perSide);
-			const auto y = lerp(size / 2.0f, -size / 2.0f, t);
-			particles.push_back(gridCenter + Vec2(size / 2.0f, y));
+		updateParticles();
+	};
+
+	auto processInput = [&] {
+		if (Input::isKeyDown(KeyCode::X)) {
+			paused = !paused;
 		}
 
-		for (i32 xi = 0; xi < perSide; xi++) {
-			float t = xi / static_cast<float>(perSide);
-			const auto x = lerp(size / 2.0f, -size / 2.0f, t);
-			particles.push_back(gridCenter + Vec2(x, -size / 2.0f));
+		auto updateVelocityBrush = [&] {
+			float radius = fluid.cellSpacing * 5.0f;
+			if (Input::isMouseButtonHeld(MouseButton::LEFT)) {
+				const auto newPos = cursorPos;
+				Vec2 vel;
+				if (velocityBrushReleased) {
+					velocityBrushReleased = false;
+					vel = Vec2(0.0f);
+				} else {
+					vel = (newPos - velocityBrushPos) / dt;
+				}
+				velocityBrushPos = newPos;
+
+				for (i64 x = 1; x < fluid.gridSize.x - 2; x++) {
+					for (i64 y = 1; y < fluid.gridSize.y - 2; y++) {
+						const auto cellPos = Vec2(Vec2T(x, y)) * fluid.cellSpacing;
+						const auto n = fluid.gridSize.y;
+						if (!fluid.isWall(x, y) && (cellPos - velocityBrushPos).lengthSq() < pow(radius, 2.0f)) {
+							fluid.at(fluid.velX, x, y) = vel.x;
+							fluid.at(fluid.velX, x + 1, y) = vel.x;
+							fluid.at(fluid.velY, x, y) = vel.y;
+							fluid.at(fluid.velY, x, y + 1) = vel.y;
+						}
+
+					}
+				}
+			}
+			if (Input::isMouseButtonUp(MouseButton::LEFT)) {
+				velocityBrushReleased = true;
+			}
+		};
+		
+		auto updateWallBrush = [&] {
+			std::optional<bool> wallValue;
+
+			if (Input::isMouseButtonHeld(MouseButton::RIGHT)) {
+				wallValue = true;
+			} else if (Input::isMouseButtonHeld(MouseButton::MIDDLE)) {
+				wallValue = false;
+			}
+
+			if (wallValue.has_value()) {
+				const auto r = Vec2T<i64>(brushRadiusCellCount + 1);
+				const auto min = (cursorGridPos - r).clamped(Vec2T<i64>{ 1 }, fluid.gridSize - Vec2T<i64>{ 2 });
+				const auto max = (cursorGridPos + r).clamped(Vec2T<i64>{ 1 }, fluid.gridSize - Vec2T<i64>{ 2 });
+				for (i64 x = min.x; x <= max.x; x++) {
+					for (i64 y = min.y; y <= max.y; y++) {
+						if (Vec2(cursorGridPos).distanceTo(Vec2(x, y)) < brushRadiusCellCount) {
+							fluid.setIsWall(x, y, *wallValue);
+						}
+					}
+				}
+			}
+
+			brushRadiusCellCount += Input::scrollDelta();
+			brushRadiusCellCount = std::max(1.0f, brushRadiusCellCount);
+		};
+
+		auto updateSpawnParticles = [&] {
+			if (Input::isKeyDown(KeyCode::P)) {
+				particles.clear();
+				i32 count = 1000;
+				for (i32 i = 0; i < count; i++) {
+					float angle = (i / static_cast<float>(count)) * TAU<float>;
+					particles.push_back(gridCenter + Vec2::oriented(angle) * 0.5f);
+				}
+				initialArea = simplePolygonArea(particles);
+			}
+
+			if (Input::isKeyDown(KeyCode::O)) {
+				particles.clear();
+				i32 perSide = 100;
+				float size = 0.5f;
+
+				for (i32 xi = 0; xi < perSide; xi++) {
+					float t = xi / static_cast<float>(perSide);
+					const auto x = lerp(-size / 2.0f, size / 2.0f, t);
+					particles.push_back(gridCenter + Vec2(x, size / 2.0f));
+				}
+
+				for (i32 yi = 1; yi < perSide - 1; yi++) {
+					float t = yi / static_cast<float>(perSide);
+					const auto y = lerp(size / 2.0f, -size / 2.0f, t);
+					particles.push_back(gridCenter + Vec2(size / 2.0f, y));
+				}
+
+				for (i32 xi = 0; xi < perSide; xi++) {
+					float t = xi / static_cast<float>(perSide);
+					const auto x = lerp(size / 2.0f, -size / 2.0f, t);
+					particles.push_back(gridCenter + Vec2(x, -size / 2.0f));
+				}
+
+				for (i32 yi = 1; yi < perSide - 1; yi++) {
+					float t = yi / static_cast<float>(perSide);
+					const auto y = lerp(-size / 2.0f, size / 2.0f, t);
+					particles.push_back(gridCenter + Vec2(-size / 2.0f, y));
+				}
+				initialArea = simplePolygonArea(particles);
+			}
+		};
+
+		updateVelocityBrush();
+		updateWallBrush();
+		updateSpawnParticles();
+	};
+	ImGui::ShowDemoWindow();
+	auto displayGui = [&] {
+		ImGui::SeparatorText("settings");
+		ImGui::Checkbox("paused", &paused);
+
+		ImGui::Combo("display", reinterpret_cast<int*>(&displayState), displayStateNames);
+
+		if (displayState == DisplayState::PRESSURE) {
+			ImGui::Checkbox("use default displayed pressure bounds", &useDefaultDisplayedPressureBounds);
+			if (!useDefaultDisplayedPressureBounds) {
+				ImGui::InputFloat("displayed pressure min", &displayedPressureMin);
+				ImGui::InputFloat("displayed pressure max", &displayedPressureMax);
+			}
 		}
 
-		for (i32 yi = 1; yi < perSide - 1; yi++) {
-			float t = yi / static_cast<float>(perSide);
-			const auto y = lerp(-size / 2.0f, size / 2.0f, t);
-			particles.push_back(gridCenter + Vec2(-size / 2.0f, y));
-		}
-	}
+		ImGui::Combo("scene", reinterpret_cast<int*>(&scene), sceneNames);
 
-	chk(showDivergence, false) {
+		ImGui::SeparatorText("info");
+
+		const auto maxDivergence = *std::ranges::max_element(fluid.divergence);
+		const auto minDivergence = *std::ranges::max_element(fluid.divergence);
+		Gui::put("min divergence: %", minDivergence);
+		Gui::put("max divergence: %", maxDivergence);
+
+		const auto pressureMin = *std::ranges::min_element(fluid.pressure);
+		const auto pressureMax = *std::ranges::max_element(fluid.pressure);
+		Gui::put("pressure min: %", pressureMin);
+		Gui::put("pressure max: %", pressureMax);
+
+		if (useDefaultDisplayedPressureBounds) {
+			displayedPressureMin = pressureMin;
+			displayedPressureMax = pressureMax;
+		}
+
+		Gui::put("particle count: %", particles.size());
+		if (initialArea.has_value()) {
+			const auto areaScaling = simplePolygonArea(particles) / *initialArea;
+			Gui::put("area scaling %", areaScaling);
+		}
+	};
+
+	auto render = [&] {
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		switch (displayState) {
+			using enum DisplayState;
+
+		case SMOKE:
+			for (auto& pixel : image.indexed()) {
+				pixel = Pixel32(Vec3(smokeR(pixel.pos.x, pixel.pos.y), smokeG(pixel.pos.x, pixel.pos.y), smokeB(pixel.pos.x, pixel.pos.y)));
+			}
+			break;
+
+		case DIVERGENCE:
+			for (auto& pixel : image.indexed()) {
+				pixel = Pixel32(Vec3(fluid.at(fluid.divergence, pixel.pos.x, pixel.pos.y)));
+			}
+			break;
+
+		case PRESSURE:
+			for (auto& pixel : image.indexed()) {
+				pixel = Pixel32(Color3::scientificColoring(
+					fluid.at(fluid.pressure, pixel.pos.x, pixel.pos.y),
+					displayedPressureMin,
+					displayedPressureMax));
+			}
+			break;
+		}
 		for (auto& pixel : image.indexed()) {
-			pixel = Pixel32(Vec3(fluid.at(fluid.divergence, pixel.pos.x, pixel.pos.y)));
-		}
-	} else {
-		for (auto& pixel : image.indexed()) {
-			pixel = Pixel32(Vec3(smokeR(pixel.pos.x, pixel.pos.y), smokeG(pixel.pos.x, pixel.pos.y), smokeB(pixel.pos.x, pixel.pos.y)));
-		}
-	}
-
-	for (auto& particle : particles) {
-		particle += fluid.sampleVel(particle) * dt;
-		if (particle.x < 0.0f) {
-			particle.x = 0.0f;
-		}
-		if (particle.y < 0.0f) {
-			particle.y = 0.0f;
-		}
-
-		if (particle.x > gridSize.x) {
-			particle.x = gridSize.x;
-		}
-		if (particle.y > gridSize.y) {
-			particle.y = gridSize.y;
-		}
-	}
-
-	std::vector<i64> particlesToRemoveIndices;
-
-	if (particles.size() > 0) {
-		Vec2 lastNotRemovedParticlePos = particles[0];
-
-		for (i64 i = 1; i < static_cast<i64>(particles.size()) - 1; i++) {
-			const auto dist = lastNotRemovedParticlePos.distanceTo(particles[i]);
-			if (dist < 0.01f) {
-				particlesToRemoveIndices.push_back(i);
-			} else {
-				lastNotRemovedParticlePos = particles[i];
+			if (fluid.isWall(pixel.pos.x, pixel.pos.y)) {
+				pixel = Pixel32(Color3::WHITE / 3.0f);
 			}
 		}
-		// It would probably be most efficient to just rebuild the vector without the ereased elements.
-		for (auto it = particlesToRemoveIndices.crbegin(); it != particlesToRemoveIndices.crend(); ++it) {
-			particles.erase(particles.begin() + *it);
-		}
-	}
 
-	if (particles.size() > 0) {
-		std::vector<Vec2> newParticles;
-		for (i64 i = 0; i < static_cast<i64>(particles.size()) - 1; i++) {
-			const auto dist = particles[i].distanceTo(particles[i + 1]);
-			newParticles.push_back(particles[i]);
-			if (dist > 0.05f) {
-				newParticles.push_back((particles[i] + particles[i + 1]) / 2.0f);
-			}
-		}
-		newParticles.push_back(particles[particles.size() - 1]);
-		particles = newParticles;
-	}
-	
-	if (initialArea == -1.0f && particles.size() > 0) {
-		initialArea = simplePolygonArea(particles);
-	}
-	const auto areaScaling = simplePolygonArea(particles) / initialArea;
-	//dbgGui(simplePolygonArea(particles));
-	dbgGui(areaScaling);
+		Dbg::drawCircle(cursorPos, brushRadiusCellCount * fluid.cellSpacing);
 
-	dbgGui(particles.size());
-	//Gui::put("particle count: %", )
+		auto transform = renderer.camera.makeTransform(gridCenter, 0.0f, gridSize / 2.0f);
 
+		renderer.drawImage(image.span2d().asConst(), transform);
+		Dbg::drawPolygon(particles, Color3::BLACK, 0.01f);
 
-	/*std::vector<i64> particlesToAddIndices;
-	for (i64 i = 0; i < particles.size() - 1; i++) {
-		const auto dist = particles[i].distanceTo(particles[i + 1]);
-		if (dist > 0.03f) {
-			particlesToAddIndices.push_back(i);
-		}
-	}*/
+		ShaderManager::update();
+		renderer.update();
+	};
 
-	/*renderer.drawImage(image.span2d().asConst(), transform);
-	Dbg::drawPolygon(particles, Color3::BLACK, 0.01f);*/
-	/*for (const auto& particle : particles) {
-		Dbg::drawDisk(particle, 0.05f, Color3::WHITE);
-	}*/
-	Dbg::drawLine(gridCenter - Vec2(0.5f, -0.5f), gridCenter + Vec2(0.5f, -0.5f), Color3::BLUE);
-	Dbg::drawDisk(gridCenter, 0.2f, Color3::RED);
-	Dbg::drawDisk(cursorPos, 0.2f, Color3::GREEN);
-	Dbg::drawLine(gridCenter - Vec2(0.5f), gridCenter + Vec2(0.5f), Color3::BLUE);
-	renderer.update();
+	updateSimulation();
+	processInput();
+	displayGui();
+	render();
 }

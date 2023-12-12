@@ -14,16 +14,6 @@ EulerianFluid::EulerianFluid(Vec2T<i64> gridSize, float cellSpacing, float overR
 	isWallValues.resize(cellCount);
 	divergence.resize(cellCount);
 	advectedQuantityOld.resize(cellCount);
-
-	// Place border walls.
-	for (i64 x = 0; x < gridSize.x; x++) {
-		for (i64 y = 0; y < gridSize.y; y++) {
-			bool wall = false;
-			if (x == 0 || x == gridSize.x - 1 || y == 0 || y == gridSize.y - 1)
-				wall = true;
-			setIsWall(x, y, wall);
-		}
-	}
 }
 
 auto EulerianFluid::integrate(float dt, float gravity) -> void {
@@ -36,13 +26,19 @@ auto EulerianFluid::integrate(float dt, float gravity) -> void {
 	}
 }
 
+EulerianFluid::OpenSides EulerianFluid::getOpenSides(i64 x, i64 y) const {
+	return OpenSides{
+		.xMinus = !isWall(x - 1, y),
+		.xPlus = !isWall(x + 1, y),
+		.yMinus = !isWall(x, y - 1),
+		.yPlus = !isWall(x, y + 1)
+	};
+}
+
 auto EulerianFluid::solveIncompressibility(i32 solverIterations, float dt) -> void {
-	const auto pressureWithoutVelocity = density * (cellSpacing * cellSpacing) / dt;
-	// If a fluid is incompressible it has to have a divergence of 0 at each point. The amount of fluid going out of a point has to be equal to the amount going in. A divergence of zero means that no fluid is created. If divergence were to be positive (in an compressible fluid) then the fluid would need to be created out of nothing and if negative then matter would need to disappear. Solve using projection gauss seidel. To find approximate the global solution solve each cell separately multiple times.
-	// Incompressible fluids are a good approximation of for example water.
-	// I think the mathematical term for the way to remove the divergence from a vector field is caleld Hodge decomposition. This is mentioned in https://damassets.autodesk.net/content/dam/autodesk/research/publications-assets/pdf/realtime-fluid-dynamics-for.pdf. Not sure if the method described there is the same as this one. The implementation shown seems quite different, but it should do the same thing.
-	// "Hodge decomposition: every velocity field is the sum of a mass conserving field and a gradient field"
-	// Mass conserving means with zero divergence and gradient field means the just the curl of the vector field.
+	fill(pressure.begin(), pressure.end(), 0.0f);
+
+	const auto cellMass = density * (cellSpacing * cellSpacing);
 	for (i64 iter = 0; iter < solverIterations; iter++) {
 
 		for (i64 y = 1; y < gridSize.y - 1; y++) {
@@ -50,58 +46,42 @@ auto EulerianFluid::solveIncompressibility(i32 solverIterations, float dt) -> vo
 				if (isWall(x, y))
 					continue;
 
-				// std::vector<bool> is really slow in debug mode.
-				const auto
-					sx0 = !isWall(x - 1, y),
-					sx1 = !isWall(x + 1, y),
-					sy0 = !isWall(x, y - 1),
-					sy1 = !isWall(x, y + 1);
-				const auto outflowingSidesCount = sx0 + sx1 + sy0 + sy1;
+				const auto sides = getOpenSides(x, y);
+				const auto openSidesCount = sides.count();
 
-				if (outflowingSidesCount == 0.0)
+				if (openSidesCount == 0)
 					continue;
 
-				// The cooridinates don't represent the cells around the [x, y] so they don't need to be set to zero if there is a wall. These velocites belong to the cell not the cells around them.
-				// Total outflow.
-				const auto divergence =
+				// When correcting the divergence the constant cellSpacing can be ignored.
+				// This assumes that the velocity at walls is constant. Which should be true, but might cause bugs if it is not.
+				const auto divergenceTimesCellSpacing =
 					-at(velX, x, y)
 					+ at(velX, x + 1, y)
 					- at(velY, x, y)
 					+ at(velY, x, y + 1);
 
-				// Outflow to each surrouding cell evenly.
-				const auto correctedOutflow = (-divergence / outflowingSidesCount) * overRelaxation;
-				at(pressure, x, y) += pressureWithoutVelocity * correctedOutflow;
-				at(velX, x, y) -= sx0 * correctedOutflow;
-				at(velX, x + 1, y) += sx1 * correctedOutflow;
-				at(velY, x, y) -= sy0 * correctedOutflow;
-				at(velY, x, y + 1) += sy1 * correctedOutflow;
+				const auto totalVelocityChangeToCorrectDivergence = -divergenceTimesCellSpacing * overRelaxation;
+				const auto velocityChangePerSide = totalVelocityChangeToCorrectDivergence / openSidesCount;
+
+				at(velX, x, y) -= sides.xMinus * velocityChangePerSide;
+				at(velX, x + 1, y) += sides.xPlus * velocityChangePerSide;
+				at(velY, x, y) -= sides.yMinus * velocityChangePerSide;
+				at(velY, x, y + 1) += sides.yPlus * velocityChangePerSide;
+
+				const auto acceleration = totalVelocityChangeToCorrectDivergence / dt;
+				const auto area = cellSpacing * openSidesCount;
+
+				// Not sure if this iterative way of computing the pressure is correct.
+				at(pressure, x, y) += acceleration * cellMass / area;
 			}
 		}
 	}
+}
 
+void EulerianFluid::computeDivergence() {
 	for (i64 y = 1; y < gridSize.y - 1; y++) {
 		for (i64 x = 1; x < gridSize.x - 1; x++) {
-			if (isWall(x, y))
-				continue;
-
-			const auto
-				sx0 = !isWall(x - 1, y),
-				sx1 = !isWall(x + 1, y),
-				sy0 = !isWall(x, y - 1),
-				sy1 = !isWall(x, y + 1);
-			const auto outflowingSidesCount = sx0 + sx1 + sy0 + sy1;
-
-			if (outflowingSidesCount == 0.0)
-				continue;
-
-			const auto divergence =
-				-at(velX, x, y)
-				+ at(velX, x + 1, y)
-				- at(velY, x, y)
-				+ at(velY, x, y + 1);
-
-			at(this->divergence, x, y) = divergence;
+			at(divergence, x, y) = (at(velX, x + 1, y) - at(velX, x, y) + at(velY, x, y + 1) - at(velY, x, y)) / cellSpacing;
 		}
 	}
 }
@@ -181,11 +161,12 @@ void EulerianFluid::advectQuantity(Span2d<float> quantity, float dt) {
 
 	for (i64 y = 1; y < gridSize.y - 1; y++) {
 		for (i64 x = 1; x < gridSize.x - 1; x++) {
-			if (isWall(x, y))
+			if (isWall(x, y)) {
 				continue;
+			}
 
 			// Read advect velocity.
-			const auto avgVel = Vec2{ at(velX, x, y) + at(velX, x + 1, y), at(velY, x, y) + at(velY, x, y + 1) } / 2.0f;
+			const auto avgVel = Vec2(at(velX, x, y) + at(velX, x + 1, y), at(velY, x, y) + at(velY, x, y + 1)) / 2.0f;
 			const auto pos = (Vec2{ Vec2T{ x, y } } + Vec2{ 0.5f })* cellSpacing;
 			const auto approximatePreviousPos = pos - dt * avgVel;
 			quantity(x, y) = sampleQuantity(spanFrom(advectedQuantityOld).asConst(), approximatePreviousPos);
@@ -193,18 +174,86 @@ void EulerianFluid::advectQuantity(Span2d<float> quantity, float dt) {
 	}
 }
 
-auto EulerianFluid::update(float dt, float gravity, i32 solverIterations) -> void {
+auto EulerianFluid::update(float dt, float gravity, i32 solverIterations, BoundaryCondition condition) -> void {
 	integrate(dt, gravity);
-	fill(pressure.begin(), pressure.end(), 0.0f);
+	enforceBoundaryConditions(condition);
 	solveIncompressibility(solverIterations, dt);
+	computeDivergence();
 	advectVelocity(dt);
 }
 
 auto EulerianFluid::setIsWall(i64 x, i64 y, bool value) -> void {
-	/*isWallValues[x * gridSize.y + y] = value;*/
 	isWallValues[y * gridSize.x + x] = value;
 }
 
 auto EulerianFluid::isWall(i64 x, i64 y) const -> bool {
 	return isWallValues[y * gridSize.x + x];
+}
+
+void EulerianFluid::removeVelocityAround(i64 x, i64 y) {
+	at(velX, x, y) = 0.0f;
+	at(velX, x + 1, y) = 0.0f;
+	at(velY, x, y) = 0.0f;
+	at(velY, x, y + 1) = 0.0f;
+}
+
+void EulerianFluid::enforceBoundaryConditions(BoundaryCondition condition) {
+	switch (condition) {
+		using enum BoundaryCondition;
+	/*case SOLID_WALLS_AT_GRID_BOUNDARIES:
+		for (i64 x = 0; x < gridSize.x; x++) {
+			if (isWall(x, gridSize.y - 1)) {
+				at(velX, x, gridSize.y - 1) = 0.0f;
+				at(velY, x, gridSize.y - 1) = 0.0f;
+			}
+		}
+
+		for (i64 y = 0; y < gridSize.y; y++) {
+			if (isWall(gridSize.x - 1, y)) {
+				at(velX, gridSize.x - 1, y) = 0.0f;
+				at(velY, gridSize.x - 1, y) = 0.0f;
+			}
+		}
+
+		for (i64 y = 0; y < gridSize.y - 1; y++) {
+			for (i64 x = 0; x < gridSize.x - 1; x++) {
+				if (isWall(x, y)) {
+					removeVelocityAround(x, y);
+				}
+			}
+		}
+
+		break;*/
+	case SOLID_WALLS_AT_GRID_BOUNDARIES:
+
+		float inVel = 2.0;
+		for (i64 i = 0; i < gridSize.x; i++) {
+			for (i64 j = 0; j < gridSize.y; j++) {
+				if (i == 0 || j == 0 || j == gridSize.y - 1) {
+					setIsWall(i, j, true);
+				} else if (i == gridSize.x - 1) {
+					setIsWall(i, j, false);
+				}
+					
+				if (i == 1) {
+					//f.u[i * n + j] = inVel;
+					at(velX, i, j) = inVel;
+				}
+			}
+		}
+
+		for (i64 y = 1; y < gridSize.y - 1; y++) {
+			for (i64 x = 1; x < gridSize.x - 1; x++) {
+				if (isWall(x, y)) {
+					removeVelocityAround(x, y);
+				}
+			}
+		}
+
+		break;
+	}
+}
+
+i64 EulerianFluid::OpenSides::count() const {
+	return xPlus + xMinus + yPlus + yMinus;
 }

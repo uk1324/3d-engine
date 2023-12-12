@@ -226,7 +226,7 @@ T Vec2T<T>::distanceTo(Vec2T p) const {
 
 template<typename T>
 T Vec2T<T>::distanceSquaredTo(Vec2T p) const {
-	(*this - p).lengthSquared();
+	return (*this - p).lengthSq();
 }
 
 template<typename T>

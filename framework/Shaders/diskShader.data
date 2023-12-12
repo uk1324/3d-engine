@@ -8,7 +8,6 @@ shader Disk {
 	fragInstance = {
 		color color;
 		float smoothing;
-		float depth;
 	};
 	vertOut = {
 		Vec2 position;

@@ -23,6 +23,8 @@ concept RandomAccessSet2d = RandomAccessGet2d<Matrix, ItemType> && requires(Matr
 	matrix.set(x, y, item);
 };
 
+// TODO: Maybe make a template that converts lambda = [](x, y) to a struct with .get(x, y).
+
 /*
 Example usage
 

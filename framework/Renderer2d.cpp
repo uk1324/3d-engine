@@ -139,15 +139,31 @@ float Renderer2d::getQuadPixelSizeY(float scale) const {
 
 void Renderer2d::drawDbg() {
 	// TODO: How to properly handle transparency and rendering the instances object in order. Just using the depth buffer won't work, because then the transparent parts overrite the z buffer. Would either need to sort or do addative blending and discard the depth value on non opaque pixels.
-	auto calculateDepth = [](i32 drawIndex) -> float {
+	/*auto calculateDepth = [](i32 drawIndex) -> float {
 		return -drawIndex / static_cast<float>(Dbg::drawnThingsCount);
-	};
+	};*/
 
 	// @Performance maybe flip the order to avoid overdraw.
 
-	for (i32 i = 0; i < Dbg::drawnThingsCount; i++) {
+	/* 
+	Problem: Rendering 2d shapes in the correct order and correctly blended.
 
-	}
+	Rendering in correct order:
+	- Use depth buffer
+	- Render sorted
+
+	Correctly blending:
+	- Render in correct order.
+	- It would probably be possible to render the opaque parts of objects first and then use sorme sort of depth peeling only on the transparent parts of objects.
+
+	Sorting and then rendering everything using a single shader.
+	Issues:
+	- Have to pass the data to each instance. Could just pass the type of rendered object and an index to an array containing instances of that type. Another option would to to use a union type, but decoding it inside of the shader would probably be a pain.
+	- Branching in shaders is inefficient.
+	*/
+
+	const auto defaultWidth = 20.0f / Window::size().y;
+	// TODO: Could try adding the smoothing to the size so the actual size without the smoothing is solid.
 
 	for (const auto& disk : Dbg::disks) {
 		const auto pixelSize = getQuadPixelSizeY(disk.radius);
@@ -155,14 +171,24 @@ void Renderer2d::drawDbg() {
 			.transform = camera.makeTransform(disk.pos, 0.0f, Vec2(disk.radius)),
 			.color = Vec4(disk.color, 1.0f),
 			.smoothing = 5.0f / pixelSize,
-			.depth = calculateDepth(disk.drawIndex)
+		});
+	}
+
+	for (const auto& circle : Dbg::circles) {
+		const auto pixelSize = getQuadPixelSizeY(circle.radius);
+		shapeRenderer.circleInstances.push_back(CircleInstance{
+			.transform = camera.makeTransform(circle.pos, 0.0f, Vec2(circle.radius)),
+			.color = Vec4(circle.color, 1.0f),
+			.smoothing = 5.0f / pixelSize,
+			.width = circle.width.value_or(defaultWidth)
 		});
 	}
 
 	for (const auto& line : Dbg::lines) {
 		const auto vector = line.end - line.start;
 		const auto direction = vector.normalized();
-		const auto width = line.width.has_value() ? *line.width : 20.0f / Window::size().y;
+		/*const auto width = line.width.has_value() ? *line.width : ;*/
+		const auto width = line.width.value_or(defaultWidth);
 		const auto pixelWidth = getQuadPixelSizeY(width);
 		shapeRenderer.lineInstances.push_back(LineInstance{
 			.transform = camera.makeTransform(line.start + vector / 2.0f, vector.angle(), Vec2(vector.length() / 2.0f + width, width)),
@@ -170,7 +196,6 @@ void Renderer2d::drawDbg() {
 			.smoothing = 3.0f / pixelWidth,
 			.lineWidth = width,
 			.lineLength = vector.length() + width * 2.0f,
-			.depth = calculateDepth(line.drawIndex)
 		});
 	}
 

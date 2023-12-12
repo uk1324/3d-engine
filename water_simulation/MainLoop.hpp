@@ -16,11 +16,39 @@ struct MainLoop {
 
 	EulerianFluid fluid;
 	Array2d<float> smokeR, smokeG, smokeB;
+	void setSmoke(i64 x, i64 y, Vec3 color);
 	Image32 image;
 	Renderer2d renderer;
 
+	bool paused = false;
+	float brushRadiusCellCount = 4.0f;
+
+	Vec2 velocityBrushPos;
+	bool velocityBrushReleased = true;
+
+	bool useDefaultDisplayedPressureBounds = true;
+	float displayedPressureMin = 0.0f;
+	float displayedPressureMax = 0.0f;
+
+	enum class DisplayState {
+		SMOKE,
+		DIVERGENCE,
+		PRESSURE,
+	};
+	DisplayState displayState = DisplayState::SMOKE;
+	const char* displayStateNames = "smoke\0divergence\0pressure\0";
+
+	enum class Scene {
+		BOX,
+		WIND_TUNNEL,
+	};
+	Scene scene = Scene::BOX;
+	const char* sceneNames = "box\0wind tunnel\0";
+
+	float windTunnelVelocity = 2.0f;
+
 	std::vector<Vec2> particles;
-	float initialArea = -1.0f;
+	std::optional<float> initialArea;
 
 	void update();
 };

@@ -4,6 +4,7 @@
 #include <engine/Graphics/Ibo.hpp>
 #include <engine/Math/Mat3x2.hpp>
 #include <framework/Shaders/diskShaderData.hpp>
+#include <framework/Shaders/circleShaderData.hpp>
 #include <framework/Shaders/lineShaderData.hpp>
 
 struct ShapeRenderer2d {
@@ -14,6 +15,10 @@ struct ShapeRenderer2d {
 	Vao diskVao;
 	ShaderProgram& diskShader;
 	std::vector<DiskInstance> diskInstances;
+
+	Vao circleVao;
+	ShaderProgram& circleShader;
+	std::vector<CircleInstance> circleInstances;
 
 	Vao lineVao;
 	ShaderProgram& lineShader;

@@ -6,7 +6,6 @@ in vec4 color;
 in float smoothing; 
 in float lineWidth; 
 in float lineLength; 
-in float depth; 
 out vec4 fragColor;
 
 /*generated end*/

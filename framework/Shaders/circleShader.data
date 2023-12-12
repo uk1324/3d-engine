@@ -1,6 +1,6 @@
 import "../../framework/Vertex2dPt.data";
 
-shader Line {
+shader Circle {
 	vertexStruct = Vertex2dPt;
 	vertInstance = {
 		Mat3x2 transform;
@@ -8,8 +8,7 @@ shader Line {
 	fragInstance = {
 		color color;
 		float smoothing;
-		float lineWidth;
-		float lineLength;
+		float width;
 	};
 	vertOut = {
 		Vec2 position;
