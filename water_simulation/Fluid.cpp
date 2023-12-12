@@ -99,6 +99,11 @@ float EulerianFluid::sampleField(Span2d<const float> field, Vec2 pos, Vec2 cellO
 	const auto ty = ((pos.y - cellOffset.y) - y0 * cellSpacing) / cellSpacing;
 	const auto y1 = std::min(y0 + 1, gridSize.y - 1);
 
+	if (field.data() != velX.data() && field.data() != velY.data()) {
+		return field(x0, y0);
+	}
+
+	
 	const auto bilerpedValue =
 		(1.0f - tx) * (1.0f - ty) * field(x0, y0) +
 		(1.0f - tx) * ty * field(x0, y1) +
@@ -167,16 +172,15 @@ void EulerianFluid::advectQuantity(Span2d<float> quantity, float dt) {
 
 			// Read advect velocity.
 			const auto avgVel = Vec2(at(velX, x, y) + at(velX, x + 1, y), at(velY, x, y) + at(velY, x, y + 1)) / 2.0f;
-			const auto pos = (Vec2{ Vec2T{ x, y } } + Vec2{ 0.5f })* cellSpacing;
+			const auto pos = (Vec2(Vec2T(x, y)) + Vec2(0.5f)) * cellSpacing;
 			const auto approximatePreviousPos = pos - dt * avgVel;
 			quantity(x, y) = sampleQuantity(spanFrom(advectedQuantityOld).asConst(), approximatePreviousPos);
 		}
 	}
 }
 
-auto EulerianFluid::update(float dt, float gravity, i32 solverIterations, BoundaryCondition condition) -> void {
+auto EulerianFluid::update(float dt, float gravity, i32 solverIterations) -> void {
 	integrate(dt, gravity);
-	enforceBoundaryConditions(condition);
 	solveIncompressibility(solverIterations, dt);
 	computeDivergence();
 	advectVelocity(dt);
@@ -195,63 +199,6 @@ void EulerianFluid::removeVelocityAround(i64 x, i64 y) {
 	at(velX, x + 1, y) = 0.0f;
 	at(velY, x, y) = 0.0f;
 	at(velY, x, y + 1) = 0.0f;
-}
-
-void EulerianFluid::enforceBoundaryConditions(BoundaryCondition condition) {
-	switch (condition) {
-		using enum BoundaryCondition;
-	/*case SOLID_WALLS_AT_GRID_BOUNDARIES:
-		for (i64 x = 0; x < gridSize.x; x++) {
-			if (isWall(x, gridSize.y - 1)) {
-				at(velX, x, gridSize.y - 1) = 0.0f;
-				at(velY, x, gridSize.y - 1) = 0.0f;
-			}
-		}
-
-		for (i64 y = 0; y < gridSize.y; y++) {
-			if (isWall(gridSize.x - 1, y)) {
-				at(velX, gridSize.x - 1, y) = 0.0f;
-				at(velY, gridSize.x - 1, y) = 0.0f;
-			}
-		}
-
-		for (i64 y = 0; y < gridSize.y - 1; y++) {
-			for (i64 x = 0; x < gridSize.x - 1; x++) {
-				if (isWall(x, y)) {
-					removeVelocityAround(x, y);
-				}
-			}
-		}
-
-		break;*/
-	case SOLID_WALLS_AT_GRID_BOUNDARIES:
-
-		float inVel = 2.0;
-		for (i64 i = 0; i < gridSize.x; i++) {
-			for (i64 j = 0; j < gridSize.y; j++) {
-				if (i == 0 || j == 0 || j == gridSize.y - 1) {
-					setIsWall(i, j, true);
-				} else if (i == gridSize.x - 1) {
-					setIsWall(i, j, false);
-				}
-					
-				if (i == 1) {
-					//f.u[i * n + j] = inVel;
-					at(velX, i, j) = inVel;
-				}
-			}
-		}
-
-		for (i64 y = 1; y < gridSize.y - 1; y++) {
-			for (i64 x = 1; x < gridSize.x - 1; x++) {
-				if (isWall(x, y)) {
-					removeVelocityAround(x, y);
-				}
-			}
-		}
-
-		break;
-	}
 }
 
 i64 EulerianFluid::OpenSides::count() const {

@@ -57,16 +57,100 @@ void MainLoop::setSmoke(i64 x, i64 y, Vec3 color) {
 // TODO: Using rk4 to advect control volumes in potential flows.
 
 void MainLoop::update() {
-	const auto gridSize = fluid.cellSpacing * Vec2(fluid.gridSize);
-	const auto gridCenter = gridSize / 2.0f;
+	const auto gridSizeCameraSpace = fluid.cellSpacing * Vec2(fluid.gridSize);
+	const auto gridCenter = gridSizeCameraSpace / 2.0f;
 
 	renderer.camera.pos = gridCenter;
-	renderer.camera.changeSizeToFitBox(gridSize);
+	renderer.camera.changeSizeToFitBox(gridSizeCameraSpace);
 
 	const auto cursorPos = Input::cursorPosClipSpace() * renderer.camera.clipSpaceToWorldSpace();
 	const auto cursorGridPos = Vec2T<i64>((cursorPos / fluid.cellSpacing).applied(floor));
 
 	auto updateSimulation = [&] {
+		auto enfornceBoundaryConditions = [&] {
+			for (i64 x = 0; x < fluid.gridSize.x; x++) {
+				for (i64 y = 0; y < fluid.gridSize.y; y++) {
+					if (fluid.isWall(x, y) || x == 0 || y == 0 || x == fluid.gridSize.x - 1 || y == fluid.gridSize.y - 1) {
+						setSmoke(x, y, Vec3(0.0f));
+					}
+				}
+			}
+
+			if (scene == Scene::WIND_TUNNEL) {
+				for (i64 y = 0; y < fluid.gridSize.y - 1; y += 20) {
+					for (i64 yi = y; yi < y + 10; yi++) {
+						setSmoke(0, yi, Vec3(1.0f));
+					}
+				}
+			}
+
+			switch (scene) {
+				using enum Scene;
+
+			case BOX:
+				for (i64 x = 0; x < fluid.gridSize.x; x++) {
+					for (i64 y = 0; y < fluid.gridSize.y; y++) {
+						if (x == 0 || y == 0 || x == fluid.gridSize.x - 1 || y == fluid.gridSize.y - 1) {
+							fluid.setIsWall(x, y, true);
+						}
+					}
+				}
+
+				for (i64 x = 0; x < fluid.gridSize.x; x++) {
+					if (fluid.isWall(x, fluid.gridSize.y - 1)) {
+						fluid.at(fluid.velX, x, 0) = 0.0f;
+						fluid.at(fluid.velY, x, 0) = 0.0f;
+						fluid.at(fluid.velX, x, fluid.gridSize.y - 1) = 0.0f;
+						fluid.at(fluid.velY, x, fluid.gridSize.y - 1) = 0.0f;
+					}
+				}
+
+				for (i64 y = 0; y < fluid.gridSize.y; y++) {
+					if (fluid.isWall(fluid.gridSize.x - 1, y)) {
+						fluid.at(fluid.velX, 0, y) = 0.0f;
+						fluid.at(fluid.velY, 0, y) = 0.0f;
+						fluid.at(fluid.velX, fluid.gridSize.x - 1, y) = 0.0f;
+						fluid.at(fluid.velY, fluid.gridSize.x - 1, y) = 0.0f;
+					}
+				}
+
+				for (i64 y = 0; y < fluid.gridSize.y - 1; y++) {
+					for (i64 x = 0; x < fluid.gridSize.x - 1; x++) {
+						if (fluid.isWall(x, y)) {
+							fluid.removeVelocityAround(x, y);
+						}
+					}
+				}
+
+				break;
+
+			case WIND_TUNNEL:
+				for (i64 i = 0; i < fluid.gridSize.x; i++) {
+					for (i64 j = 0; j < fluid.gridSize.y; j++) {
+						if (i == 0 || j == 0 || j == fluid.gridSize.y - 1) {
+							fluid.setIsWall(i, j, true);
+						} else if (i == fluid.gridSize.x - 1) {
+							fluid.setIsWall(i, j, false);
+						}
+
+						if (i == 1) {
+							//f.u[i * n + j] = inVel;
+							fluid.at(fluid.velX, i, j) = windTunnelVelocity;
+						}
+					}
+				}
+
+				for (i64 y = 1; y < fluid.gridSize.y - 1; y++) {
+					for (i64 x = 1; x < fluid.gridSize.x - 1; x++) {
+						if (fluid.isWall(x, y)) {
+							fluid.removeVelocityAround(x, y);
+						}
+					}
+				}
+				break;
+			}
+		};
+
 		auto updateParticles = [&] {
 			for (auto& particle : particles) {
 				particle += fluid.sampleVel(particle) * dt;
@@ -77,11 +161,11 @@ void MainLoop::update() {
 					particle.y = 0.0f;
 				}
 
-				if (particle.x > gridSize.x) {
-					particle.x = gridSize.x;
+				if (particle.x > gridSizeCameraSpace.x) {
+					particle.x = gridSizeCameraSpace.x;
 				}
-				if (particle.y > gridSize.y) {
-					particle.y = gridSize.y;
+				if (particle.y > gridSizeCameraSpace.y) {
+					particle.y = gridSizeCameraSpace.y;
 				}
 			}
 
@@ -118,25 +202,13 @@ void MainLoop::update() {
 			}
 		};
 
+		enfornceBoundaryConditions();
+
 		if (!paused) {
 			fluid.update(dt, 0.0f, 40);
 			fluid.advectQuantity(smokeR.span2d(), dt);
 			fluid.advectQuantity(smokeG.span2d(), dt);
 			fluid.advectQuantity(smokeB.span2d(), dt);
-		}
-
-		for (i64 x = 0; x < fluid.gridSize.x; x++) {
-			for (i64 y = 0; y < fluid.gridSize.y; y++) {
-				if (fluid.isWall(x, y) || x == 0 || y == 0 || x == fluid.gridSize.x - 1 || y == fluid.gridSize.y - 1) {
-					setSmoke(x, y, Vec3(0.0f));
-				}
-			}
-		}
-
-		for (i64 y = 0; y < fluid.gridSize.y - 1; y += 20) {
-			for (i64 yi = y; yi < y + 10; yi++) {
-				setSmoke(0, yi, Vec3(1.0f));
-			}
 		}
 
 		updateParticles();
@@ -252,7 +324,7 @@ void MainLoop::update() {
 		updateWallBrush();
 		updateSpawnParticles();
 	};
-	ImGui::ShowDemoWindow();
+
 	auto displayGui = [&] {
 		ImGui::SeparatorText("settings");
 		ImGui::Checkbox("paused", &paused);
@@ -268,6 +340,9 @@ void MainLoop::update() {
 		}
 
 		ImGui::Combo("scene", reinterpret_cast<int*>(&scene), sceneNames);
+		if (scene == Scene::WIND_TUNNEL) {
+			ImGui::InputFloat("wind tunnel velocity", &windTunnelVelocity);
+		}
 
 		ImGui::SeparatorText("info");
 
@@ -307,7 +382,8 @@ void MainLoop::update() {
 
 		case DIVERGENCE:
 			for (auto& pixel : image.indexed()) {
-				pixel = Pixel32(Vec3(fluid.at(fluid.divergence, pixel.pos.x, pixel.pos.y)));
+				/*pixel = Pixel32(Vec3(fluid.at(fluid.divergence, pixel.pos.x, pixel.pos.y)));*/
+				pixel = Pixel32(Vec3(fluid.at(fluid.velY, pixel.pos.x, pixel.pos.y)));
 			}
 			break;
 
@@ -328,7 +404,7 @@ void MainLoop::update() {
 
 		Dbg::drawCircle(cursorPos, brushRadiusCellCount * fluid.cellSpacing);
 
-		auto transform = renderer.camera.makeTransform(gridCenter, 0.0f, gridSize / 2.0f);
+		auto transform = renderer.camera.makeTransform(gridCenter, 0.0f, gridSizeCameraSpace / 2.0f);
 
 		renderer.drawImage(image.span2d().asConst(), transform);
 		Dbg::drawPolygon(particles, Color3::BLACK, 0.01f);

@@ -27,10 +27,7 @@ public:
 	// @Performance: Would it be faster in some cases to have a single "vector" of quantites that get advected all at once. It would need less computation, but there would probably be issues with caching.
 	void advectQuantity(Span2d<float> quantity, float dt);
 
-	enum class BoundaryCondition {
-		SOLID_WALLS_AT_GRID_BOUNDARIES
-	};
-	auto update(float dt, float gravity, i32 solverIterations, BoundaryCondition condition = BoundaryCondition::SOLID_WALLS_AT_GRID_BOUNDARIES) -> void;
+	auto update(float dt, float gravity, i32 solverIterations) -> void;
 	template<typename T>
 	auto at(std::vector<T>& vec, i64 x, i64 y) -> T&;
 	template<typename T>
@@ -41,7 +38,6 @@ public:
 	auto isWall(i64 x, i64 y) const -> bool;
 	// Doesn't work at grid boundaries.
 	void removeVelocityAround(i64 x, i64 y);
-	void enforceBoundaryConditions(BoundaryCondition condition);
 
 	float density;
 	Vec2T<i64> gridSize;
