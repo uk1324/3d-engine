@@ -66,6 +66,47 @@ void MainLoop::update() {
 	const auto cursorPos = Input::cursorPosClipSpace() * renderer.camera.clipSpaceToWorldSpace();
 	const auto cursorGridPos = Vec2T<i64>((cursorPos / fluid.cellSpacing).applied(floor));
 
+	auto spawnParticlesCircle = [&] {
+		particles.clear();
+		i32 count = 1000;
+		for (i32 i = 0; i < count; i++) {
+			float angle = (i / static_cast<float>(count)) * TAU<float>;
+			particles.push_back(gridCenter + Vec2::oriented(angle) * 0.5f);
+		}
+		initialArea = simplePolygonArea(particles);
+	};
+
+	auto spawnParticlesSquare = [&] {
+		particles.clear();
+		i32 perSide = 100;
+		float size = 0.5f;
+
+		for (i32 xi = 0; xi < perSide; xi++) {
+			float t = xi / static_cast<float>(perSide);
+			const auto x = lerp(-size / 2.0f, size / 2.0f, t);
+			particles.push_back(gridCenter + Vec2(x, size / 2.0f));
+		}
+
+		for (i32 yi = 1; yi < perSide - 1; yi++) {
+			float t = yi / static_cast<float>(perSide);
+			const auto y = lerp(size / 2.0f, -size / 2.0f, t);
+			particles.push_back(gridCenter + Vec2(size / 2.0f, y));
+		}
+
+		for (i32 xi = 0; xi < perSide; xi++) {
+			float t = xi / static_cast<float>(perSide);
+			const auto x = lerp(size / 2.0f, -size / 2.0f, t);
+			particles.push_back(gridCenter + Vec2(x, -size / 2.0f));
+		}
+
+		for (i32 yi = 1; yi < perSide - 1; yi++) {
+			float t = yi / static_cast<float>(perSide);
+			const auto y = lerp(-size / 2.0f, size / 2.0f, t);
+			particles.push_back(gridCenter + Vec2(-size / 2.0f, y));
+		}
+		initialArea = simplePolygonArea(particles);
+	};
+
 	auto updateSimulation = [&] {
 		auto enfornceBoundaryConditions = [&] {
 			for (i64 x = 0; x < fluid.gridSize.x; x++) {
@@ -210,6 +251,7 @@ void MainLoop::update() {
 		enfornceBoundaryConditions();
 
 		if (!paused) {
+			elapsed += dt;
 			fluid.update(dt, 0.0f, 40);
 			fluid.advectQuantity(smokeR.span2d(), dt);
 			fluid.advectQuantity(smokeG.span2d(), dt);
@@ -225,7 +267,11 @@ void MainLoop::update() {
 		}
 
 		auto updateVelocityBrush = [&] {
-			float radius = fluid.cellSpacing * 5.0f;
+			if (cycleColors) {
+				velocityBrushSmokeColor = Color3::fromHsv(elapsed * colorCyclingSpeed, 1.0f, 1.0f);
+			}
+
+			float radius = brushRadiusCellCount * fluid.cellSpacing;
 			if (Input::isMouseButtonHeld(MouseButton::LEFT)) {
 				const auto newPos = cursorPos;
 				Vec2 vel;
@@ -246,6 +292,9 @@ void MainLoop::update() {
 							fluid.at(fluid.velX, x + 1, y) = vel.x;
 							fluid.at(fluid.velY, x, y) = vel.y;
 							fluid.at(fluid.velY, x, y + 1) = vel.y;
+							if (velocityBrushAddSmoke) {
+								setSmoke(x, y, velocityBrushSmokeColor);
+							}
 						}
 
 					}
@@ -284,44 +333,11 @@ void MainLoop::update() {
 
 		auto updateSpawnParticles = [&] {
 			if (Input::isKeyDown(KeyCode::P)) {
-				particles.clear();
-				i32 count = 1000;
-				for (i32 i = 0; i < count; i++) {
-					float angle = (i / static_cast<float>(count)) * TAU<float>;
-					particles.push_back(gridCenter + Vec2::oriented(angle) * 0.5f);
-				}
-				initialArea = simplePolygonArea(particles);
+				spawnParticlesCircle();
 			}
 
 			if (Input::isKeyDown(KeyCode::O)) {
-				particles.clear();
-				i32 perSide = 100;
-				float size = 0.5f;
-
-				for (i32 xi = 0; xi < perSide; xi++) {
-					float t = xi / static_cast<float>(perSide);
-					const auto x = lerp(-size / 2.0f, size / 2.0f, t);
-					particles.push_back(gridCenter + Vec2(x, size / 2.0f));
-				}
-
-				for (i32 yi = 1; yi < perSide - 1; yi++) {
-					float t = yi / static_cast<float>(perSide);
-					const auto y = lerp(size / 2.0f, -size / 2.0f, t);
-					particles.push_back(gridCenter + Vec2(size / 2.0f, y));
-				}
-
-				for (i32 xi = 0; xi < perSide; xi++) {
-					float t = xi / static_cast<float>(perSide);
-					const auto x = lerp(size / 2.0f, -size / 2.0f, t);
-					particles.push_back(gridCenter + Vec2(x, -size / 2.0f));
-				}
-
-				for (i32 yi = 1; yi < perSide - 1; yi++) {
-					float t = yi / static_cast<float>(perSide);
-					const auto y = lerp(-size / 2.0f, size / 2.0f, t);
-					particles.push_back(gridCenter + Vec2(-size / 2.0f, y));
-				}
-				initialArea = simplePolygonArea(particles);
+				spawnParticlesSquare();
 			}
 		};
 
@@ -347,6 +363,41 @@ void MainLoop::update() {
 		ImGui::Combo("scene", reinterpret_cast<int*>(&scene), sceneNames);
 		if (scene == Scene::WIND_TUNNEL) {
 			ImGui::InputFloat("wind tunnel velocity", &windTunnelVelocity);
+		}
+
+		ImGui::Checkbox("velocity brush add smoke", &velocityBrushAddSmoke);
+		if (velocityBrushAddSmoke) {
+			ImGui::Checkbox("cycle colors", &cycleColors);
+
+			if (cycleColors) {
+				ImGui::InputFloat("color cycling speed", &colorCyclingSpeed);
+			}
+
+			if (cycleColors) {
+				ImGui::BeginDisabled();
+			}
+			ImGui::ColorEdit3("velocity brush smoke color", velocityBrushSmokeColor.data());
+			if (cycleColors) {
+				ImGui::EndDisabled();
+			}
+		}
+
+		if (ImGui::Button("spawn particles circle")) {
+			spawnParticlesCircle();
+		}
+
+		if (ImGui::Button("spawn particles square")) {
+			spawnParticlesSquare();
+		}
+
+		if (particles.size() != 0 && ImGui::Button("remove particles")) {
+			particles.clear();
+		}
+
+		if (ImGui::Button("clear smoke")) {
+			std::ranges::fill(smokeR.span(), 0.0f);
+			std::ranges::fill(smokeG.span(), 0.0f);
+			std::ranges::fill(smokeB.span(), 0.0f);
 		}
 
 		ImGui::SeparatorText("info");

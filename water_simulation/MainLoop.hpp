@@ -13,6 +13,7 @@ struct MainLoop {
 	static MainLoop make();
 
 	float dt = 1.0f / 60.0f;
+	float elapsed = 0.0f;
 
 	EulerianFluid fluid;
 	Array2d<float> smokeR, smokeG, smokeB;
@@ -22,6 +23,11 @@ struct MainLoop {
 
 	bool paused = false;
 	float brushRadiusCellCount = 4.0f;
+
+	bool velocityBrushAddSmoke = false;
+	bool cycleColors = false;
+	float colorCyclingSpeed = 1.0f;
+	Vec3 velocityBrushSmokeColor = Vec3(0.0f);
 
 	Vec2 velocityBrushPos;
 	bool velocityBrushReleased = true;

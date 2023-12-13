@@ -197,7 +197,7 @@ std::optional<float> EulerianFluid::sampleQuantity(Span2d<const float> field, Ve
 	Without doing raycasting it might be best to just not advect the wall at all in cases where it is hard to determine from where should the advection take place. Like all walls or diagonal configurations.
 	*/
 	// Not sure if the previous pos being inside walls would only be caused by not accurate enough integration or could it happen, because of the brush changing velocity.
-
+	// TODO: Could implement the same fix for velocity advection.
 	/*
 	x0 y1 | x1 y1
 	-------------
@@ -297,32 +297,6 @@ std::optional<float> EulerianFluid::sampleQuantity(Span2d<const float> field, Ve
 	//return sampleField(field, pos, Vec2(cellSpacing / 2.0f));
 }
 
-//float EulerianFluid::sampleQuantity(Span2d<const float> field, Vec2 pos) {
-//	const auto cellOffset = Vec2(cellSpacing / 2.0f);
-//
-//	pos.x = std::clamp(pos.x, cellSpacing, gridSize.x * cellSpacing);
-//	pos.y = std::clamp(pos.y, cellSpacing, gridSize.y * cellSpacing);
-//
-//	// Could just use a single clamp here and remove the one from the top.
-//	const auto x0 = std::min(static_cast<i64>(floor((pos.x - cellOffset.x) / cellSpacing)), gridSize.x - 1);
-//	const auto tx = ((pos.x - cellOffset.x) - x0 * cellSpacing) / cellSpacing;
-//	const auto x1 = std::min(x0 + 1, gridSize.x - 1);
-//
-//	const auto y0 = std::min(static_cast<i64>(floor((pos.y - cellOffset.y) / cellSpacing)), gridSize.y - 1);
-//	const auto ty = ((pos.y - cellOffset.y) - y0 * cellSpacing) / cellSpacing;
-//	const auto y1 = std::min(y0 + 1, gridSize.y - 1);
-//
-//	const auto bilerpedValue =
-//		(1.0f - tx) * (1.0f - ty) * field(x0, y0) +
-//		(1.0f - tx) * ty * field(x0, y1) +
-//		tx * (1.0f - ty) * field(x1, y0) +
-//		tx * ty * field(x1, y1);
-//
-//	return bilerpedValue;
-//
-//	//return sampleField(field, pos, Vec2(cellSpacing / 2.0f));
-//}
-
 auto EulerianFluid::advectVelocity(float dt) -> void {
 	oldVelX = velX;
 	oldVelY = velY;
@@ -368,9 +342,9 @@ void EulerianFluid::advectQuantity(Span2d<float> quantity, float dt) {
 			const auto avgVel = Vec2(at(velX, x, y) + at(velX, x + 1, y), at(velY, x, y) + at(velY, x, y + 1)) / 2.0f;
 			const auto pos = (Vec2(Vec2T(x, y)) + Vec2(0.5f)) * cellSpacing;
 			const auto approximatePreviousPos = pos - dt * avgVel;
-			const auto q = sampleQuantity(spanFrom(advectedQuantityOld).asConst(), approximatePreviousPos);
-			if (q.has_value()) {
-				quantity(x, y) = *q;
+			const auto optValueAtPreviousPos = sampleQuantity(spanFrom(advectedQuantityOld).asConst(), approximatePreviousPos);
+			if (optValueAtPreviousPos.has_value()) {
+				quantity(x, y) = *optValueAtPreviousPos;
 			}
 		}
 	}
