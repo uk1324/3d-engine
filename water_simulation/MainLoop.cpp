@@ -54,6 +54,23 @@ void MainLoop::setSmoke(i64 x, i64 y, Vec3 color) {
 	smokeB(x, y) = color.z;
 }
 
+template<typename Function, typename StateVector>
+concept OdeRhsFunction = requires(Function rhs, StateVector stateVector, float t, float scalar) {
+	{ rhs(stateVector, t) } -> std::convertible_to<StateVector>;
+	{ scalar * stateVector } -> std::convertible_to<StateVector>;
+	{ stateVector + stateVector } -> std::convertible_to<StateVector>;
+};
+
+template<typename StateVector>
+StateVector rungeKutta4Step(const OdeRhsFunction<StateVector> auto& rhs, StateVector currentState, float t, float dt) {
+	const auto halfDt = dt / 2.0f;
+	const auto k1 = rhs(currentState, t);
+	const auto k2 = rhs(currentState + halfDt * k1, t + halfDt);
+	const auto k3 = rhs(currentState + halfDt * k2, t + halfDt);
+	const auto k4 = rhs(currentState + dt * k3, t + dt);
+	return currentState + (dt / 6.0f) * (k1 + 2.0f * k2 + 2.0f * k3 + k4);
+}
+
 // TODO: Using rk4 to advect control volumes in potential flows.
 
 void MainLoop::update() {
@@ -360,6 +377,8 @@ void MainLoop::update() {
 			}
 		}
 
+		ImGui::Checkbox("draw streamlines", &drawStreamlines);
+
 		ImGui::Combo("scene", reinterpret_cast<int*>(&scene), sceneNames);
 		if (scene == Scene::WIND_TUNNEL) {
 			ImGui::InputFloat("wind tunnel velocity", &windTunnelVelocity);
@@ -464,6 +483,46 @@ void MainLoop::update() {
 
 		renderer.drawImage(image.span2d().asConst(), transform);
 		Dbg::drawPolygon(particles, Color3::BLACK, 0.01f);
+
+		if (drawStreamlines) {
+			for (i64 xi = 2; xi < fluid.gridSize.x; xi += 5) {
+				for (i64 yi = 2; yi < fluid.gridSize.y; yi += 5) {
+					const auto startPos = (Vec2(xi, yi) + Vec2(0.5f)) * fluid.cellSpacing;
+					const auto stepCount = 15;
+					const auto streamlineStepSize = 0.01f;
+
+					auto pos = startPos;
+					for (i32 i = 0; i < stepCount; i++) {
+						const auto rhs = [&](Vec2 x, float t) {
+							return fluid.sampleVel(x);
+						};
+						const auto oldPos = pos;
+						pos = rungeKutta4Step(rhs, pos, 0.0f, streamlineStepSize);
+						Dbg::drawLine(oldPos, pos, Color3::WHITE, 0.005f);
+						/*const Vec2 vel{ fluid.sampleVel(pos) };
+						const auto oldPos = pos;
+						pos += vel * streamlineStepSize;*/
+						//Dbg::drawLine(oldPos, pos, Color3::WHITE, 0.005f);
+					}
+				}
+			}
+
+			for (i64 xi = 2; xi < fluid.gridSize.x; xi += 5) {
+				for (i64 yi = 2; yi < fluid.gridSize.y; yi += 5) {
+					const auto startPos = (Vec2(xi, yi) + Vec2(0.5f)) * fluid.cellSpacing;
+					const auto stepCount = 15;
+					const auto streamlineStepSize = 0.01f;
+
+					auto pos = startPos;
+					for (i32 i = 0; i < stepCount; i++) {
+						const Vec2 vel{ fluid.sampleVel(pos) };
+						const auto oldPos = pos;
+						pos += vel * streamlineStepSize;
+						Dbg::drawLine(oldPos, pos, Color3::GREEN, 0.005f);
+					}
+				}
+			}
+		}
 
 		ShaderManager::update();
 		renderer.update();

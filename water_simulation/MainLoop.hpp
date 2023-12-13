@@ -44,6 +44,8 @@ struct MainLoop {
 	DisplayState displayState = DisplayState::SMOKE;
 	const char* displayStateNames = "smoke\0divergence\0pressure\0";
 
+	bool drawStreamlines = false;
+
 	enum class Scene {
 		BOX,
 		WIND_TUNNEL,
@@ -55,6 +57,11 @@ struct MainLoop {
 
 	std::vector<Vec2> particles;
 	std::optional<float> initialArea;
+
+	struct PathlineParticle {
+		Vec2 pos;
+	};
+	std::vector<PathlineParticle> pathlineParticles;
 
 	void update();
 };
