@@ -21,7 +21,7 @@ public:
 	float sampleFieldVelX(const std::vector<float>& field, Vec2 pos);
 	float sampleFieldVelY(const std::vector<float>& field, Vec2 pos);
 	Vec2 sampleVel(Vec2 pos);
-	float sampleQuantity(Span2d<const float> field, Vec2 pos);
+	std::optional<float> sampleQuantity(Span2d<const float> field, Vec2 pos);
 
 	void advectVelocity(float dt);
 	// @Performance: Would it be faster in some cases to have a single "vector" of quantites that get advected all at once. It would need less computation, but there would probably be issues with caching.

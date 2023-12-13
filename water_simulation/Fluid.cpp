@@ -99,11 +99,6 @@ float EulerianFluid::sampleField(Span2d<const float> field, Vec2 pos, Vec2 cellO
 	const auto ty = ((pos.y - cellOffset.y) - y0 * cellSpacing) / cellSpacing;
 	const auto y1 = std::min(y0 + 1, gridSize.y - 1);
 
-	if (field.data() != velX.data() && field.data() != velY.data()) {
-		return field(x0, y0);
-	}
-
-	
 	const auto bilerpedValue =
 		(1.0f - tx) * (1.0f - ty) * field(x0, y0) +
 		(1.0f - tx) * ty * field(x0, y1) +
@@ -125,9 +120,208 @@ Vec2 EulerianFluid::sampleVel(Vec2 pos) {
 	return Vec2(sampleFieldVelX(velX, pos), sampleFieldVelY(velY, pos));
 }
 
-float EulerianFluid::sampleQuantity(Span2d<const float> field, Vec2 pos) {
-	return sampleField(field, pos, Vec2(cellSpacing / 2.0f));
+std::optional<float> EulerianFluid::sampleQuantity(Span2d<const float> field, Vec2 pos) {
+	const auto cellOffset = Vec2(cellSpacing / 2.0f);
+
+	pos.x = std::clamp(pos.x, cellSpacing, gridSize.x * cellSpacing);
+	pos.y = std::clamp(pos.y, cellSpacing, gridSize.y * cellSpacing);
+
+	// Could just use a single clamp here and remove the one from the top.
+	auto x0 = std::min(static_cast<i64>(floor((pos.x - cellOffset.x) / cellSpacing)), gridSize.x - 1);
+	const auto tx = ((pos.x - cellOffset.x) - x0 * cellSpacing) / cellSpacing;
+	auto x1 = std::min(x0 + 1, gridSize.x - 1);
+
+	auto y0 = std::min(static_cast<i64>(floor((pos.y - cellOffset.y) / cellSpacing)), gridSize.y - 1);
+	const auto ty = ((pos.y - cellOffset.y) - y0 * cellSpacing) / cellSpacing;
+	auto y1 = std::min(y0 + 1, gridSize.y - 1);
+
+	/*
+	v1
+	if (isWall(x0, y0) || isWall(x1, y0) || isWall(x0, y1) || isWall(x1, y1)) {
+		return std::nullopt;
+	}*/
+
+	/*
+	v2
+	if (isWall(x0, y0)) {
+		return std::nullopt;
+	}
+
+	if (isWall(x1, y1)) {
+		x1 = x0;
+		y1 = y0;
+	}
+
+	if (isWall(x1, y0)) {
+		x1 = x0;
+	}
+
+	if (isWall(x0, y1)) {
+		y1 = y0;
+	}*/
+
+
+	/*if (isWall(x0, y0)) {
+		if (!isWall(x1, y0)) {
+			x0 = x1;
+		}
+		if (!isWall(x0, y1)) {
+			y0 = y1;
+		}
+
+	} else {
+		if (isWall(x1, y1)) {
+			x1 = x0;
+			y1 = y0;
+		}
+
+		if (isWall(x1, y0)) {
+			x1 = x0;
+		}
+
+		if (isWall(x0, y1)) {
+			y1 = y0;
+		}
+	}*/
+
+	
+	/*
+	There is a problem with semi-lagrangian advection, because it advects from the approximate previous position. There can be wall around the previous position which would cause the values at walls to be interpolated. The way to fully solve it would be to raycast so the sample doesn't go through a wall and to prevent the samples being taken from walls you need to consider all the 2^4 combinations of blocks that can be sampled from. 
+	w - wa
+	For example in the configutation
+	xx
+	00
+	then 
+	y1 = y0
+	Raycasting might be expensive and shouldn't be nescessary most of the time, because most of the time walls are too thick to go through.
+	Without doing raycasting it might be best to just not advect the wall at all in cases where it is hard to determine from where should the advection take place. Like all walls or diagonal configurations.
+	*/
+	// Not sure if the previous pos being inside walls would only be caused by not accurate enough integration or could it happen, because of the brush changing velocity.
+
+	/*
+	x0 y1 | x1 y1
+	-------------
+	x0 y0 | x1 y0
+	configuration = x0 y1 | x1 y1 | x0 y0 | x1 y0
+	*/
+	const auto configuration = (isWall(x0, y1) << 3) | (isWall(x1, y1) << 2) | (isWall(x0, y0) << 1) | (isWall(x1, y0));
+	// xx ox xo
+	// xx xo ox
+	if (configuration == 0b1111 || configuration == 0b0110 || configuration == 0b1001) {
+		return std::nullopt;
+	}
+
+	// ox
+	// xx
+	else if (configuration == 0b0111) {
+		return field(x0, y1);
+	}
+
+	// xo
+	// xx
+	else if (configuration == 0b1011) {
+		return field(x1, y1);
+	}
+
+	// xx
+	// ox
+	else if (configuration == 0b1101) {
+		return field(x0, y0);
+	}
+
+	// xx
+	// xo
+	else if (configuration == 0b1110) {
+		return field(x1, y0);
+	}
+
+	// xx
+	// oo
+	else if (configuration == 0b1100) {
+		y1 = y0;
+	}
+
+	// oo
+	// xx
+	else if (configuration == 0b0011) {
+		y0 = y1;
+	}
+	
+	// xo
+	// xo
+	else if (configuration == 0b1010) {
+		x0 = x1;
+	}
+
+	// ox
+	// ox
+	else if (configuration == 0b0101) {
+		x1 = x0;
+	}
+
+	// xo
+	// oo
+	else if (configuration == 0b1000) {
+		return field(x1, y0);
+	}
+
+	// ox
+	// oo
+	else if (configuration == 0b0100) {
+		return field(x0, y0);
+	}
+
+	// oo
+	// xo
+	else if (configuration == 0b0010) {
+		return field(x1, y1);
+	}
+
+	// oo
+	// ox
+	else if (configuration == 0b0001) {
+		return field(x0, y1);
+	}
+
+	// oo
+	// oo
+
+	const auto bilerpedValue =
+		(1.0f - tx) * (1.0f - ty) * field(x0, y0) +
+		(1.0f - tx) * ty * field(x0, y1) +
+		tx * (1.0f - ty) * field(x1, y0) +
+		tx * ty * field(x1, y1);
+
+	return bilerpedValue;
+
+	//return sampleField(field, pos, Vec2(cellSpacing / 2.0f));
 }
+
+//float EulerianFluid::sampleQuantity(Span2d<const float> field, Vec2 pos) {
+//	const auto cellOffset = Vec2(cellSpacing / 2.0f);
+//
+//	pos.x = std::clamp(pos.x, cellSpacing, gridSize.x * cellSpacing);
+//	pos.y = std::clamp(pos.y, cellSpacing, gridSize.y * cellSpacing);
+//
+//	// Could just use a single clamp here and remove the one from the top.
+//	const auto x0 = std::min(static_cast<i64>(floor((pos.x - cellOffset.x) / cellSpacing)), gridSize.x - 1);
+//	const auto tx = ((pos.x - cellOffset.x) - x0 * cellSpacing) / cellSpacing;
+//	const auto x1 = std::min(x0 + 1, gridSize.x - 1);
+//
+//	const auto y0 = std::min(static_cast<i64>(floor((pos.y - cellOffset.y) / cellSpacing)), gridSize.y - 1);
+//	const auto ty = ((pos.y - cellOffset.y) - y0 * cellSpacing) / cellSpacing;
+//	const auto y1 = std::min(y0 + 1, gridSize.y - 1);
+//
+//	const auto bilerpedValue =
+//		(1.0f - tx) * (1.0f - ty) * field(x0, y0) +
+//		(1.0f - tx) * ty * field(x0, y1) +
+//		tx * (1.0f - ty) * field(x1, y0) +
+//		tx * ty * field(x1, y1);
+//
+//	return bilerpedValue;
+//
+//	//return sampleField(field, pos, Vec2(cellSpacing / 2.0f));
+//}
 
 auto EulerianFluid::advectVelocity(float dt) -> void {
 	oldVelX = velX;
@@ -174,7 +368,10 @@ void EulerianFluid::advectQuantity(Span2d<float> quantity, float dt) {
 			const auto avgVel = Vec2(at(velX, x, y) + at(velX, x + 1, y), at(velY, x, y) + at(velY, x, y + 1)) / 2.0f;
 			const auto pos = (Vec2(Vec2T(x, y)) + Vec2(0.5f)) * cellSpacing;
 			const auto approximatePreviousPos = pos - dt * avgVel;
-			quantity(x, y) = sampleQuantity(spanFrom(advectedQuantityOld).asConst(), approximatePreviousPos);
+			const auto q = sampleQuantity(spanFrom(advectedQuantityOld).asConst(), approximatePreviousPos);
+			if (q.has_value()) {
+				quantity(x, y) = *q;
+			}
 		}
 	}
 }

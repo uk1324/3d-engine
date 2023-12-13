@@ -77,9 +77,14 @@ void MainLoop::update() {
 			}
 
 			if (scene == Scene::WIND_TUNNEL) {
-				for (i64 y = 0; y < fluid.gridSize.y - 1; y += 20) {
-					for (i64 yi = y; yi < y + 10; yi++) {
-						setSmoke(0, yi, Vec3(1.0f));
+				const auto peroid = 20;
+				for (i64 y = 0; y < fluid.gridSize.y - 1; y += peroid) {
+					const auto width = 10;
+					for (i64 yi = y; yi < y + width; yi++) {
+						setSmoke(1, yi, Vec3(1.0f));
+					}
+					for (i64 yi = y + width; yi < y + peroid; yi++) {
+						setSmoke(1, yi, Vec3(0.0f));
 					}
 				}
 			}
