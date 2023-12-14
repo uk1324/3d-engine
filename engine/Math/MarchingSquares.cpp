@@ -210,8 +210,8 @@ std::vector<std::vector<Vec2>> marchingSquares(Span2d<const float> grid, bool pi
 	return polygons;
 }
 
-std::vector<MarchingSquaresLine> marchingSquares2(Span2d<const float> grid, float boundaryValue, bool lerp) {
-	std::vector<MarchingSquaresLine> output;
+void marchingSquares2(std::vector<MarchingSquaresLine>& output, Span2d<const float> grid, float boundaryValue, bool lerp) {
+	output.clear();
 
 	auto smallerThanBoundaryValue = [&grid, &boundaryValue](i64 x, i64 y) {
 		return grid(x, y) < boundaryValue;
@@ -229,11 +229,11 @@ std::vector<MarchingSquaresLine> marchingSquares2(Span2d<const float> grid, floa
 			x, y   | x+1, y
 			configuration = x, y+1 | x+1, y+1 | x, y | x+1, y 
 			*/
-			bool interpolate = lerp;
-			if (isnan(grid(xi, yi)) || isnan(grid(xi + 1, yi)) || isnan(grid(xi, yi + 1)) || isnan(grid(xi + 1, yi + 1))) {
-				//interpolate = false;
-				//continue;
-			}
+			//bool interpolate = lerp;
+			//if (isnan(grid(xi, yi)) || isnan(grid(xi + 1, yi)) || isnan(grid(xi, yi + 1)) || isnan(grid(xi + 1, yi + 1))) {
+			//	//interpolate = false;
+			//	//continue;
+			//}
 
 			const auto configuration =
 				(static_cast<i32>(smallerThanBoundaryValue(xi, yi + 1)) << 3)
@@ -244,9 +244,42 @@ std::vector<MarchingSquaresLine> marchingSquares2(Span2d<const float> grid, floa
 			auto at = [&](i64 x, i64 y) {
 				return grid(x, y) - boundaryValue;
 			};
+			/*
+			Interpolation
+			Example
+			x x
+			(-)
+			o o
+			The (-) symbol is supposed to indicate the the line starts at x of the center of the left cells and goes to the x of the center of the right cells.
+			Because the value is smaller than 0 at 'x's and bigger than zero at 'o's somewhere between them lies f(pos) = 0.
+			If you are at [xi, yi] then the center of that cell is [xi + 0.5, yi + 0.5].
+			In the example configuration above the y value should be between yi + 0.5 and yi + 1.5.
+			Without interpolation you assume that the value is exacly between them so it is at yi + 1.0.
+			Lets consider only the left side so x = xi.
+			With interpolation you want to calculate where would f(xi, y) be 0 assuming the the values between f(xi, yi) and f(xi, yi + 1) differ linearly.
+			dy = (yi + 1) - (yi)
+			slope = (f(xi, yi + 1) - f(xi, yi)) / dy
+			Lets assume y = 0 at yi, because that is the bottom cell center.
+			Then to make it go throught the correct points it has to look like this
+			f(xi, yi) + y * slope
+			Setting equal to zero gives:
+			y = -f(xi, yi) / slope
+			This is the offest from the center of yi to the zero point. So the zero is at yi + 0.5 + y.
+
+			|
+			|      /f(xi, yi + 1)
+			|     /
+			|    /
+			+---/------
+			^  /   ^
+			yi/	 yi+1
+			f(xi, yi)
+
+			In configurations with diagonals you can see in which direction should the endpoint be able to move based on in which direction could a line connected to it move.
+			*/
 
 			auto lerpY = [&](i64 x) {
-				if (!interpolate || isnan(grid(x, yi)) || isnan(grid(x, yi + 1))) {
+				if (!lerp || isnan(grid(x, yi)) || isnan(grid(x, yi + 1))) {
 					return 0.5f;
 				}
 				const auto dy = 1.0f;
@@ -256,7 +289,7 @@ std::vector<MarchingSquaresLine> marchingSquares2(Span2d<const float> grid, floa
 			};
 
 			auto lerpX = [&](i64 y) {
-				if (!interpolate || isnan(grid(xi, y)) || isnan(grid(xi + 1, y))) {
+				if (!lerp || isnan(grid(xi, y)) || isnan(grid(xi + 1, y))) {
 					return 0.5f;
 				}
 				const auto dx = 1.0f;
@@ -277,7 +310,6 @@ std::vector<MarchingSquaresLine> marchingSquares2(Span2d<const float> grid, floa
 			case 0b1000:
 			case 0b0111:
 				add(Vec2(xi + 0.5f, yi + 0.5f + lerpY(xi)), Vec2(xi + 0.5f + lerpX(yi + 1), yi + 1.5f));
-				//add(Vec2(xi + 0.5f, yi + 1.0f), Vec2(xi + 1.0f, yi + 1.5f));
 				break;
 
 			// ox xo
@@ -285,8 +317,6 @@ std::vector<MarchingSquaresLine> marchingSquares2(Span2d<const float> grid, floa
 			case 0b0100:
 			case 0b1011: {
 				add(Vec2(xi + 0.5f + lerpX(yi + 1), yi + 1.5f), Vec2(xi + 1.5f, yi + 0.5f + lerpY(xi + 1)));
-
-				/*add(Vec2(xi + 1.0f, yi + 1.5f), Vec2(xi + 1.5f, yi + 1.0f));*/
 				break;
 			}
 			
@@ -295,7 +325,6 @@ std::vector<MarchingSquaresLine> marchingSquares2(Span2d<const float> grid, floa
 			// xo ox
 			case 0b0010:
 			case 0b1101:
-				/*add(Vec2(xi + 0.5f, yi + 1.0f), Vec2(xi + 1.0f, yi + 0.5f));*/
 				add(Vec2(xi + 0.5f, yi + 0.5f + lerpY(xi)), Vec2(xi + 0.5f + lerpX(yi), yi + 0.5f));
 				break;
 
@@ -303,7 +332,6 @@ std::vector<MarchingSquaresLine> marchingSquares2(Span2d<const float> grid, floa
 			// ox xo
 			case 0b0001:
 			case 0b1110:
-				//add(Vec2(xi + 1.0f, yi + 0.5f), Vec2(xi + 1.5f, yi + 1.0f));
 				add(Vec2(xi + 0.5f + lerpX(yi), yi + 0.5f), Vec2(xi + 1.5f, yi + 0.5f + lerpY(xi + 1)));
 				break;
 
@@ -312,7 +340,6 @@ std::vector<MarchingSquaresLine> marchingSquares2(Span2d<const float> grid, floa
 			case 0b1100:
 			case 0b0011:
 				add(Vec2(xi + 0.5f, yi + 0.5f + lerpY(xi)), Vec2(xi + 1.5f, yi + 0.5f + lerpY(xi + 1)));
-				/*add(Vec2(xi + 0.5f, yi + 1.0f), Vec2(xi + 1.5f, yi + 1.0f));*/
 				break;
 
 			// xo ox
@@ -320,7 +347,6 @@ std::vector<MarchingSquaresLine> marchingSquares2(Span2d<const float> grid, floa
 			case 0b1010:
 			case 0b0101:
 				add(Vec2(xi + 0.5 + lerpX(yi), yi + 0.5f), Vec2(xi + 0.5f + lerpX(yi + 1), yi + 1.5f));
-				/*add(Vec2(xi + 1.0f, yi + 0.5f), Vec2(xi + 1.0f, yi + 1.5f));*/
 				break;
 
 			/*
@@ -350,6 +376,4 @@ std::vector<MarchingSquaresLine> marchingSquares2(Span2d<const float> grid, floa
 			}
 		}
 	}
-
-	return output;
 }

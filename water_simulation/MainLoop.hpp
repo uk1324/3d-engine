@@ -6,6 +6,7 @@
 #include <engine/Graphics/Ibo.hpp>
 #include <engine/Graphics/ShaderProgram.hpp>
 #include <water_simulation/Fluid.hpp>
+#include <engine/Math/MarchingSquares.hpp>
 #include <Array2d.hpp>
 #include <framework/Renderer2d.hpp>
 
@@ -71,6 +72,17 @@ struct MainLoop {
 		std::vector<Vec2> positionHistory;
 	};
 	std::vector<PathlineParticle> pathlineParticles;
+
+	struct Isobar {
+		Vec3 color;
+		float value;
+	};
+	bool drawAutomaticIsobars = false;
+	float automaticIsobarsMin = -100.0f;
+	float automaticIsobarsMax = 100.0f;
+	float automaticIsobarsStep = 20.0f;
+	std::vector<Isobar> isobars;
+	std::vector<MarchingSquaresLine> marchingSquaresOutput;
 
 	void update();
 };

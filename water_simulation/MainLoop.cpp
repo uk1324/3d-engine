@@ -14,7 +14,6 @@
 #include <engine/Math/Utils.hpp>
 #include <engine/Math/OdeIntegration/RungeKutta4.hpp>
 #include <engine/Math/OdeIntegration/Euler.hpp>
-#include <engine/Math/MarchingSquares.hpp>
 
 MainLoop MainLoop::make() {
 	const Vec2T<i64> gridSize(200, 100);
@@ -60,6 +59,12 @@ void MainLoop::setSmoke(i64 x, i64 y, Vec3 color) {
 // TODO: Using rk4 to advect control volumes in potential flows.
 
 void MainLoop::update() {
+	/*
+	Cool:
+
+	When you draw a circle in the center of the wind tunnel scene, vortex shedding starts to happen, creating a von karmann vortex street behind the circle. Vortices are created by low pressure zones. If you enable pressure visualization you will see those zones. After a vortex is created on the bottom a new one will form on the top. If you add colored smoke to the bottom of the circle you will see that only every other vortex gets colored.
+	*/
+
 	const auto gridSizeCameraSpace = fluid.cellSpacing * Vec2(fluid.gridSize);
 	const auto gridCenter = gridSizeCameraSpace / 2.0f;
 
@@ -425,6 +430,13 @@ void MainLoop::update() {
 			}
 		}
 
+		if (ImGui::Button("clear smoke")) {
+			std::ranges::fill(smokeR.span(), 0.0f);
+			std::ranges::fill(smokeG.span(), 0.0f);
+			std::ranges::fill(smokeB.span(), 0.0f);
+		}
+
+		ImGui::SeparatorText("volume particles");
 		if (ImGui::Button("spawn particles circle")) {
 			spawnParticlesCircle();
 		}
@@ -437,16 +449,17 @@ void MainLoop::update() {
 			particles.clear();
 		}
 
-		if (ImGui::Button("clear smoke")) {
-			std::ranges::fill(smokeR.span(), 0.0f);
-			std::ranges::fill(smokeG.span(), 0.0f);
-			std::ranges::fill(smokeB.span(), 0.0f);
+		Gui::put("particle count: %", particles.size());
+		if (initialArea.has_value()) {
+			const auto areaScaling = simplePolygonArea(particles) / *initialArea;
+			Gui::put("area scaling %", areaScaling);
 		}
 
 		ImGui::SeparatorText("pathline particles");
 		ImGui::Text("Press H to spawn particle");
 		std::optional<i32> particleToRemoveIndex;
 		for (i32 i = 0; i < pathlineParticles.size(); i++) {
+			ImGui::SetNextItemOpen(true, ImGuiCond_Once);
 			if (ImGui::TreeNode(std::to_string(i).c_str())) {
 				auto& particle = pathlineParticles[i];
 				ImGui::Combo("integration method", reinterpret_cast<int*>(&particle.integrationMethod), integrationMethodNames);
@@ -460,6 +473,40 @@ void MainLoop::update() {
 
 		if (particleToRemoveIndex.has_value()) {
 			pathlineParticles.erase(pathlineParticles.begin() + *particleToRemoveIndex);
+		}
+
+		ImGui::SeparatorText("isobars");
+		ImGui::Checkbox("draw automatic isobars", &drawAutomaticIsobars);
+
+		if (drawAutomaticIsobars) {
+			ImGui::InputFloat("automatic isobars min", &automaticIsobarsMin);
+			ImGui::InputFloat("automatic isobars max", &automaticIsobarsMax);
+			ImGui::InputFloat("automatic isobars step", &automaticIsobarsStep);
+		} else {
+			std::optional<i32> isobarToRemoveIndex;
+
+			if (ImGui::Button("add")) {
+				isobars.push_back(Isobar{
+					.color = Color3::WHITE,
+					.value = 0.0f,
+				});
+			}
+			for (i32 i = 0; i < isobars.size(); i++) {
+				ImGui::SetNextItemOpen(true, ImGuiCond_Once);
+				if (ImGui::TreeNode(std::to_string(i).c_str())) {
+					auto& isobar = isobars[i];
+					ImGui::ColorEdit3("color", isobar.color.data());
+					ImGui::InputFloat("value", &isobar.value);
+					if (ImGui::Button("remove")) {
+						isobarToRemoveIndex = i;
+					}
+					ImGui::TreePop();
+				}
+			}
+
+			if (isobarToRemoveIndex.has_value()) {
+				isobars.erase(isobars.begin() + *isobarToRemoveIndex);
+			}
 		}
 
 		ImGui::SeparatorText("info");
@@ -477,12 +524,6 @@ void MainLoop::update() {
 		if (useDefaultDisplayedPressureBounds) {
 			displayedPressureMin = pressureMin;
 			displayedPressureMax = pressureMax;
-		}
-
-		Gui::put("particle count: %", particles.size());
-		if (initialArea.has_value()) {
-			const auto areaScaling = simplePolygonArea(particles) / *initialArea;
-			Gui::put("area scaling %", areaScaling);
 		}
 	};
 
@@ -559,42 +600,42 @@ void MainLoop::update() {
 		for (int x = 0; x < fluid.gridSize.x; x++) {
 			for (int y = 0; y < fluid.gridSize.y; y++) {
 				if (fluid.isWall(x, y)) {
-					// Set to a very big value so marching squares assumes the boundary is not inside the wall, but furthest away it can be from the center of the wall.
-					// It might work better if the value is the negative of what is on the other side of the wall.
-					/*fluid.at(fluid.pressure, x, y) = -10000000.0f;*/
 					fluid.at(fluid.pressure, x, y) = std::numeric_limits<float>::quiet_NaN();
 				}
 			}
 		}
 
-		infloat(isoline, 0.0f);
-		auto isolines = marchingSquares2(fluid.spanFrom(fluid.pressure).asConst(), isoline, true);
-		for (auto& line : isolines) {
-			auto transform = [&](Vec2 v) {
-				v *= fluid.cellSpacing;
-				//v.y = gridSizeCameraSpace.y - line.a.y;
-				return v;
-			};
-			line.a = transform(line.a);
-			line.b = transform(line.b);
-		}
+		auto scaleMarchingSquaresOutput = [&] {
+			for (auto& line : marchingSquaresOutput) {
+				auto transform = [&](Vec2 v) {
+					v *= fluid.cellSpacing;
+					return v;
+				};
+				line.a = transform(line.a);
+				line.b = transform(line.b);
+			}
+		};
 
-		for (const auto& line : isolines) {
-			Dbg::drawLine(line.a, line.b, Color3::WHITE, 0.005f);
-		}
-		dbgGui(isolines.size());
-		/*infloat(isoline, 0.0f);
-		auto isolines = marchingSquares(fluid.spanFrom(fluid.pressure).asConst(), false, false, isoline);
-		for (auto& isoline : isolines) {
-			for (auto& point : isoline) {
-				point *= fluid.cellSpacing;
-				point.y = gridSizeCameraSpace.y - point.y;
+		if (drawAutomaticIsobars) {
+			if (automaticIsobarsMin < automaticIsobarsMax && automaticIsobarsStep > 0.0f) {
+				for (float value = automaticIsobarsMin; value < automaticIsobarsMax; value += automaticIsobarsStep) {
+					marchingSquares2(marchingSquaresOutput, fluid.spanFrom(fluid.pressure).asConst(), value, true);
+					scaleMarchingSquaresOutput();
+					for (const auto& line : marchingSquaresOutput) {
+						Dbg::drawLine(line.a, line.b, Color3::WHITE, 0.005f);
+					}
+				}
+			}
+		} else {
+			for (const auto& isobar : isobars) {
+				marchingSquares2(marchingSquaresOutput, fluid.spanFrom(fluid.pressure).asConst(), isobar.value, true);
+				scaleMarchingSquaresOutput();
+
+				for (const auto& line : marchingSquaresOutput) {
+					Dbg::drawLine(line.a, line.b, isobar.color, 0.005f);
+				}
 			}
 		}
-
-		for (const auto& isoline : isolines) {
-			Dbg::drawPolygon(isoline, Color3::WHITE, 0.01f);
-		}*/
 
 		ShaderManager::update();
 		renderer.update();
