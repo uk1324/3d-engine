@@ -10,4 +10,4 @@ struct MarchingSquaresLine {
 	Vec2 a, b;
 };
 // Calculates the lines which make the isolines.
-std::vector<MarchingSquaresLine> marchingSquares2(Span2d<const float> grid, float boundaryValue);
+std::vector<MarchingSquaresLine> marchingSquares2(Span2d<const float> grid, float boundaryValue, bool lerp);

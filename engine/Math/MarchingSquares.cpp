@@ -210,7 +210,7 @@ std::vector<std::vector<Vec2>> marchingSquares(Span2d<const float> grid, bool pi
 	return polygons;
 }
 
-std::vector<MarchingSquaresLine> marchingSquares2(Span2d<const float> grid, float boundaryValue) {
+std::vector<MarchingSquaresLine> marchingSquares2(Span2d<const float> grid, float boundaryValue, bool lerp) {
 	std::vector<MarchingSquaresLine> output;
 
 	auto smallerThanBoundaryValue = [&grid, &boundaryValue](i64 x, i64 y) {
@@ -229,11 +229,41 @@ std::vector<MarchingSquaresLine> marchingSquares2(Span2d<const float> grid, floa
 			x, y   | x+1, y
 			configuration = x, y+1 | x+1, y+1 | x, y | x+1, y 
 			*/
+			bool interpolate = lerp;
+			if (isnan(grid(xi, yi)) || isnan(grid(xi + 1, yi)) || isnan(grid(xi, yi + 1)) || isnan(grid(xi + 1, yi + 1))) {
+				//interpolate = false;
+				//continue;
+			}
+
 			const auto configuration =
 				(static_cast<i32>(smallerThanBoundaryValue(xi, yi + 1)) << 3)
 				| (static_cast<i32>(smallerThanBoundaryValue(xi + 1, yi + 1)) << 2) 
 				| (static_cast<i32>(smallerThanBoundaryValue(xi, yi)) << 1)
 				| static_cast<i32>(smallerThanBoundaryValue(xi + 1, yi));
+
+			auto at = [&](i64 x, i64 y) {
+				return grid(x, y) - boundaryValue;
+			};
+
+			auto lerpY = [&](i64 x) {
+				if (!interpolate || isnan(grid(x, yi)) || isnan(grid(x, yi + 1))) {
+					return 0.5f;
+				}
+				const auto dy = 1.0f;
+				float slope = (at(x, yi + 1) - at(x, yi)) / dy;
+				const auto y = -at(x, yi) / slope;
+				return y;
+			};
+
+			auto lerpX = [&](i64 y) {
+				if (!interpolate || isnan(grid(xi, y)) || isnan(grid(xi + 1, y))) {
+					return 0.5f;
+				}
+				const auto dx = 1.0f;
+				float slope = (at(xi + 1, y) - at(xi, y)) / dx;
+				const auto x = -at(xi, y) / slope;
+				return x;
+			};
 
 			switch (configuration) {
 			// oo xx
@@ -246,42 +276,51 @@ std::vector<MarchingSquaresLine> marchingSquares2(Span2d<const float> grid, floa
 			// oo xx
 			case 0b1000:
 			case 0b0111:
-				add(Vec2(xi + 0.5f, yi + 1.0f), Vec2(xi + 1.0f, yi + 1.5f));
+				add(Vec2(xi + 0.5f, yi + 0.5f + lerpY(xi)), Vec2(xi + 0.5f + lerpX(yi + 1), yi + 1.5f));
+				//add(Vec2(xi + 0.5f, yi + 1.0f), Vec2(xi + 1.0f, yi + 1.5f));
 				break;
 
 			// ox xo
 			// oo xx
 			case 0b0100:
-			case 0b1011:
-				add(Vec2(xi + 1.0f, yi + 1.5f), Vec2(xi + 1.5f, yi + 1.0f));
+			case 0b1011: {
+				add(Vec2(xi + 0.5f + lerpX(yi + 1), yi + 1.5f), Vec2(xi + 1.5f, yi + 0.5f + lerpY(xi + 1)));
+
+				/*add(Vec2(xi + 1.0f, yi + 1.5f), Vec2(xi + 1.5f, yi + 1.0f));*/
 				break;
+			}
+			
 
 			// oo xx
 			// xo ox
 			case 0b0010:
 			case 0b1101:
-				add(Vec2(xi + 0.5f, yi + 1.0f), Vec2(xi + 1.0f, yi + 0.5f));
+				/*add(Vec2(xi + 0.5f, yi + 1.0f), Vec2(xi + 1.0f, yi + 0.5f));*/
+				add(Vec2(xi + 0.5f, yi + 0.5f + lerpY(xi)), Vec2(xi + 0.5f + lerpX(yi), yi + 0.5f));
 				break;
 
 			// oo xx
 			// ox xo
 			case 0b0001:
 			case 0b1110:
-				add(Vec2(xi + 1.0f, yi + 0.5f), Vec2(xi + 1.5f, yi + 1.0f));
+				//add(Vec2(xi + 1.0f, yi + 0.5f), Vec2(xi + 1.5f, yi + 1.0f));
+				add(Vec2(xi + 0.5f + lerpX(yi), yi + 0.5f), Vec2(xi + 1.5f, yi + 0.5f + lerpY(xi + 1)));
 				break;
 
 			// xx oo
 			// oo xx
 			case 0b1100:
 			case 0b0011:
-				add(Vec2(xi + 0.5f, yi + 1.0f), Vec2(xi + 1.5f, yi + 1.0f));
+				add(Vec2(xi + 0.5f, yi + 0.5f + lerpY(xi)), Vec2(xi + 1.5f, yi + 0.5f + lerpY(xi + 1)));
+				/*add(Vec2(xi + 0.5f, yi + 1.0f), Vec2(xi + 1.5f, yi + 1.0f));*/
 				break;
 
 			// xo ox
 			// xo ox
 			case 0b1010:
 			case 0b0101:
-				add(Vec2(xi + 1.0f, yi + 0.5f), Vec2(xi + 1.0f, yi + 1.5f));
+				add(Vec2(xi + 0.5 + lerpX(yi), yi + 0.5f), Vec2(xi + 0.5f + lerpX(yi + 1), yi + 1.5f));
+				/*add(Vec2(xi + 1.0f, yi + 0.5f), Vec2(xi + 1.0f, yi + 1.5f));*/
 				break;
 
 			/*

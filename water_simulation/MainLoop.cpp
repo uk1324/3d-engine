@@ -556,8 +556,19 @@ void MainLoop::update() {
 			}
 		}
 
+		for (int x = 0; x < fluid.gridSize.x; x++) {
+			for (int y = 0; y < fluid.gridSize.y; y++) {
+				if (fluid.isWall(x, y)) {
+					// Set to a very big value so marching squares assumes the boundary is not inside the wall, but furthest away it can be from the center of the wall.
+					// It might work better if the value is the negative of what is on the other side of the wall.
+					/*fluid.at(fluid.pressure, x, y) = -10000000.0f;*/
+					fluid.at(fluid.pressure, x, y) = std::numeric_limits<float>::quiet_NaN();
+				}
+			}
+		}
+
 		infloat(isoline, 0.0f);
-		auto isolines = marchingSquares2(fluid.spanFrom(fluid.pressure).asConst(), isoline);
+		auto isolines = marchingSquares2(fluid.spanFrom(fluid.pressure).asConst(), isoline, true);
 		for (auto& line : isolines) {
 			auto transform = [&](Vec2 v) {
 				v *= fluid.cellSpacing;
