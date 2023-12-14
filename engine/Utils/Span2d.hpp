@@ -1,6 +1,6 @@
 #pragma once
 
-#include <engine/Math/Vec2.hpp>
+#include "../Math/Vec2.hpp"
 
 template<typename T>
 class Span2d {

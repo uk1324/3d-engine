@@ -26,6 +26,15 @@ void Dbg::drawPolygon(Span<const Vec2> vertices, Vec3 color, std::optional<float
 	}
 }
 
+void Dbg::drawPolyline(Span<const Vec2> vertices, Vec3 color, std::optional<float> lineWidth) {
+	if (vertices.size() < 2) {
+		return;
+	}
+	for (i32 i = 1; i < vertices.size(); i++) {
+		Dbg::drawLine(vertices[i - 1], vertices[i], color, lineWidth);
+	}
+}
+
 void Dbg::update() {
 	disks.clear();
 	circles.clear();

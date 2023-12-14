@@ -5,13 +5,16 @@
 #include <framework/Camera.hpp>
 #include <engine/Input/Input.hpp>
 #include <framework/Instancing.hpp>
-#include <engine/Math/Random.hpp>
 #include <Dbg.hpp>
 #include <framework/Dbg.hpp>
+#include <engine/Math/Random.hpp>
 #include <engine/Math/Color.hpp>
 #include <engine/Math/Polygon.hpp>
 #include <engine/Math/Angles.hpp>
 #include <engine/Math/Utils.hpp>
+#include <engine/Math/OdeIntegration/RungeKutta4.hpp>
+#include <engine/Math/OdeIntegration/Euler.hpp>
+#include <engine/Math/MarchingSquares.hpp>
 
 MainLoop MainLoop::make() {
 	const Vec2T<i64> gridSize(200, 100);
@@ -52,23 +55,6 @@ void MainLoop::setSmoke(i64 x, i64 y, Vec3 color) {
 	smokeR(x, y) = color.x;
 	smokeG(x, y) = color.y;
 	smokeB(x, y) = color.z;
-}
-
-template<typename Function, typename StateVector>
-concept OdeRhsFunction = requires(Function rhs, StateVector stateVector, float t, float scalar) {
-	{ rhs(stateVector, t) } -> std::convertible_to<StateVector>;
-	{ scalar * stateVector } -> std::convertible_to<StateVector>;
-	{ stateVector + stateVector } -> std::convertible_to<StateVector>;
-};
-
-template<typename StateVector>
-StateVector rungeKutta4Step(const OdeRhsFunction<StateVector> auto& rhs, StateVector currentState, float t, float dt) {
-	const auto halfDt = dt / 2.0f;
-	const auto k1 = rhs(currentState, t);
-	const auto k2 = rhs(currentState + halfDt * k1, t + halfDt);
-	const auto k3 = rhs(currentState + halfDt * k2, t + halfDt);
-	const auto k4 = rhs(currentState + dt * k3, t + dt);
-	return currentState + (dt / 6.0f) * (k1 + 2.0f * k2 + 2.0f * k3 + k4);
 }
 
 // TODO: Using rk4 to advect control volumes in potential flows.
@@ -256,12 +242,36 @@ void MainLoop::update() {
 				for (i64 i = 0; i < static_cast<i64>(particles.size()) - 1; i++) {
 					const auto dist = particles[i].distanceTo(particles[i + 1]);
 					newParticles.push_back(particles[i]);
-					if (dist > 0.05f) {
+					if (dist > 0.01f) {
 						newParticles.push_back((particles[i] + particles[i + 1]) / 2.0f);
 					}
 				}
 				newParticles.push_back(particles[particles.size() - 1]);
 				particles = newParticles;
+			}
+		};
+
+		auto updatePathlineParticles = [&] {
+			for (auto& particle : pathlineParticles) {
+				auto rhs = [&](Vec2 x, float t) {
+					return fluid.sampleVel(x);
+				};
+				switch (particle.integrationMethod) {
+					using enum IntegrationMethod;
+
+				case EULER:
+					particle.pos = eulerStep(rhs, particle.pos, 0.0f, dt);
+					break;
+
+				case RK4:
+					particle.pos = rungeKutta4Step(rhs, particle.pos, 0.0f, dt);
+					break;
+
+				}
+				if (particle.positionHistory.size() >= 1 && distance(particle.pos, particle.positionHistory.back()) < 0.05f) {
+					continue;
+				}
+				particle.positionHistory.push_back(particle.pos);
 			}
 		};
 
@@ -273,9 +283,10 @@ void MainLoop::update() {
 			fluid.advectQuantity(smokeR.span2d(), dt);
 			fluid.advectQuantity(smokeG.span2d(), dt);
 			fluid.advectQuantity(smokeB.span2d(), dt);
-		}
 
-		updateParticles();
+			updateParticles();
+			updatePathlineParticles();
+		}
 	};
 
 	auto processInput = [&] {
@@ -358,9 +369,22 @@ void MainLoop::update() {
 			}
 		};
 
+		auto updateSpawnPathlineParticles = [&] {
+			if (Input::isKeyDown(KeyCode::H)) {
+				const auto position = cursorPos;
+				pathlineParticles.push_back(PathlineParticle{
+					.pos = position,
+					.color = random01Vec3(),
+					.integrationMethod = IntegrationMethod::EULER,
+					.positionHistory = { position },
+				});
+			}
+		};
+
 		updateVelocityBrush();
 		updateWallBrush();
 		updateSpawnParticles();
+		updateSpawnPathlineParticles();
 	};
 
 	auto displayGui = [&] {
@@ -417,6 +441,25 @@ void MainLoop::update() {
 			std::ranges::fill(smokeR.span(), 0.0f);
 			std::ranges::fill(smokeG.span(), 0.0f);
 			std::ranges::fill(smokeB.span(), 0.0f);
+		}
+
+		ImGui::SeparatorText("pathline particles");
+		ImGui::Text("Press H to spawn particle");
+		std::optional<i32> particleToRemoveIndex;
+		for (i32 i = 0; i < pathlineParticles.size(); i++) {
+			if (ImGui::TreeNode(std::to_string(i).c_str())) {
+				auto& particle = pathlineParticles[i];
+				ImGui::Combo("integration method", reinterpret_cast<int*>(&particle.integrationMethod), integrationMethodNames);
+				ImGui::ColorEdit3("color", particle.color.data());
+				if (ImGui::Button("remove")) {
+					particleToRemoveIndex = i;
+				}
+				ImGui::TreePop();
+			}
+		}
+
+		if (particleToRemoveIndex.has_value()) {
+			pathlineParticles.erase(pathlineParticles.begin() + *particleToRemoveIndex);
 		}
 
 		ImGui::SeparatorText("info");
@@ -484,6 +527,15 @@ void MainLoop::update() {
 		renderer.drawImage(image.span2d().asConst(), transform);
 		Dbg::drawPolygon(particles, Color3::BLACK, 0.01f);
 
+		for (const auto& particle : pathlineParticles) {
+			static constexpr float pathlineParticleTrailWidth = 0.01f;
+			Dbg::drawDisk(particle.pos, 0.02, particle.color);
+			Dbg::drawPolyline(particle.positionHistory, particle.color, pathlineParticleTrailWidth);
+			if (particle.positionHistory.size() > 1 && particle.pos != particle.positionHistory.back()) {
+				Dbg::drawLine(particle.pos, particle.positionHistory.back(), particle.color, pathlineParticleTrailWidth);
+			}
+		}
+
 		if (drawStreamlines) {
 			for (i64 xi = 2; xi < fluid.gridSize.x; xi += 5) {
 				for (i64 yi = 2; yi < fluid.gridSize.y; yi += 5) {
@@ -497,32 +549,41 @@ void MainLoop::update() {
 							return fluid.sampleVel(x);
 						};
 						const auto oldPos = pos;
-						pos = rungeKutta4Step(rhs, pos, 0.0f, streamlineStepSize);
+						pos = eulerStep(rhs, pos, 0.0f, streamlineStepSize);
 						Dbg::drawLine(oldPos, pos, Color3::WHITE, 0.005f);
-						/*const Vec2 vel{ fluid.sampleVel(pos) };
-						const auto oldPos = pos;
-						pos += vel * streamlineStepSize;*/
-						//Dbg::drawLine(oldPos, pos, Color3::WHITE, 0.005f);
-					}
-				}
-			}
-
-			for (i64 xi = 2; xi < fluid.gridSize.x; xi += 5) {
-				for (i64 yi = 2; yi < fluid.gridSize.y; yi += 5) {
-					const auto startPos = (Vec2(xi, yi) + Vec2(0.5f)) * fluid.cellSpacing;
-					const auto stepCount = 15;
-					const auto streamlineStepSize = 0.01f;
-
-					auto pos = startPos;
-					for (i32 i = 0; i < stepCount; i++) {
-						const Vec2 vel{ fluid.sampleVel(pos) };
-						const auto oldPos = pos;
-						pos += vel * streamlineStepSize;
-						Dbg::drawLine(oldPos, pos, Color3::GREEN, 0.005f);
 					}
 				}
 			}
 		}
+
+		infloat(isoline, 0.0f);
+		auto isolines = marchingSquares2(fluid.spanFrom(fluid.pressure).asConst(), isoline);
+		for (auto& line : isolines) {
+			auto transform = [&](Vec2 v) {
+				v *= fluid.cellSpacing;
+				//v.y = gridSizeCameraSpace.y - line.a.y;
+				return v;
+			};
+			line.a = transform(line.a);
+			line.b = transform(line.b);
+		}
+
+		for (const auto& line : isolines) {
+			Dbg::drawLine(line.a, line.b, Color3::WHITE, 0.005f);
+		}
+		dbgGui(isolines.size());
+		/*infloat(isoline, 0.0f);
+		auto isolines = marchingSquares(fluid.spanFrom(fluid.pressure).asConst(), false, false, isoline);
+		for (auto& isoline : isolines) {
+			for (auto& point : isoline) {
+				point *= fluid.cellSpacing;
+				point.y = gridSizeCameraSpace.y - point.y;
+			}
+		}
+
+		for (const auto& isoline : isolines) {
+			Dbg::drawPolygon(isoline, Color3::WHITE, 0.01f);
+		}*/
 
 		ShaderManager::update();
 		renderer.update();

@@ -58,8 +58,17 @@ struct MainLoop {
 	std::vector<Vec2> particles;
 	std::optional<float> initialArea;
 
+	enum class IntegrationMethod {
+		EULER,
+		RK4,
+	};
+	const char* integrationMethodNames= "euler\0rk4\0";
+
 	struct PathlineParticle {
 		Vec2 pos;
+		Vec3 color;
+		IntegrationMethod integrationMethod;
+		std::vector<Vec2> positionHistory;
 	};
 	std::vector<PathlineParticle> pathlineParticles;
 

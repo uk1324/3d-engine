@@ -13,6 +13,7 @@ namespace Dbg {
 	// Using an optional parameter to signify a default parameter allows creating other functions with non required parameters easily. For example if I were to create 2 versions of drawLine one with and one without an lineWidthParameters then I would need to do the same with drawPolygon. Which would require templates or copying code.
 	void drawLine(Vec2 pos, Vec2 end, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
 	void drawPolygon(Span<const Vec2> vertices, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
+	void drawPolyline(Span<const Vec2> vertices, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
 
 	void update();
 

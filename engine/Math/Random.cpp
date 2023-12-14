@@ -9,6 +9,10 @@ float random01() {
 	return dist(e);
 }
 
+Vec3 random01Vec3() {
+	return Vec3(random01(), random01(), random01());
+}
+
 Vec2 randomPointInUnitCircle() {
 	const auto r = sqrt(random01());
 	const auto angle = random01() * TAU<float>;

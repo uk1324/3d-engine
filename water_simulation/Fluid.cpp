@@ -86,6 +86,7 @@ void EulerianFluid::computeDivergence() {
 	}
 }
 
+// TODO: Where is [0, 0]? Does samping work correctly does sampling velocity at [cellSize, cellSize] / 2 actually return the velocity there?
 float EulerianFluid::sampleField(Span2d<const float> field, Vec2 pos, Vec2 cellOffset) {
 	pos.x = std::clamp(pos.x, cellSpacing, gridSize.x * cellSpacing);
 	pos.y = std::clamp(pos.y, cellSpacing, gridSize.y * cellSpacing);
@@ -204,7 +205,11 @@ std::optional<float> EulerianFluid::sampleQuantity(Span2d<const float> field, Ve
 	x0 y0 | x1 y0
 	configuration = x0 y1 | x1 y1 | x0 y0 | x1 y0
 	*/
-	const auto configuration = (isWall(x0, y1) << 3) | (isWall(x1, y1) << 2) | (isWall(x0, y0) << 1) | (isWall(x1, y0));
+	const auto configuration = 
+		(static_cast<u32>(isWall(x0, y1)) << 3) 
+		| static_cast<u32>(isWall(x1, y1) << 2) 
+		| static_cast<u32>(isWall(x0, y0) << 1) 
+		| static_cast<u32>(isWall(x1, y0));
 	// xx ox xo
 	// xx xo ox
 	if (configuration == 0b1111 || configuration == 0b0110 || configuration == 0b1001) {
