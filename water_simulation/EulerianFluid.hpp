@@ -9,11 +9,11 @@ public:
 	EulerianFluid(Vec2T<i64> gridSize, float cellSpacing, float overRelaxation = 1.9f, float density = 1000.0f);
 
 	auto integrate(float dt, float gravity) -> void;
-	struct OpenSides {
-		bool xMinus, xPlus, yMinus, yPlus;
-		i64 count() const;
-	};
-	OpenSides getOpenSides(i64 x, i64 y) const;
+	//struct OpenSides {
+	//	bool xMinus, xPlus, yMinus, yPlus;
+	//	i64 count() const;
+	//};
+	//OpenSides getOpenSides(i64 x, i64 y) const;
 	auto solveIncompressibility(i32 solverIterations, float dt) -> void;
 	void computeDivergence();
 
@@ -36,6 +36,7 @@ public:
 	Span2d<const T> spanFrom(const std::vector<T>& vec) const;
 	auto setIsWall(i64 x, i64 y, bool value) -> void;
 	auto isWall(i64 x, i64 y) const -> bool;
+	float isWallFloat(i64 x, i64 y) const;
 	// Doesn't work at grid boundaries.
 	void removeVelocityAround(i64 x, i64 y);
 
@@ -50,10 +51,13 @@ public:
 	std::vector<float> oldVelX;
 	std::vector<float> oldVelY;
 	std::vector<float> pressure;
-	std::vector<bool> isWallValues;
+	/*std::vector<bool> isWallValues;*/
+	std::vector<float> isWallValues;
 	std::vector<float> advectedQuantityOld;
 	std::vector<float> divergence;
 };
+// @Performance:
+// Changing the isWall to floats didn't change the performance. I though that maybe transfering the bools between ALUs or using std::vector<bool> might be slowing down the solver. After implementing the change the performance didn't change. One issue might be that using floats takes up more cache memory. It might also be the case that the compiler can optimize the code so it loads the bools directly into the FP ALU.
 
 template<typename T>
 auto EulerianFluid::at(std::vector<T>& vec, i64 x, i64 y) -> T& {

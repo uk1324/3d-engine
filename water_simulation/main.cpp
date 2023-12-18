@@ -6,7 +6,7 @@ int main() {
 	Engine::initAll(Window::Settings{.multisamplingSamplesPerPixel = 4 });
 
 	EngineUpdateLoop loop(60.0);
-	auto mainLoop = MainLoop::make();
+	MainLoop mainLoop;
 
 	while (loop.isRunning()) {
 		mainLoop.update();

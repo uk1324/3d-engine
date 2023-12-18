@@ -1,4 +1,4 @@
-#include "Fluid.hpp"
+#include "EulerianFluid.hpp"
 
 EulerianFluid::EulerianFluid(Vec2T<i64> gridSize, float cellSpacing, float overRelaxation, float density)
 	: gridSize{ gridSize }
@@ -14,6 +14,12 @@ EulerianFluid::EulerianFluid(Vec2T<i64> gridSize, float cellSpacing, float overR
 	isWallValues.resize(cellCount);
 	divergence.resize(cellCount);
 	advectedQuantityOld.resize(cellCount);
+
+	for (i64 y = 1; y < gridSize.y - 1; y++) {
+		for (i64 x = 1; x < gridSize.x; x++) {
+			setIsWall(x, y, false);
+		}
+	}
 }
 
 auto EulerianFluid::integrate(float dt, float gravity) -> void {
@@ -26,14 +32,14 @@ auto EulerianFluid::integrate(float dt, float gravity) -> void {
 	}
 }
 
-EulerianFluid::OpenSides EulerianFluid::getOpenSides(i64 x, i64 y) const {
-	return OpenSides{
-		.xMinus = !isWall(x - 1, y),
-		.xPlus = !isWall(x + 1, y),
-		.yMinus = !isWall(x, y - 1),
-		.yPlus = !isWall(x, y + 1)
-	};
-}
+//EulerianFluid::OpenSides EulerianFluid::getOpenSides(i64 x, i64 y) const {
+//	return OpenSides{
+//		.xMinus = !isWall(x - 1, y),
+//		.xPlus = !isWall(x + 1, y),
+//		.yMinus = !isWall(x, y - 1),
+//		.yPlus = !isWall(x, y + 1)
+//	};
+//}
 
 auto EulerianFluid::solveIncompressibility(i32 solverIterations, float dt) -> void {
 	fill(pressure.begin(), pressure.end(), 0.0f);
@@ -46,10 +52,14 @@ auto EulerianFluid::solveIncompressibility(i32 solverIterations, float dt) -> vo
 				if (isWall(x, y))
 					continue;
 
-				const auto sides = getOpenSides(x, y);
-				const auto openSidesCount = sides.count();
+				const float xMinus = isWallFloat(x - 1, y);
+				const float xPlus = isWallFloat(x + 1, y);
+				const float yMinus = isWallFloat(x, y - 1);
+				const float yPlus = isWallFloat(x, y + 1);
+				//const auto sides = getOpenSides(x, y);
+				const float openSidesCount = xMinus + xPlus + yMinus + yPlus;
 
-				if (openSidesCount == 0)
+				if (openSidesCount == 0.0f)
 					continue;
 
 				// When correcting the divergence the constant cellSpacing can be ignored.
@@ -63,10 +73,10 @@ auto EulerianFluid::solveIncompressibility(i32 solverIterations, float dt) -> vo
 				const auto totalVelocityChangeToCorrectDivergence = -divergenceTimesCellSpacing * overRelaxation;
 				const auto velocityChangePerSide = totalVelocityChangeToCorrectDivergence / openSidesCount;
 
-				at(velX, x, y) -= sides.xMinus * velocityChangePerSide;
-				at(velX, x + 1, y) += sides.xPlus * velocityChangePerSide;
-				at(velY, x, y) -= sides.yMinus * velocityChangePerSide;
-				at(velY, x, y + 1) += sides.yPlus * velocityChangePerSide;
+				at(velX, x, y) -= xMinus * velocityChangePerSide;
+				at(velX, x + 1, y) += xPlus * velocityChangePerSide;
+				at(velY, x, y) -= yMinus * velocityChangePerSide;
+				at(velY, x, y + 1) += yPlus * velocityChangePerSide;
 
 				const auto acceleration = totalVelocityChangeToCorrectDivergence / dt;
 				const auto area = cellSpacing * openSidesCount;
@@ -135,56 +145,6 @@ std::optional<float> EulerianFluid::sampleQuantity(Span2d<const float> field, Ve
 	auto y0 = std::min(static_cast<i64>(floor((pos.y - cellOffset.y) / cellSpacing)), gridSize.y - 1);
 	const auto ty = ((pos.y - cellOffset.y) - y0 * cellSpacing) / cellSpacing;
 	auto y1 = std::min(y0 + 1, gridSize.y - 1);
-
-	/*
-	v1
-	if (isWall(x0, y0) || isWall(x1, y0) || isWall(x0, y1) || isWall(x1, y1)) {
-		return std::nullopt;
-	}*/
-
-	/*
-	v2
-	if (isWall(x0, y0)) {
-		return std::nullopt;
-	}
-
-	if (isWall(x1, y1)) {
-		x1 = x0;
-		y1 = y0;
-	}
-
-	if (isWall(x1, y0)) {
-		x1 = x0;
-	}
-
-	if (isWall(x0, y1)) {
-		y1 = y0;
-	}*/
-
-
-	/*if (isWall(x0, y0)) {
-		if (!isWall(x1, y0)) {
-			x0 = x1;
-		}
-		if (!isWall(x0, y1)) {
-			y0 = y1;
-		}
-
-	} else {
-		if (isWall(x1, y1)) {
-			x1 = x0;
-			y1 = y0;
-		}
-
-		if (isWall(x1, y0)) {
-			x1 = x0;
-		}
-
-		if (isWall(x0, y1)) {
-			y1 = y0;
-		}
-	}*/
-
 	
 	/*
 	There is a problem with semi-lagrangian advection, because it advects from the approximate previous position. There can be wall around the previous position which would cause the values at walls to be interpolated. The way to fully solve it would be to raycast so the sample doesn't go through a wall and to prevent the samples being taken from walls you need to consider all the 2^4 combinations of blocks that can be sampled from. 
@@ -363,10 +323,18 @@ auto EulerianFluid::update(float dt, float gravity, i32 solverIterations) -> voi
 }
 
 auto EulerianFluid::setIsWall(i64 x, i64 y, bool value) -> void {
-	isWallValues[y * gridSize.x + x] = value;
+	if (value) {
+		isWallValues[y * gridSize.x + x] = 0.0f;
+	} else {
+		isWallValues[y * gridSize.x + x] = 1.0f;
+	}
 }
 
 auto EulerianFluid::isWall(i64 x, i64 y) const -> bool {
+	return isWallValues[y * gridSize.x + x] == 0.0f;
+}
+
+float EulerianFluid::isWallFloat(i64 x, i64 y) const {
 	return isWallValues[y * gridSize.x + x];
 }
 
@@ -377,6 +345,6 @@ void EulerianFluid::removeVelocityAround(i64 x, i64 y) {
 	at(velY, x, y + 1) = 0.0f;
 }
 
-i64 EulerianFluid::OpenSides::count() const {
-	return xPlus + xMinus + yPlus + yMinus;
-}
+//i64 EulerianFluid::OpenSides::count() const {
+//	return xPlus + xMinus + yPlus + yMinus;
+//}
