@@ -25,6 +25,7 @@ public:
 	// (x, y)
 	auto operator()(i64 x, i64 y) -> T&;
 	auto operator()(i64 x, i64 y) const -> const T&;
+	// Not sure if using at instead of operator() makes much sense. I guess it might look weird if you just call and array on a single value.
 	auto at(Vec2T<i64> pos) -> T&;
 	auto at(Vec2T<i64> pos) const -> const T&;
 	T& atClamped(i64 x, i64 y);

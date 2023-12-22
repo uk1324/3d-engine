@@ -18,7 +18,7 @@ public:
 
 	auto data() -> T*;
 	auto data() const -> const T*;
-	auto size() const->size_t;
+	auto size() const -> size_t;
 	auto back() const -> const T&;
 
 	auto begin() -> T*;

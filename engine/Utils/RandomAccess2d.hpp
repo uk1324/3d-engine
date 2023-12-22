@@ -14,8 +14,11 @@
 // Could get the item type from the Matrix type for example by requring the Matrix to have a using field of name ItemType
 // struct Matrix { using ItemType = ? }, but this wouldn't allow constraining the ItemType.
 template<typename Matrix, typename ItemType>
-concept RandomAccessGet2d = requires(Matrix matrix, ItemType item, i64 x, i64 y) {
-	{ matrix.get(x, y) } -> std::convertible_to<ItemType>;
+concept RandomAccessGet2d = requires(const Matrix matrix, ItemType item, i64 x, i64 y) {
+	// Can't use lambdas because there size methods.
+	{ matrix(x, y) } -> std::convertible_to<ItemType>;
+	{ matrix.sizeX() } -> std::convertible_to<i64>;
+	{ matrix.sizeY() } -> std::convertible_to<i64>;
 };
 
 template<typename Matrix, typename ItemType>

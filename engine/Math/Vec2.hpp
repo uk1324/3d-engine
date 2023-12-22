@@ -308,7 +308,7 @@ auto Vec2T<T>::operator-() const -> Vec2T {
 
 template<typename T>
 auto Vec2T<T>::operator[](isize index) -> T& {
-	return const_cast<T&>((const_cast<const Vec2&>(*this))[index]);
+	return const_cast<T&>((const_cast<const Vec2T&>(*this))[index]);
 }
 
 template<typename T>

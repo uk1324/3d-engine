@@ -22,6 +22,9 @@ add_subdirectory(water_rendering)
 
 add_subdirectory(water_simulation)
 
+set(gtest_force_shared_crt True)
+add_subdirectory("./dependencies/googletest")
+add_subdirectory(test)
 
 # Working directory can be set by clicking debug > debug and launch settings for <target> and settings "currentDir": "${projectDir}"
 # Tasks https://learn.microsoft.com/en-us/visualstudio/ide/customize-build-and-debug-tasks-in-visual-studio?view=vs-2022

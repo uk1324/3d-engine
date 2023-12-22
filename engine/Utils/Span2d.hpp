@@ -6,11 +6,14 @@ template<typename T>
 class Span2d {
 public:
 	Span2d(T* data, i64 sizeX, i64 sizeY);
+	template <i64 Y, i64 X>
+	Span2d(T (&xs)[Y][X]);
 
 	Span2d<const T> asConst();
 
 	T& operator()(i64 x, i64 y);
 	const T& operator()(i64 x, i64 y) const;
+	bool operator==(Span2d<T> other) const;
 
 	const T& get(i64 x, i64 y) const;
 	T& get(i64 x, i64 y);
@@ -32,8 +35,14 @@ template<typename T>
 Span2d<T>::Span2d(T* data, i64 sizeX, i64 sizeY) 
 	: data_(data)
 	, sizeX_(sizeX)
-	, sizeY_(sizeY) {
-}
+	, sizeY_(sizeY) {}
+
+template<typename T>
+template<i64 Y, i64 X>
+Span2d<T>::Span2d(T(&data)[Y][X]) 
+	: sizeX_(X)
+	, sizeY_(Y)
+	, data_(reinterpret_cast<T*>(data)) {}
 
 template<typename T>
 Span2d<const T> Span2d<T>::asConst() {
@@ -48,6 +57,21 @@ T& Span2d<T>::operator()(i64 x, i64 y) {
 template<typename T>
 const T& Span2d<T>::operator()(i64 x, i64 y) const {
 	return get(x, y);
+}
+
+template<typename T>
+bool Span2d<T>::operator==(Span2d<T> other) const {
+	if (other.sizeX_ != sizeX_ || other.sizeY_ != sizeY_) {
+		return false;
+	}
+
+	for (i64 i = 0; i < sizeX_ * sizeY_; i++) {
+		if (data_[i] != other.data_[i]) {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 template<typename T>

@@ -1,0 +1,40 @@
+The indexing is done from the top left corner.
+      x
+*----->
+|
+| 
+v y
+
+[1, 2]
+[3, 4]
+[5, 6]
+When using this as a matrix the way to read this is would be a[column][row] or equivalently a[x][y]. a[0] would then be [1, 3, 5].
+
+This is different from how it is normally done in math where the indices are swapped and also start from 1 so then a[1] = [1, 2].
+
+
+When using an array as a matrix it would be nice to be able to interpret the first coorindate as the column, because then matrix multiplication can be thought of as a function A(x) that takes a column vector x and returns a linear combination of it's columns.
+You could also interpret by left multiplying x * A as a linear combination of rows.
+
+When dealing with images then you generarly read from x goes from left (0) to right (sizeX) and depending on the convention y goes up or down.
+
+When writing images most of the time you don't set or read values for whole rows or columns, you use loops and (x, y) access. But matricies can be small enough for it to be useful to write them by hand for example when specifing the matrix for an ODE or when writing a graphics transformation.
+
+There are 2 ways to read a matrix written using initializer lists.
+Example
+{
+    { 1, 2, 3 },
+    { 4, 5, 6 }
+};
+1. columns = { 1, 2, 3 }, { 4, 5, 6 }
+2. columns = { 1, 4 }, { 2, 5 }, { 3, 6 }
+
+I used 1. for specifying linear transformations, because then when using Vec3 it is clear which vectors are used as the basis and you can just store the vector as Vec3 data[3] for example.
+The advantage of 2. is that it might be easier to read, because when thats how matricies are written normally written.
+
+Ways to access a matrix linearly stored matrix
+
+1. data[x * sizeY + y] - row major
+2. data[y * sizeX + x] - column major
+
+for now use iteration optimized for column major that is for y { for x }
