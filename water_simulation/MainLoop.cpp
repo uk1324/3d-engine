@@ -4,6 +4,6 @@ MainLoop::MainLoop()
 	: eulerianFluidDemo(EulerianFluidDemo::make()) {}
 
 void MainLoop::update() {
-	//eulerianFluidDemo.update();
-	flipPicFluidDemo.update();
+	eulerianFluidDemo.update();
+	//flipPicFluidDemo.update();
 }

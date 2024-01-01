@@ -8,7 +8,7 @@ Image32::Image32(const char* path, bool& loadedCorrectly) {
 	int x, y, channelCount;
 	data_ = reinterpret_cast<Pixel32*>(stbi_load(path, &x, &y, &channelCount, STBI_rgb_alpha));
 	loadedCorrectly = data_ != nullptr;
-	size_ = { static_cast<usize>(x), static_cast<usize>(y) };
+	size_ = { static_cast<i64>(x), static_cast<i64>(y) };
 }
 
 static thread_local bool loadedCorrectly;
@@ -79,11 +79,18 @@ std::optional<Image32> Image32::fromFile(const char* path) {
 }
 
 void Image32::saveToPng(const char* path) const {
-	stbi_write_png(path, static_cast<int>(size_.x), static_cast<int>(size_.y), 4, data_, static_cast<int>(size_.x * 4));
+	const auto out = stbi_write_png(path, static_cast<int>(size_.x), static_cast<int>(size_.y), 4, data_, static_cast<int>(size_.x * 4));
+	ASSERT(out);
+}
+
+void Image32::saveToBmp(const char* path) const {
+	const auto out = stbi_write_bmp(path, static_cast<int>(size_.x), static_cast<int>(size_.y), 4, data_);
+	ASSERT(out);
 }
 
 void Image32::copyAndResize(const Image32& other) {
-	stbir_resize_uint8(reinterpret_cast<u8*>(other.data_), static_cast<int>(other.size_.x), static_cast<int>(other.size_.y), 0, reinterpret_cast<u8*>(data_), static_cast<int>(size_.x), static_cast<int>(size_.y), 0, 4);
+	const auto out = stbir_resize_uint8(reinterpret_cast<u8*>(other.data_), static_cast<int>(other.size_.x), static_cast<int>(other.size_.y), 0, reinterpret_cast<u8*>(data_), static_cast<int>(size_.x), static_cast<int>(size_.y), 0, 4);
+	ASSERT(out);
 }
 
 Pixel32& Image32::operator()(i64 x, i64 y) {
@@ -175,6 +182,10 @@ Pixel32::Pixel32(const Vec4& color)
 
 Pixel32::Pixel32(const Vec3& color)
 	: Pixel32(Vec4(color, 1.0f)) {}
+
+Vec3 Pixel32::color3() {
+	return Vec3(r / 255.0f, g / 255.0f, b / 255.0f);
+}
 
 auto Image32::IndexedPixelRange::begin() -> IndexedPixelIterator {
 	return IndexedPixelIterator{ .pos = Vec2T<i64>{ 0 }, .data = image.data_, .rowWidth = static_cast<i64>(image.size_.x) };

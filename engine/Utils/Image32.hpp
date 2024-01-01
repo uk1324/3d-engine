@@ -11,6 +11,8 @@ struct Pixel32 {
 	explicit Pixel32(const Vec4& color);
 	explicit Pixel32(const Vec3& color);
 
+	Vec3 color3();
+
 	u8 r, g, b, a;
 };
 
@@ -27,6 +29,7 @@ struct Image32 {
 
 	static std::optional<Image32> fromFile(const char* path);
 	void saveToPng(const char* path) const;
+	void saveToBmp(const char* path) const;
 	void copyAndResize(const Image32& other);
 
 	Pixel32& operator()(i64 x, i64 y);

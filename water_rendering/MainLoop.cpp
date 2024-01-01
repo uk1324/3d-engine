@@ -142,20 +142,20 @@ MainLoop MainLoop::make() {
 	auto waterVbo = Vbo(std::span<const WaterShaderVertex>(vertices));
 	auto waterIbo = Ibo(indices.data(), indices.size() * sizeof(u32));
 	auto waterVao = Vao::generate();
-	WaterShaderInstances::addAttributesToVao(waterVao, waterVbo, instancesVbo);
+	WaterShaderShader::addAttributesToVao(waterVao, waterVbo, instancesVbo);
 	waterVao.bind();
 	waterIbo.bind();
 	Vao::unbind();
 
 	auto cubemapVao = Vao::generate();
 	auto cubemapVbo = Vbo(cubeVertices, sizeof(cubeVertices));
-	CubemapShaderInstances::addAttributesToVao(cubemapVao, cubemapVbo, instancesVbo);
+	CubemapShaderShader::addAttributesToVao(cubemapVao, cubemapVbo, instancesVbo);
 
 	ShallowWaterSimulation shallowWaterSimulation(200, 200, 0.2f);
 
 	auto heightMapVao = Vao::generate();
 	auto heightMapVbo = Vbo(shallowWaterSimulation.gridSizeX() * shallowWaterSimulation.gridSizeY() * 6ull * sizeof(HeightMapVertex));
-	HeightMapShaderInstances::addAttributesToVao(heightMapVao, heightMapVbo, instancesVbo);
+	HeightMapShaderShader::addAttributesToVao(heightMapVao, heightMapVbo, instancesVbo);
 	auto heightMap = Texture::generate();
 	heightMap.bind();
 	glTexImage2D(
@@ -180,7 +180,7 @@ MainLoop MainLoop::make() {
 	Vec3 point(0.0f);
 	auto debugPointVao = Vao::generate();
 	auto debugPointVbo = Vbo(point.data(), sizeof(point));
-	DebugPointShaderInstances::addAttributesToVao(debugPointVao, debugPointVbo, instancesVbo);
+	DebugPointShaderShader::addAttributesToVao(debugPointVao, debugPointVbo, instancesVbo);
 
 	u32 ubo;
 	glGenBuffers(1, &ubo);

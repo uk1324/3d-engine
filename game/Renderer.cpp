@@ -429,11 +429,11 @@ Renderer Renderer::make() {
 	auto basicShadingVao = Vao::generate();
 
 	basicShadingVao.bind();
-	BasicShadingInstances::addAttributesToVao(basicShadingVao, triangleVbo, instancesVbo);
+	BasicShadingShader::addAttributesToVao(basicShadingVao, triangleVbo, instancesVbo);
 
 	Vbo infinitePlaneVbo(vertices, sizeof(vertices));
 	auto infinitePlaneVao = Vao::generate();
-	InfinitePlaneInstances::addAttributesToVao(infinitePlaneVao, infinitePlaneVbo, instancesVbo);
+	InfinitePlaneShader::addAttributesToVao(infinitePlaneVao, infinitePlaneVbo, instancesVbo);
 	Ibo infinitePlaneIbo(infinitePlaneIndices, sizeof(infinitePlaneIndices));
 
 	infinitePlaneVao.bind();
@@ -444,7 +444,7 @@ Renderer Renderer::make() {
 	Vbo infiniteLinesVbo(INFINTE_LINE_VBO_SIZE);
 	auto infiniteLinesVao = Vao::generate();
 	// TODO: make 2 function one for instances and one for vertex attributes.
-	InfiniteLineInstances::addAttributesToVao(infiniteLinesVao, infiniteLinesVbo, instancesVbo);
+	InfiniteLineShader::addAttributesToVao(infiniteLinesVao, infiniteLinesVbo, instancesVbo);
 	//{
 	//	/*infiniteLinesVao.bind();
 	//	infiniteLinesVao.bind();
@@ -495,7 +495,7 @@ Renderer Renderer::make() {
  
 	Vbo sphereVbo(sphereBasicShadingVertices.data(), sphereBasicShadingVertices.size() * sizeof(decltype(sphereBasicShadingVertices)::value_type));
 	auto sphereVao = Vao::generate();
-	BasicShadingInstances::addAttributesToVao(sphereVao, sphereVbo, instancesVbo);
+	BasicShadingShader::addAttributesToVao(sphereVao, sphereVbo, instancesVbo);
 	//InfiniteLineInstances::addAttributesToVao(infiniteLinesVao, infiniteLinesVbo, instancesVbo);
 
 	IndexedMesh mesh = makeIndexedMeshExact(sphereVertices);
@@ -514,7 +514,7 @@ Renderer Renderer::make() {
 	/*Vbo sphereIndexedVbo(sphereBasicShadingVertices.data(), sphereBasicShadingVertices.size() * sizeof(decltype(sphereBasicShadingVertices)::value_type));;*/
 	auto sphereIndexedVao = Vao::generate();
 	/*BasicShadingInstances::addAttributesToVao(sphereIndexedVao, sphereIndexedVbo, instancesVbo);*/
-	BasicShadingInstances::addAttributesToVao(sphereIndexedVao, sphereIndexedVbo, instancesVbo);
+	BasicShadingShader::addAttributesToVao(sphereIndexedVao, sphereIndexedVbo, instancesVbo);
 	/*BasicShadingInstances::addAttributesToVao(sphereIndexedVao, sphereIndexedVbo, instancesVbo);*/
 	Ibo sphereIndexedIbo(mesh.indices.data(), mesh.indices.size() * sizeof(u32));
 
@@ -614,7 +614,7 @@ Renderer Renderer::make() {
 	}
 	auto graph2dVbo = Vbo(std::span<const BasicShadingVertex>(graphVertices));
 	auto graph2dVao = Vao::generate();
-	BasicShadingInstances::addAttributesToVao(graph2dVao, graph2dVbo, instancesVbo);
+	BasicShadingShader::addAttributesToVao(graph2dVao, graph2dVbo, instancesVbo);
 
 	//auto mainColorTexture = Texture::generate();
 	//glBindTexture(GL_TEXTURE_2D_MULTISAMPLE, mainColorTexture.handle());
@@ -878,7 +878,8 @@ void Renderer::update() {
 		glDrawElementsInstanced(GL_TRIANGLES, std::size(infinitePlaneIndices), GL_UNSIGNED_INT, 0, instances);
 	});
 
-	BasicShadingInstances a;
+	std::vector<BasicShadingInstance> aToDraw;
+	//BasicShadingInstances a;
 
 	instances.clear();
 
@@ -887,11 +888,11 @@ void Renderer::update() {
 		.transform = Mat4::translation(Vec3(0.0f, 0.0f, 1.0f)) * viewProjection
 	});*/
 	basicShadingShader.use();
-	drawInstances(triangleVao, instancesVbo, a.toDraw, [](usize instances) {
+	drawInstances(triangleVao, instancesVbo, aToDraw, [](usize instances) {
 		glDrawArraysInstanced(GL_TRIANGLES, 0, std::size(triangle3dVertices), instances);
 	});
 
-	a.toDraw.clear();
+	aToDraw.clear();
 
 	std::vector<InfiniteLineVertex> vertices;
 

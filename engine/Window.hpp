@@ -29,6 +29,9 @@ namespace Window {
 	void setTitle(const char* title);
 
 	void setPos(Vec2 pos);
+	void setSize(Vec2T<int> size);
+
+	void minimize();
 
 	void enableWindowedFullscreen();
 

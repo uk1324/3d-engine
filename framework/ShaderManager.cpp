@@ -62,11 +62,34 @@ void ShaderManager::update() {
 }
 
 ShaderProgram& ShaderManager::makeShader(const char* vertPath, const char* fragPath) {
+	std::filesystem::file_time_type vertLastWriteTime;
+	std::filesystem::file_time_type fragLastWriteTime;
+	i32 retryCount = 0;
+
+	std::error_code ec;
+	for (;;) {
+		try {
+			vertLastWriteTime = std::filesystem::last_write_time(vertPath);
+			fragLastWriteTime = std::filesystem::last_write_time(fragPath);
+			break;
+		} catch (const std::filesystem::filesystem_error&) {
+			retryCount++;
+			if (retryCount > 20) {
+				put("error message: %", ec.message());
+				ASSERT_NOT_REACHED();
+			}
+		}
+	}
+
+	if (retryCount > 0) {
+		//put("retryCount: %" retryCount);
+	}
+
 	shaderEntries.push_back(ShaderEntry{
 		.vertPath = vertPath,
-		.vertPathLastWriteTime = std::filesystem::last_write_time(vertPath),
+		.vertPathLastWriteTime = vertLastWriteTime,
 		.fragPath = fragPath,
-		.fragPathLastWriteTime = std::filesystem::last_write_time(fragPath),
+		.fragPathLastWriteTime = fragLastWriteTime,
 		.program = ShaderProgram::compile(vertPath, fragPath),
 	});
 	auto& shader = shaderEntries.back();

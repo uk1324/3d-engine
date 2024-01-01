@@ -21,9 +21,11 @@ EulerianFluidDemo EulerianFluidDemo::make() {
 
 	// TODO: Could use lambdas in some cases instead of moves. The issue is that function require a certain order or parameters. Also I won't be able to access previous values returned from a function. Not sure if there is another way to do it.
 
-	auto image = *Image32::fromFile("assets/ignore/a.jpg");
+	//auto image = *Image32::fromFile("assets/ignore/a.jpg");
 	Image32 imageResized(gridSize.x, gridSize.y);
-	imageResized.copyAndResize(image);
+	std::ranges::fill(imageResized, Pixel32(0));
+	//imageResized
+	//imageResized.copyAndResize(image);
 
 	auto makeSmoke = [&]() -> Array2d<float> {
 		Array2d<float> smoke(gridSize.x, gridSize.y);
