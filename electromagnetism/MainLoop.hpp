@@ -15,30 +15,16 @@ struct MainLoop {
 	//int frame = 1453 * 4;
 	//int frame = 1453 * 2;
 	int frame = 0;
-	bool swappedColors = false;
 	bool drawImage = false;
 	bool paused = true;
 	bool pixelPerfect = false;
 	bool connectDiagonals = false;
-	std::vector<bool> visited;
+	//std::vector<std::vector<Vec2>> vertices;
 	
 	Image32 texture;
+	Array2d<float> textureFloat;
 	Renderer2d renderer;
-	Array2d<float> floatTexture;
-	Array2d<Vec2> vectorField;
-	//DynamicTexture texture;
-	std::vector<Vec2> starts;
-	std::vector<std::vector<Vec2>> vertices;
-	struct Particle {
-		Vec2 pos;
-		Vec2 vel;
-	};
-	std::vector<Particle> particles;
-	struct Spring {
-		Vec2 restPos;
-		Vec2 displacementFromRestPos;
-		Vec2 vel;
-	};
-	std::vector<Spring> springs;
-
+	Array2d<float> u;
+	//Array2d<float> u_t;
+	Array2d<double> u_t;
 };
