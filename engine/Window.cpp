@@ -108,6 +108,13 @@ void Window::setPos(Vec2 pos) {
 	glfwSetWindowPos(windowHandle, static_cast<int>(pos.x), static_cast<int>(pos.y));
 }
 
+void Window::setSize(Vec2T<int> size) {
+	glfwSetWindowSize(windowHandle, size.x, size.y);
+}
+
+void Window::minimize() {
+	glfwRestoreWindow(windowHandle);
+}
 void Window::enableWindowedFullscreen() {
 	//    if (glfwGetWindowAttrib(window, GLFW_MAXIMIZED))
 	//    {
@@ -116,7 +123,7 @@ void Window::enableWindowedFullscreen() {
 	//    else
 	//    {
 	//        glfwMaximizeWindow(engine.window().handle());
-	//    }
+	//    }dsfsdfdsffvfdgwdwdwd
 	glfwMaximizeWindow(windowHandle);
 }
 

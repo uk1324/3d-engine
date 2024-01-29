@@ -25,6 +25,12 @@ static void openGlErrorCallback(GLenum source, GLenum type, GLuint id, GLenum se
 	if (id == 7)
 		return;
 
+	// Read pixels
+	// Performance
+	// Pixel-path performance warning: Pixel transfer is synchronized with 3D rendering.
+	if (id == 131154)
+		return;
+
 	std::string errorMessage = "source: ";
 	switch (source)
 	{
@@ -71,6 +77,8 @@ static void openGlErrorCallback(GLenum source, GLenum type, GLuint id, GLenum se
 	} else {
 		LOG_FATAL("OpenGL error %", errorMessage);
 	}
+
+	
 
 }
 

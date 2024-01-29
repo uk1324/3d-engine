@@ -35,8 +35,5 @@ MainLoop::MainLoop()
 
 
 void MainLoop::update() {
-	
 
-	//eulerianFluidDemo.update();
-	//flipPicFluidDemo.update();
 }

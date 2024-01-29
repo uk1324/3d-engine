@@ -1,6 +1,7 @@
 .vs/
 !./vs/launch.vs.json
 out/
+output/
 generated/
 cached/
 *Data.hpp

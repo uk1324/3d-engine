@@ -6,4 +6,3 @@ target_link_libraries(water_simulation math)
 target_link_libraries(water_simulation json)
 
 targetAddGenerated(water_simulation ${CMAKE_CURRENT_SOURCE_DIR})
-targetAddGenerated(water_simulation ${CMAKE_CURRENT_SOURCE_DIR}/../framework/)

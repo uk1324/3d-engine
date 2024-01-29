@@ -83,6 +83,7 @@ auto Array2d<T>::operator=(Array2d&& other) noexcept -> Array2d& {
 	data_ = other.data_;
 	size_ = other.size_;
 	other.data_ = nullptr;
+	return *this;
 }
 
 template<typename T>

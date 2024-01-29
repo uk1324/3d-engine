@@ -169,18 +169,18 @@ std::vector<std::vector<Vec2>> marchingSquares(Span2d<const float> grid, bool pi
 
 			if (pixelPerfect) {
 				verts.push_back(Vec2{ current } + Vec2{ 1.0f });
-				if (previousMove == move) {
+				/*if (previousMove == move) {
 					verts.pop_back();
-				}
+				}*/
 			} else {
 				auto nextPos = Vec2{ current } + Vec2{ 1.0f } + Vec2{ move } / 2.0f;
-				if (verts.size() >= 1) {
+				/*if (verts.size() >= 1) {
 					const auto translation = nextPos - verts.back();
 					if (translation == previousTranslation) {
 						verts.pop_back();
 					}
 					previousTranslation = translation;
-				}
+				}*/
 				verts.push_back(nextPos);
 			}
 
