@@ -2,6 +2,7 @@
 
 #include <water_simulation/EulerianFluidDemo.hpp>
 #include <water_simulation/FlipPicFluidDemo.hpp>
+#include <water_simulation/PolynomialInterpolationDemo.hpp>
 
 struct MainLoop {
 	MainLoop();
@@ -10,4 +11,5 @@ struct MainLoop {
 
 	EulerianFluidDemo eulerianFluidDemo;
 	FlipPicFluidDemo flipPicFluidDemo;
+	PolynomialInterpolationDemo polynomialInterpolationDemo;
 };

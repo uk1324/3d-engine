@@ -10,6 +10,9 @@ add_library(
 	"../dependencies/imgui/imgui_impl_opengl3.cpp"
 	"../dependencies/imgui/imgui_impl_opengl3.h" 
 	"../dependencies/imgui/imgui_demo.cpp"
+	"../dependencies/imgui/implot.cpp"
+	"../dependencies/imgui/implot_demo.cpp"
+	"../dependencies/imgui/implot_items.cpp"
 
 	"../dependencies/stb_image/stb_image.cpp"
 	"../dependencies/stb_image/stb_image_write.cpp"
@@ -35,3 +38,9 @@ set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 
 target_include_directories(engine PRIVATE "./")
+
+function(link_engine_library linkingTarget)
+	target_link_libraries(linkingTarget engine)
+	target_link_libraries(linkingTarget glfw)
+	target_link_libraries(linkingTarget math)
+endfunction()

@@ -7,6 +7,7 @@
 #include <GLFW/glfw3.h>
 #include <imgui/imgui_impl_glfw.h>
 #include <imgui/imgui_impl_opengl3.h>
+#include <imgui/implot.h>
 
 static void glfwErrorCallback(int errorCode, const char* errorMessage) {
 	LOG_FATAL("glfw error % %", errorCode, errorMessage);
@@ -134,6 +135,7 @@ void Engine::initImGui() {
 	IMGUI_CHECKVERSION();
 
 	ImGui::CreateContext();
+	ImPlot::CreateContext();
 	ImGuiIO& io = ImGui::GetIO();
 	ImGui::StyleColorsDark();
 	io.Fonts->AddFontFromFileTTF("assets/fonts/RobotoMono-Regular.ttf", 20);
@@ -150,6 +152,7 @@ void Engine::initImGui() {
 void Engine::terminateImGui() {
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
+	ImPlot::DestroyContext();
 	ImGui::DestroyContext();
 }
 

@@ -5,6 +5,8 @@
 #include <engine/Math/RootFinding/newton.hpp>
 #include <engine/Math/Angles.hpp>
 using namespace RootFinding;
+
+#include <imgui/implot.h>
 //#include <Unwrap.hpp>
 
 MainLoop::MainLoop() 
@@ -19,21 +21,21 @@ MainLoop::MainLoop()
 
 	//put("%", out->input);
 
-	auto f = [](double x) {
-		//return pow(x, 2.0f) - 1.0f;
-		return cos(x) - x;
-	};
+	//auto f = [](double x) {
+	//	//return pow(x, 2.0f) - 1.0f;
+	//	return cos(x) - x;
+	//};
 
-	auto fPrim = [](double x) {
-		return -sin(x) - 1.0;
-	};
-	//unwrap()
-	const auto out = newton<double>(PI<double> / 4.0, +f, +fPrim, i64(1000), 0.00000001);
+	//auto fPrim = [](double x) {
+	//	return -sin(x) - 1.0;
+	//};
+	////unwrap()
+	//const auto out = newton<double>(PI<double> / 4.0, +f, +fPrim, i64(1000), 0.00000001);
 
-	put("%", out->approximateRoot);
+	//put("%", out->approximateRoot);
 }
 
 
 void MainLoop::update() {
-
+	polynomialInterpolationDemo.update();
 }

@@ -15,6 +15,8 @@ add_subdirectory("./dependencies/glfw")
 add_subdirectory(engine)
 
 add_subdirectory(engine/json)
+
+add_subdirectory(framework)
  
 add_subdirectory(game)
 
