@@ -37,5 +37,7 @@ MainLoop::MainLoop()
 
 
 void MainLoop::update() {
-	polynomialInterpolationDemo.update();
+	//polynomialInterpolationDemo.update();
+	//eulerianFluidDemo.update();
+	graphDemo.update();
 }
