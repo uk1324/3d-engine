@@ -4,6 +4,8 @@
 #include <water_simulation/FlipPicFluidDemo.hpp>
 #include <water_simulation/PolynomialInterpolationDemo.hpp>
 #include <water_simulation/GraphDemo.hpp>
+#include <water_simulation/SpecialFunctionsDemo.hpp>
+#include <water_simulation/IntegrationDemo.hpp>
 
 struct MainLoop {
 	MainLoop();
@@ -14,4 +16,6 @@ struct MainLoop {
 	FlipPicFluidDemo flipPicFluidDemo;
 	PolynomialInterpolationDemo polynomialInterpolationDemo;
 	GraphDemo graphDemo;
+	SpecialFunctionsDemo specialFunctionsDemo;
+	IntegrationDemo integrationDemo;
 };
