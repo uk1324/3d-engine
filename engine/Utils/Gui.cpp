@@ -72,9 +72,29 @@ bool Gui::inputColor(const char* name, Vec3& value) {
 	return ImGui::ColorEdit3(prependWithHashHash(name), value.data());
 }
 
-bool Gui::beginPropertyEditor() {
+bool Gui::inputText(const char* name, char* buffer, usize size) {
+	leafNodeBegin(name);
+	return ImGui::InputText(prependWithHashHash(name), buffer, size);
+}
+
+bool Gui::beginPropertyEditor(PropertyEditorFlags flags) {
 	ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(2, 2));
-	return ImGui::BeginTable("split", 2, ImGuiTableFlags_Resizable);
+	ImGuiTableFlags tableFlags = 0;
+	switch (flags) {
+		using enum Gui::PropertyEditorFlags;
+
+	case TableAdjustable:
+		tableFlags = ImGuiTableFlags_Resizable;
+		break;
+	case TableStetchToFit:
+		tableFlags = ImGuiTableFlags_SizingStretchProp;
+		break;
+	}
+	return ImGui::BeginTable("split", 2, tableFlags);
+	//return ImGui::BeginTable("split", 2, ImGuiTableFlags_SizingFixedSame);
+	//return ImGui::BeginTable("split", 2, ImGuiTableFlags_Resizable);
+	//return ImGui::BeginTable("split", 2, ImGuiTableFlags_SizingFixedFit);
+	//return ImGui::BeginTable("split", 2, ImGuiTableFlags_SizingStretchProp);
 }
 
 void Gui::endPropertyEditor() {
