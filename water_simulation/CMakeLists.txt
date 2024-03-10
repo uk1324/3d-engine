@@ -5,5 +5,8 @@ target_link_libraries(water_simulation glfw)
 target_link_libraries(water_simulation math)
 target_link_libraries(water_simulation json)
 target_link_libraries(water_simulation framework)
+target_link_libraries(water_simulation math-compiler)
+
+target_include_directories(water_simulation PRIVATE "../dependencies/math-compiler/src")
 
 targetAddGenerated(water_simulation ${CMAKE_CURRENT_SOURCE_DIR})

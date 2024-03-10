@@ -11,6 +11,7 @@ set(EXECUTABLE_WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 include("./codeGenTool/targetAddGenerated.cmake")
 
 add_subdirectory("./dependencies/glfw")
+add_subdirectory("./dependencies/math-compiler/src")
 
 add_subdirectory(engine)
 

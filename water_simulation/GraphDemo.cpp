@@ -69,32 +69,39 @@ void GraphDemo::update() {
 
 	using namespace ImGui;
 
-	auto id = DockSpaceOverViewport(ImGui::GetMainViewport(), ImGuiDockNodeFlags_NoTabBar);
-
-	static bool firstFrame = true;
-	if (firstFrame) {
-		DockBuilderRemoveNode(id);
-		DockBuilderAddNode(id);
-
-		const auto leftId = ImGui::DockBuilderSplitNode(id, ImGuiDir_Left, 0.2f, nullptr, &id);
-		const auto rightId = ImGui::DockBuilderSplitNode(id, ImGuiDir_Right, 0.5f, nullptr, &id);
-
-		DockBuilderDockWindow("plot", rightId);
-		DockBuilderDockWindow("plot settings", leftId);
-
-		DockBuilderFinish(id);
-		firstFrame = false;
-	}
-
 	firstOrderSystem.update();
+	/*auto id = DockSpaceOverViewport(ImGui::GetMainViewport(), ImGuiDockNodeFlags_NoTabBar);*/
+	//auto id = DockSpaceOverViewport(ImGui::GetMainViewport());
 
-	Begin("plot", nullptr, ImGuiWindowFlags_NoTitleBar);
-	firstOrderSystem.plot();
-	End();
+	//static bool firstFrame = true;
+	//if (firstFrame) {
+	//	DockBuilderRemoveNode(id);
+	//	DockBuilderAddNode(id);
 
-	Begin("plot settings");
-	firstOrderSystem.plotSettings();
-	End();
+	//	const auto leftId = ImGui::DockBuilderSplitNode(id, ImGuiDir_Left, 0.2f, nullptr, &id);
+	//	const auto rightId = ImGui::DockBuilderSplitNode(id, ImGuiDir_Right, 0.5f, nullptr, &id);
+
+	//	//DockBuilderDockWindow("plot", rightId);
+	//	DockBuilderDockWindow("plot", rightId);
+	//	DockBuilderDockWindow("potential plot", rightId);
+	//	DockBuilderDockWindow("plot settings", leftId);
+
+	//	DockBuilderFinish(id);
+	//	firstFrame = false;
+	//}
+
+	//firstOrderSystem.update();
+
+	//Begin("plot", nullptr, ImGuiWindowFlags_NoTitleBar);
+	//firstOrderSystem.plot();
+	//End();
+
+	//Begin("potential plot");
+	//End();
+
+	//Begin("plot settings");
+	//firstOrderSystem.plotSettings();
+	//End();
 }
 
 //void GraphDemo::update() {
