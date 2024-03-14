@@ -94,7 +94,7 @@ SimpsonsRuleOutput simpsonsRule(Function f, double start, double end, i32 steps)
 	}
 
 	return SimpsonsRuleOutput{
-		.inegral = step * (s0 + 2.0 * s2 + 4.0 & s1) / 3.0,
+		.inegral = step * (s0 + 2.0 * s2 + 4.0 * s1) / 3.0,
 	};
 }
 

@@ -8,6 +8,66 @@ GraphDemo::GraphDemo() {
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 }
 
+template<typename T>
+struct Points2 {
+	std::vector<T> xs;
+	std::vector<T> ys;
+};
+
+template<typename T, typename Function>
+void computeAntiderivative(Points2<T>& out, Function f, T start, T end, i32 steps) {
+	ASSERT(steps % 2 == 0);
+
+	const T step = (end - start) / T(steps);
+	T accumulated = 0.0f;
+
+	out.xs.push_back(start);
+	out.ys.push_back(accumulated);
+
+	// [0, 2], [2, 4]
+	for (i32 i = 0; i < steps; i += 2) {
+		const auto x0 = lerp(start, end, T(i) / T(steps));
+		const auto x1 = lerp(start, end, T(i + 1) / T(steps));
+		const auto x2 = lerp(start, end, T(i + 2) / T(steps));
+
+		// Simpson's rule.
+		const auto integralOnX0toX2 = (step / 3.0f) * (f(x0) + T(4) * f(x1) + f(x2));
+
+		accumulated += integralOnX0toX2;
+		out.xs.push_back(x2);
+		out.ys.push_back(accumulated);
+	}
+}
+
+template<typename T, typename Function>
+void adaptiveIntegrate(Function f, T startT, T endT) {
+	const T initialCondition = 123.0f;
+	const T maxStep = 0.1f;
+	const T minStep = 0.001f;
+	const T tolerance = 0.01f;
+
+	T x = initialCondition;
+	T t = startT;
+	auto step = maxStep;
+	bool flag = true;
+	while (flag) {
+		const T k1 = step * f(t, x);
+		const T k2 = step * f(t + (T(1) / T(4)) * step, x + (T(1) / T(4)) * k1);
+		const T k3 = step * f(t + (T(1) / T(4)))
+	}
+}
+
+template<typename T, typename Function>
+void plotAntiderivative(Function function) {
+	const auto plotRect = ImPlot::GetPlotLimits();
+	Points2<T> points;
+	computeAntiderivative(points, function, 0.0, plotRect.X.Max, 200);
+	ImPlot::PlotLine("antiderivative", points.xs.data(), points.ys.data(), points.xs.size());
+	points.xs.clear();
+	points.ys.clear();
+	computeAntiderivative(points, function, 0.0, plotRect.X.Min, 200);
+	ImPlot::PlotLine("antiderivative", points.xs.data(), points.ys.data(), points.xs.size());
+}
 
 template<typename Function>
 void graph(const char* name, Function f, double minX = -1.0, double maxX = -1.0, i32 sampleCount = -1) {
@@ -71,7 +131,7 @@ void GraphDemo::update() {
 		firstFrame = false;
 	}
 
-	ImPlot::ShowDemoWindow();
+	//ImPlot::ShowDemoWindow();
 
 	Begin("plot", nullptr, ImGuiWindowFlags_NoTitleBar); 
 	/*const auto PI = 3.14;
@@ -88,10 +148,20 @@ void GraphDemo::update() {
 		//ImPlot::PlotLine("Circle", xs1, ys1, 360);
 		//ImPlot::SetAxes(ImAxis_X1, ImAxis_Y1);
 		//ImPlot::PlotLine("Diamond", xs2, ys2, 5);
-		graph("test", [](double x) { return sin(x); });
+		auto function = [](double x) { 
+			//return (x - 1.0f) * (x - 2.0) * x;
+			return sin(x);
+		};
+
+		graph("test", function);
+		graph("test", [](double x) { return -cos(x) + 1.0; });
+		plotAntiderivative<double>(function);
+		//plotAntiderivative(function)
+
 
 		ImPlot::EndPlot();
 	}
+	//auto& [xs, ys] = points;
 
 	//if (ImPlot::BeginPlot("##main plot", ImVec2(-1.0f, -1.0f)), ImPlotFlags_Equal) {
 	//	/*ImPlot::SetupAxes(nullptr, nullptr);

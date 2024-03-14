@@ -38,12 +38,9 @@ MainLoop::MainLoop()
 
 void MainLoop::update() {
 	//polynomialInterpolationDemo.update();
-<<<<<<< HEAD
 	//eulerianFluidDemo.update();
 	graphDemo.update();
-=======
 	//specialFunctionsDemo.update();
 	//eulerianFluidDemo.update();
-	integrationDemo.update();
->>>>>>> 43c4a84c22e6143c5a154996a98c00cb4d95fe05
+	//integrationDemo.update();
 }
