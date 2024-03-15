@@ -13,14 +13,15 @@ struct FirstOrderSystemGraph {
 	void update();
 	void derivativePlot();
 	void potentialPlot();
-	void bifurcationPlot();
+	void bifurcationPlot(std::string_view parameterName);
 	void settings();
+	static constexpr const char* infoWindowName = "info";
+	void infoWindow();
 
-	//struct BifurctionPlot {
-	//	std::string bifurcationPlotWindowName; // parameterName + " bifurcation diagram/plot"
-	//	std::string parameterName;
-	//};
-	// std::vector<BifurcationPlot>
+	struct BifurcationPlot {
+		std::string parameterName;
+	};
+	std::vector<BifurcationPlot> bifurcationPlots;
 
 	void recompileFormula();
 	void recalculateRuntimeVariables();
@@ -56,6 +57,7 @@ struct FirstOrderSystemGraph {
 
 	std::vector<Parameter> parameters;
 	bool parameterExists(std::string_view name);
+	std::optional<i64> parameterNameToParameterIndex(std::string_view name) const;
 
 	static constexpr auto maxFormulaSize = 256;
 	char formulaInput[maxFormulaSize] = "";

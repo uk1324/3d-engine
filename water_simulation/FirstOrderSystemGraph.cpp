@@ -127,9 +127,20 @@ void FirstOrderSystemGraph::update() {
 	potentialPlot();
 	ImGui::End();
 
-	ImGui::Begin(bifurcationPlotWindowName);
-	bifurcationPlot();
-	ImGui::End();
+	{
+		// TODO: Could implement removing via moving the last element into the position and popping the last element. Then if the interation is done from the back no additional space is required.
+		// https://stackoverflow.com/questions/39019806/using-erase-remove-if-idiom
+
+		const auto [f, l] = std::ranges::remove_if(bifurcationPlots, [&](const BifurcationPlot& plot) -> bool {
+			bool open = true;
+			ImGui::Begin(("'" + plot.parameterName + "' bifurcation diagram").c_str(), &open);
+			bifurcationPlot(plot.parameterName);
+			ImGui::End();
+			return !open;
+		});
+		bifurcationPlots.erase(f, l);
+	}
+	
 
 	ImGui::Begin(settingsWindowName);
 	settings();
@@ -143,12 +154,8 @@ void FirstOrderSystemGraph::derivativePlot() {
 	ImPlot::SetupAxis(ImAxis_X1, "x");
 	ImPlot::SetupAxis(ImAxis_Y1, "x'");
 
-	//ImPlot::ShowDemoWindow();
-	//ImGui::ShowDemoWindow();
-
 	if (loopFunction.has_value()) {
 		const auto limits = ImPlot::GetPlotLimits();
-		//ImPlot::axis
 		const auto min = float(limits.X.Min);
 		const auto max = float(limits.X.Max);
 		i32 steps = 200;
@@ -223,16 +230,22 @@ void FirstOrderSystemGraph::potentialPlot() {
 //	ImPlot::PlotScatter(label, pointsData, pointsData + 1, vs.size(), 0, 0, sizeof(float) * 2);
 //}
 
-void FirstOrderSystemGraph::bifurcationPlot() {
-	if (!ImPlot::BeginPlot("##main plot", ImVec2(-1.0f, -1.0f), ImPlotFlags_Equal)) {
+void FirstOrderSystemGraph::bifurcationPlot(std::string_view parameterName) {
+	if (!ImPlot::BeginPlot("##bifurcation plot", ImVec2(-1.0f, -1.0f), ImPlotFlags_Equal)) {
 		return;
 	}
 	if (parameters.size() == 0 || !loopFunction.has_value()) {
 		ImPlot::EndPlot();
 		return;
 	}
-	const auto parameterIndex = 0;
-	auto& paramter = parameters[parameterIndex];
+
+	const auto parameterIndex = parameterNameToParameterIndex(parameterName);
+	if (!parameterIndex.has_value()) {
+		ASSERT_NOT_REACHED();
+		ImPlot::EndPlot();
+		return;
+	}
+	const auto& paramter = parameters[*parameterIndex];
 
 	ImPlot::SetupAxis(ImAxis_X1, paramter.name.c_str());
 	ImPlot::SetupAxis(ImAxis_Y1, "x");
@@ -242,7 +255,6 @@ void FirstOrderSystemGraph::bifurcationPlot() {
 	LoopFunctionArray input(loopFunctionInputCount());
 	LoopFunctionArray output(LOOP_FUNCTION_OUTPUT_COUNT);
 	auto variablesBlock = loopFunctionVariablesBlock;
-
 	const auto steps = 200;
 	for (i32 yi = 0; yi < steps; yi++) {
 		for (i32 xi = 0; xi < steps; xi++) {
@@ -251,7 +263,7 @@ void FirstOrderSystemGraph::bifurcationPlot() {
 			const auto parameterValue = lerp(limits.X.Min, limits.X.Max, xt);
 			const auto variableValue = lerp(limits.Y.Min, limits.Y.Max, yt);
 			variablesBlock[0] = variableValue;
-			variablesBlock[parameterIndexToLoopFunctionVariableIndex(parameterIndex)] = parameterValue;
+			variablesBlock[parameterIndexToLoopFunctionVariableIndex(*parameterIndex)] = parameterValue;
 			input.append(variablesBlock);
 		}
 	}
@@ -275,12 +287,21 @@ void FirstOrderSystemGraph::bifurcationPlot() {
 	}
 	
 	const auto pointsData = reinterpret_cast<const float*>(marchingSquaresOutput.data());
-	ImPlot::PlotLine("label", pointsData, pointsData + 1, marchingSquaresOutput.size() * 2, ImPlotLineFlags_Segments, 0, sizeof(float) * 2);
+	ImPlot::PlotLine("fixed points", pointsData, pointsData + 1, marchingSquaresOutput.size() * 2, ImPlotLineFlags_Segments, 0, sizeof(float) * 2);
 
 	ImPlot::EndPlot();
 }
 
 void FirstOrderSystemGraph::settings() {
+	
+	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
+	if (ImGui::Button(ICON_FA_INFO_CIRCLE)) {
+		ImGui::OpenPopup("info");
+	}
+	ImGui::PopStyleColor();
+	infoWindow();
+	
+
 	bool recompile = false;
 
 	ImGui::Text("x'=");
@@ -346,6 +367,23 @@ void FirstOrderSystemGraph::settings() {
 	if (parameterIndexHasValue) ImGui::PushID(*parameterIndex);
 	parameterSettingsWindow();
 	if (parameterIndexHasValue) ImGui::PopID();
+}
+
+void FirstOrderSystemGraph::infoWindow() {
+	const auto center = ImGui::GetMainViewport()->GetCenter();
+	ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+	if (!ImGui::BeginPopupModal(infoWindowName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+		return;
+	}
+
+	ImGui::Text("Hold control and right click a parameter value to input the value directly.");
+	ImGui::Text("Green points represent stable fixed points red points represent unstable fixed points.");
+
+	if (ImGui::Button("close")) {
+		ImGui::CloseCurrentPopup();
+	}
+
+	ImGui::EndPopup();
 }
 
 void FirstOrderSystemGraph::recompileFormula() {
@@ -452,6 +490,13 @@ void FirstOrderSystemGraph::parameterSettingsWindow() {
 	ImGui::InputFloat("min", &parameter.valueMin);
 	ImGui::InputFloat("max", &parameter.valueMax);
 
+	if (ImGui::Button("create bifurcation diagram")) {
+		bifurcationPlots.push_back(BifurcationPlot{
+			.parameterName = parameter.name
+		});
+		ImGui::CloseCurrentPopup();
+	}
+
 	if (ImGui::Button("close")) {
 		parameterIndex = std::nullopt;
 		ImGui::CloseCurrentPopup();
@@ -466,7 +511,7 @@ i64 FirstOrderSystemGraph::parameterIndexToLoopFunctionVariableIndex(i64 paramet
 }
 
 bool FirstOrderSystemGraph::parameterExists(std::string_view name) {
-	return std::find_if(parameters.begin(), parameters.end(), [&](const Parameter& p) { return p.name == name; }) != parameters.end();
+	return std::ranges::find_if(parameters, [&](const Parameter& p) { return p.name == name; }) != parameters.end();
 }
 
 i64 FirstOrderSystemGraph::loopFunctionInputCount() const {
@@ -474,5 +519,10 @@ i64 FirstOrderSystemGraph::loopFunctionInputCount() const {
 }
 
 bool FirstOrderSystemGraph::variableExists(std::string_view name) {
-	return std::find_if(variables.begin(), variables.end(), [&](const Variable& v) { return v.name == name; }) != variables.end();
+	return std::ranges::find_if(variables, [&](const Variable& v) { return v.name == name; }) != variables.end();
+}
+
+std::optional<i64> FirstOrderSystemGraph::parameterNameToParameterIndex(std::string_view name) const {
+	const auto it = std::ranges::find_if(parameters, [&](const Parameter& p) { return p.name == name; });
+	return it - parameters.begin();
 }
