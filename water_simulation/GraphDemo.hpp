@@ -14,18 +14,6 @@ struct GraphDemo {
 	void openHelpWindow();
 	void helpWindow();
 
-	float spacing = 0.1f;
-	float damping = 1.0f;
-	std::vector<Vec2> points;
-	struct TestPoint {
-		Vec2 pos;
-		std::vector<Vec2> history;
-	};
-	std::vector<TestPoint> midpointPoints;
-	std::vector<TestPoint> eulerPoints;
-	std::vector<TestPoint> rungeKutta4Points;
-	bool paused = false;
-
 	enum class State {
 		FIRST_ORDER_SYSTEM,
 		SECOND_ORDER_SYSTEM,
