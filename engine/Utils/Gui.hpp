@@ -21,8 +21,13 @@ bool inputVec3(const char* name, Vec3& value);
 bool checkbox(const char* name, bool& value);
 bool inputColor(const char* name, Vec4& value);
 bool inputColor(const char* name, Vec3& value);
+bool inputText(const char* name, char* buffer, usize size);
 
-bool beginPropertyEditor();
+enum class PropertyEditorFlags {
+	TableAdjustable,
+	TableStetchToFit
+};
+bool beginPropertyEditor(PropertyEditorFlags flags = PropertyEditorFlags::TableStetchToFit);
 void endPropertyEditor();
 void popPropertyEditor();
 
