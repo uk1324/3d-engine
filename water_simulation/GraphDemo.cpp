@@ -129,9 +129,52 @@ void graph(const char* name, Function f, double minX = -1.0, double maxX = -1.0,
 void GraphDemo::update() {
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	using namespace ImGui;
+	// OpenPopup doesn't work inside MainMenuBar.
+	// https://github.com/ocornut/imgui/issues/331
+	bool openHelpWindow = false;
+	if (ImGui::BeginMainMenuBar()) {
+		if (ImGui::BeginMenu("plot type")) {
+			if (ImGui::MenuItem("first order system")) {
+				state = State::FIRST_ORDER_SYSTEM;
+			} else if (ImGui::MenuItem("second order system")) {
+				state = State::SECOND_ORDER_SYSTEM;
+			}
+			ImGui::EndMenu();
+		}
+		if (ImGui::BeginMenu("examples")) {
+			if (ImGui::BeginMenu("first order")) {
+				if (firstOrderSystem.examplesMenu()) {
+					state = State::FIRST_ORDER_SYSTEM;
+				}
+				ImGui::EndMenu();
+			}
+			if (ImGui::BeginMenu("second order")) {
+				ImGui::EndMenu();
+			}
+			ImGui::EndMenu();
+		}
+		if (ImGui::MenuItem("help")) {
+			openHelpWindow = true;
+		}
+		ImGui::EndMainMenuBar();
+	}
 
-	firstOrderSystem.update();
+	switch (state) {
+		using enum State;
+
+	case FIRST_ORDER_SYSTEM:
+		firstOrderSystem.update();
+		break;
+
+	case SECOND_ORDER_SYSTEM:
+		secondOrderSystem.update();
+		break;
+	}
+
+	if (openHelpWindow) {
+		GraphDemo::openHelpWindow();
+	}
+	helpWindow();
 	/*auto id = DockSpaceOverViewport(ImGui::GetMainViewport(), ImGuiDockNodeFlags_NoTabBar);*/
 	//auto id = DockSpaceOverViewport(ImGui::GetMainViewport());
 
@@ -216,6 +259,30 @@ void GraphDemo::update() {
 	//Begin("plot settings");
 	//firstOrderSystem.plotSettings();
 	//End();
+}
+
+static constexpr const char* helpWindowName = "help";
+
+void GraphDemo::openHelpWindow() {
+	ImGui::OpenPopup(helpWindowName);
+}
+
+void GraphDemo::helpWindow() {
+	const auto center = ImGui::GetMainViewport()->GetCenter();
+	ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+	ImGui::SetNextWindowSize(ImVec2(ImGui::GetMainViewport()->Size.x / 2.0f, -1.0f));
+	if (!ImGui::BeginPopupModal(helpWindowName, nullptr)) {
+		return;
+	}
+
+	ImGui::Text("Controls: ");
+	ImGui::Text("Hold ctrl and right click a parameter value to input a new value directly.");
+
+	if (ImGui::Button("close")) {
+		ImGui::CloseCurrentPopup();
+	}
+
+	ImGui::EndPopup();
 }
 
 //void GraphDemo::update() {

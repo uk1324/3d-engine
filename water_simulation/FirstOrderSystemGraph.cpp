@@ -9,7 +9,13 @@
 #include <algorithm>
 #include <water_simulation/assets/IconsFontAwesome5.h>
 #include <imgui/imgui_internal.h>
+#include <engine/Math/RootFinding/bisection.hpp>
 #include <engine/Math/MarchingSquares.hpp>
+
+void scatterPlotVec2s(const char* label, const std::vector<Vec2>&vs) {
+	const auto pointsData = reinterpret_cast<const float*>(vs.data());
+	ImPlot::PlotScatter(label, pointsData, pointsData + 1, vs.size(), 0, 0, sizeof(float) * 2);
+}
 
 template<typename T>
 struct Points2 {
@@ -42,24 +48,6 @@ void computeAntiderivative(Points2<T>& out, Function f, T start, T end, i32 step
 	}
 }
 
-//template<typename T, typename Function>
-//void adaptiveIntegrate(Function f, T startT, T endT) {
-//	const T initialCondition = 123.0f;
-//	const T maxStep = 0.1f;
-//	const T minStep = 0.001f;
-//	const T tolerance = 0.01f;
-//
-//	T x = initialCondition;
-//	T t = startT;
-//	auto step = maxStep;
-//	bool flag = true;
-//	while (flag) {
-//		const T k1 = step * f(t, x);
-//		const T k2 = step * f(t + (T(1) / T(4)) * step, x + (T(1) / T(4)) * k1);
-//		const T k3 = step * f(t + (T(1) / T(4)));
-//	}
-//}
-
 template<typename T, typename Function>
 void plotAntiderivative(Function function) {
 	const auto plotRect = ImPlot::GetPlotLimits();
@@ -80,12 +68,9 @@ FirstOrderSystemGraph::FirstOrderSystemGraph()
 	variables.push_back(Variable{ .name = "x" });
 
 	ImGuiIO& io = ImGui::GetIO();
-	//io.Fonts->AddFontDefault();
-	//io.Fonts->Fonts
-	float baseFontSize = 20.0f; // 13.0f is the size of the default font. Change to the font size you use.
+	float baseFontSize = 20.0f;
 	float iconFontSize = baseFontSize * 2.0f / 3.0f; // FontAwesome fonts need to have their sizes reduced by 2.0f/3.0f in order to align correctly
 
-	// merge in icons from Font Awesome
 	static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
 	ImFontConfig icons_config;
 	icons_config.MergeMode = true;
@@ -99,7 +84,6 @@ void FirstOrderSystemGraph::update() {
 
 	const auto derivativePlotWindowName = "derivative plot";
 	const auto potentialPlotWindowName = "potential plot";
-	const auto bifurcationPlotWindowName = "bifurcation plot";
 	const auto settingsWindowName = "settings";
 
 	static bool firstFrame = true;
@@ -112,7 +96,6 @@ void FirstOrderSystemGraph::update() {
 
 		ImGui::DockBuilderDockWindow(derivativePlotWindowName, rightId);
 		ImGui::DockBuilderDockWindow(potentialPlotWindowName, rightId);
-		ImGui::DockBuilderDockWindow(bifurcationPlotWindowName, rightId);
 		ImGui::DockBuilderDockWindow(settingsWindowName, leftId);
 
 		ImGui::DockBuilderFinish(id);
@@ -154,36 +137,83 @@ void FirstOrderSystemGraph::derivativePlot() {
 	ImPlot::SetupAxis(ImAxis_X1, "x");
 	ImPlot::SetupAxis(ImAxis_Y1, "x'");
 
-	if (loopFunction.has_value()) {
-		const auto limits = ImPlot::GetPlotLimits();
-		const auto min = float(limits.X.Min);
-		const auto max = float(limits.X.Max);
-		i32 steps = 200;
-		derivativePlotInput.reset(variables.size() + parameters.size());
-		for (i32 i = 0; i <= steps - 1; i++) {
-			const auto t = float(i) / float(steps - 1);
-			const auto x = lerp(min, max, t);
-			loopFunctionVariablesBlock[0] = x;
-			derivativePlotInput.append(loopFunctionVariablesBlock);
-		}
-		derivativePlotOutput.resizeWithoutCopy(derivativePlotInput.blockCount_);
-		/*i64 dataCount = derivativePlotInput.blockCount_ / LoopFunctionArray::ITEMS_PER_DATA;
-		if (derivativePlotInput.blockCount_ % LoopFunctionArray::ITEMS_PER_DATA != 0) {
-			dataCount += 1;
-		}
-		(*loopFunction)(derivativePlotInput.data(), derivativePlotOutput.data(), dataCount);*/
-		//memset(derivativePlotOutput.data, 0, derivativePlotOutput.dataCapacity * sizeof(__m256));
-		(*loopFunction)(derivativePlotInput, derivativePlotOutput);
-		std::vector<float> xs;
-		std::vector<float> ys;
-		for (i64 i = 0; i < derivativePlotOutput.blockCount_; i++) {
-			const float x = derivativePlotInput(i, 0);
-			const float y = derivativePlotOutput(i, 0);
-			xs.push_back(x);
-			ys.push_back(y);
-		}
-		ImPlot::PlotLine("derivative plot", xs.data(), ys.data(), xs.size());
+	if (!loopFunction.has_value()) {
+		ImPlot::EndPlot();
+		return;
 	}
+
+	const auto limits = ImPlot::GetPlotLimits();
+	const auto min = float(limits.X.Min);
+	const auto max = float(limits.X.Max);
+	i32 steps = 200;
+	derivativePlotInput.reset(variables.size() + parameters.size());
+	for (i32 i = 0; i <= steps - 1; i++) {
+		const auto t = float(i) / float(steps - 1);
+		const auto x = lerp(min, max, t);
+		loopFunctionVariablesBlock[0] = x;
+		derivativePlotInput.append(loopFunctionVariablesBlock);
+	}
+	derivativePlotOutput.resizeWithoutCopy(derivativePlotInput.blockCount_);
+	(*loopFunction)(derivativePlotInput, derivativePlotOutput);
+
+	std::vector<float> xs;
+	std::vector<float> ys;
+	for (i64 i = 0; i < derivativePlotOutput.blockCount_; i++) {
+		const float x = derivativePlotInput(i, 0);
+		const float y = derivativePlotOutput(i, 0);
+		xs.push_back(x);
+		ys.push_back(y);
+	}
+
+	std::vector<Vec2> stableFixedPoints;
+	std::vector<Vec2> unstableFixedPoints;
+	for (i64 i = 0; i < i64(ys.size()) - 1; i++) {
+		const float y0 = ys[i];
+		const float y1 = ys[i + 1];
+		const auto oppositeSigns = y0 * y1 < 0.0f;
+		if (!oppositeSigns) {
+			continue;
+		}
+		// Not using Newton's method, because I have no derivative. Also it doesn't provide the x interval in which the value is contained; the value may be close to zero, but the distance from the actual zero might be large for example in x^3.
+		// Currently zero's that are minima are not handled.
+		const auto result = bisect<float>(
+			xs[i],
+			xs[i + 1],
+			[this](float x) { return callLoopFunctionWithSingleOutput(x); },
+			10,
+			0.0f // Set to 0.0, because the code doesn't account for zoom so just always do the 2 iterations.
+		);
+		if (result.result != BisectionResult::SUCCESS && result.result != BisectionResult::MAX_ITERATION_COUNT_EXCEEDED) {
+			ASSERT_NOT_REACHED();
+			continue;
+		}
+
+		const auto x = result.input;
+		// Should this just be set to zero or the function value?
+		const auto y = 0.0f;
+		// Could calculate the stablity after getting the output from root finding. The problem is if the values different then the stability wouldn't agree with what you see in the graph. This probably would probably happen only if the function oscillated quickly around that region.
+		if (y0 >= y1) {
+			stableFixedPoints.push_back(Vec2(x, y));
+		} else {
+			unstableFixedPoints.push_back(Vec2(x, y));
+		}
+	}
+
+	ImPlot::PlotLine("x'", xs.data(), ys.data(), xs.size());
+
+	const auto green = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
+	ImPlot::PushStyleColor(ImPlotCol_MarkerFill, green);
+	ImPlot::PushStyleColor(ImPlotCol_MarkerOutline, green);
+	scatterPlotVec2s("stable fixed points", stableFixedPoints);
+	ImPlot::PopStyleColor();
+	ImPlot::PopStyleColor();
+
+	const auto red = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
+	ImPlot::PushStyleColor(ImPlotCol_MarkerFill, red);
+	ImPlot::PushStyleColor(ImPlotCol_MarkerOutline, red);
+	scatterPlotVec2s("unstable fixed points", unstableFixedPoints);
+	ImPlot::PopStyleColor();
+	ImPlot::PopStyleColor();
 
 	ImPlot::EndPlot();
 }
@@ -199,22 +229,13 @@ void FirstOrderSystemGraph::potentialPlot() {
 		ImPlot::EndPlot();
 		return;
 	}
-	
-	auto function = [this](float f) {
-		std::vector<__m256> vs;
-		const auto x = _mm256_set1_ps(f);
-		vs.push_back(x);
-		for (int i = 0; i < parameters.size(); i++) {
-			const auto a = _mm256_set1_ps(parameters[i].value);
-			vs.push_back(a);
-		}
-		__m256 out;
-		(*loopFunction)(vs.data(), &out, 1);
-		return out.m256_f32[0];
-	};
 
 	const auto plotRect = ImPlot::GetPlotLimits();
 	Points2<float> points;
+	auto function = [&](float x) {
+		return callLoopFunctionWithSingleOutput(x);
+	};
+
 	computeAntiderivative<float>(points, function, 0.0, plotRect.X.Max, 200);
 	ImPlot::PlotLine("antiderivative", points.xs.data(), points.ys.data(), points.xs.size());
 	points.xs.clear();
@@ -224,11 +245,6 @@ void FirstOrderSystemGraph::potentialPlot() {
 
 	ImPlot::EndPlot();
 }
-
-//void plotVec2s(const char* label, const std::span<Vec2>&vs) {
-//	const auto pointsData = reinterpret_cast<const float*>(vs.data());
-//	ImPlot::PlotScatter(label, pointsData, pointsData + 1, vs.size(), 0, 0, sizeof(float) * 2);
-//}
 
 void FirstOrderSystemGraph::bifurcationPlot(std::string_view parameterName) {
 	if (!ImPlot::BeginPlot("##bifurcation plot", ImVec2(-1.0f, -1.0f), ImPlotFlags_Equal)) {
@@ -293,19 +309,9 @@ void FirstOrderSystemGraph::bifurcationPlot(std::string_view parameterName) {
 }
 
 void FirstOrderSystemGraph::settings() {
-	
-	ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-	if (ImGui::Button(ICON_FA_INFO_CIRCLE)) {
-		ImGui::OpenPopup("info");
-	}
-	ImGui::PopStyleColor();
-	infoWindow();
-	
-
-	bool recompile = false;
-
 	ImGui::Text("x'=");
 	ImGui::SameLine();
+	bool recompile = false;
 	if (ImGui::InputText("##formulaInput", formulaInput, std::size(formulaInput))) {
 		recompile = true;
 	}
@@ -369,21 +375,41 @@ void FirstOrderSystemGraph::settings() {
 	if (parameterIndexHasValue) ImGui::PopID();
 }
 
-void FirstOrderSystemGraph::infoWindow() {
-	const auto center = ImGui::GetMainViewport()->GetCenter();
-	ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-	if (!ImGui::BeginPopupModal(infoWindowName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-		return;
+bool FirstOrderSystemGraph::examplesMenu() {
+	auto addParameterIfNotExists = [this]() {
+		const auto name = "a";
+		if (!parameterExists(name)) {
+			addParameter(name);
+		}
+	};
+
+	auto setFormula = [this](std::string_view text) {
+		if (text.length() + 1 > maxFormulaSize) {
+			ASSERT_NOT_REACHED();
+			return;
+		}
+		memcpy(formulaInput, text.data(), text.size());
+		formulaInput[text.size()] = '\0';
+		recompileFormula();
+	};
+
+	if (ImGui::MenuItem("saddle node bifurcation")) {
+		addParameterIfNotExists();
+		setFormula("a + x^2");
+		return true;
+	}
+	if (ImGui::MenuItem("transcritical bifurcation")) {
+		setFormula("ax - x^2");
+		addParameterIfNotExists();
+		return true;
+	}
+	if (ImGui::MenuItem("pitchfork bifurcation")) {
+		addParameterIfNotExists();
+		setFormula("ax - x^3");
+		return true;
 	}
 
-	ImGui::Text("Hold control and right click a parameter value to input the value directly.");
-	ImGui::Text("Green points represent stable fixed points red points represent unstable fixed points.");
-
-	if (ImGui::Button("close")) {
-		ImGui::CloseCurrentPopup();
-	}
-
-	ImGui::EndPopup();
+	return false;
 }
 
 void FirstOrderSystemGraph::recompileFormula() {
@@ -444,13 +470,7 @@ void FirstOrderSystemGraph::addParameterWindow() {
 			putnn(addParameterErrorMessage, "'%' is already a parameter name", parameterName);
 			addParameterError = true;
 		} else {
-			parameters.push_back(Parameter{
-				.name = std::string(parameterName),
-				.value = 0.0f,
-				.valueMax = 10.0f,
-				.valueMin = -10.0f
-			});
-			recompileFormula();
+			addParameter(parameterName);
 			parameterNameInput[0] = '\0';
 			ImGui::CloseCurrentPopup();
 			addParameterError = false;
@@ -464,6 +484,16 @@ void FirstOrderSystemGraph::addParameterWindow() {
 	}
 
 	ImGui::EndPopup();
+}
+
+void FirstOrderSystemGraph::addParameter(std::string_view name) {
+	parameters.push_back(Parameter{
+		.name = std::string(name),
+		.value = 0.0f,
+		.valueMax = 10.0f,
+		.valueMin = -10.0f
+	});
+	recompileFormula();
 }
 
 void FirstOrderSystemGraph::parameterSettingsWindow() {
@@ -516,6 +546,19 @@ bool FirstOrderSystemGraph::parameterExists(std::string_view name) {
 
 i64 FirstOrderSystemGraph::loopFunctionInputCount() const {
 	return 1 + parameters.size();
+}
+
+float FirstOrderSystemGraph::callLoopFunctionWithSingleOutput(float f) {
+	std::vector<__m256> vs;
+	const auto x = _mm256_set1_ps(f);
+	vs.push_back(x);
+	for (int i = 0; i < parameters.size(); i++) {
+		const auto a = _mm256_set1_ps(parameters[i].value);
+		vs.push_back(a);
+	}
+	__m256 out;
+	(*loopFunction)(vs.data(), &out, 1);
+	return out.m256_f32[0];
 }
 
 bool FirstOrderSystemGraph::variableExists(std::string_view name) {

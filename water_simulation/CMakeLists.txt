@@ -1,4 +1,4 @@
-add_executable(water_simulation "main.cpp" "AdvecitonDemo.cpp" "EulerianFluidDemo.cpp" "EulerianFluid.cpp" "MainLoop.cpp" "FlipPicFluid.cpp" "FlipPicFluidDemo.cpp" "PolynomialInterpolationDemo.cpp" "SpecialFunctionsDemo.cpp" "IntegrationDemo.cpp" "GraphDemo.cpp" "FirstOrderSystemGraph.cpp")
+add_executable(water_simulation "main.cpp" "AdvecitonDemo.cpp" "EulerianFluidDemo.cpp" "EulerianFluid.cpp" "MainLoop.cpp" "FlipPicFluid.cpp" "FlipPicFluidDemo.cpp" "PolynomialInterpolationDemo.cpp" "SpecialFunctionsDemo.cpp" "IntegrationDemo.cpp" "GraphDemo.cpp" "FirstOrderSystemGraph.cpp" "SecondOrderSystemGraph.cpp")
 
 target_link_libraries(water_simulation engine)
 target_link_libraries(water_simulation glfw)

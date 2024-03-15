@@ -4,14 +4,16 @@
 #include <cmath>
 #include "../Utils.hpp"
 
-enum class BisectionError {
-	MAX_ITERATION_COUNT_EXCEEDED,
+enum class BisectionResult {
+	SUCCESS,
+	MAX_ITERATION_COUNT_EXCEEDED, // without reaching specified tolerance
 	INVALID_INPUT_INTERVAL,
 	INVALID_TOLERANCE
 };
 
 template<typename Number>
 struct BisectionOutput {
+	BisectionResult result;
 	Number input;
 	Number output;
 };
@@ -28,21 +30,27 @@ struct BisectionOutput {
 
 // Assumes that function is has the intermediate value property.
 template<typename Number, typename Function>
-std::expected<BisectionOutput<Number>, BisectionError> bisect(Number left, Number right, Function function, i64 maxIterationCount, float functionInputTolerance) {
-	if (functionInputTolerance <= 0.0f) {
-		return std::unexpected(BisectionError::INVALID_TOLERANCE);
+BisectionOutput<Number> bisect(Number left, Number right, Function function, i64 maxIterationCount, Number functionInputTolerance) {
+	BisectionOutput<Number> output;
+
+	if (functionInputTolerance < 0.0f) {
+		// 0 tolerance is valid it means continue to max iterations unless you find exacly zero.
+		output.result = BisectionResult::INVALID_TOLERANCE;
+		return output;
 	}
 
 	// NaN handling?
 	if (right < left) {
-		return std::unexpected(BisectionError::INVALID_INPUT_INTERVAL);
+		output.result = BisectionResult::INVALID_INPUT_INTERVAL;
+		return output;
 	}
 
 	auto leftValue = function(left);
 	auto rightValue = function(right);
 
 	if (signOrZero(leftValue) * signOrZero(rightValue) > 0) {
-		return std::unexpected(BisectionError::INVALID_INPUT_INTERVAL);
+		output.result = BisectionResult::INVALID_TOLERANCE;
+		return output;
 	}
 
 	Number mid, midValue;
@@ -54,10 +62,11 @@ std::expected<BisectionOutput<Number>, BisectionError> bisect(Number left, Numbe
 		midValue = function(mid);
 
 		if (midValue == 0 || (right - left < functionInputTolerance)) {
-			return BisectionOutput{ mid, midValue };
-			// std::signbit(leftValue) == std::signbit(midValue)
+			output.input = mid;
+			output.output = midValue;
+			output.result = BisectionResult::SUCCESS;
+			return output;
 		} else if (signOrZero(leftValue) * signOrZero(midValue) > 0) {
-		//} else if (std::signbit(leftValue) == std::signbit(midValue)) {
 			leftValue = midValue;
 			left = mid;
 		} else {
@@ -69,5 +78,8 @@ std::expected<BisectionOutput<Number>, BisectionError> bisect(Number left, Numbe
 		rightValue = function(right);
 	}
 
-	return std::unexpected(BisectionError::MAX_ITERATION_COUNT_EXCEEDED);
+	output.input = mid;
+	output.output = midValue;
+	output.result = BisectionResult::MAX_ITERATION_COUNT_EXCEEDED;
+	return output;
 }

@@ -15,8 +15,7 @@ struct FirstOrderSystemGraph {
 	void potentialPlot();
 	void bifurcationPlot(std::string_view parameterName);
 	void settings();
-	static constexpr const char* infoWindowName = "info";
-	void infoWindow();
+	bool examplesMenu();
 
 	struct BifurcationPlot {
 		std::string parameterName;
@@ -28,6 +27,7 @@ struct FirstOrderSystemGraph {
 
 	const char* addParameterWindowName = "add parameter";
 	void addParameterWindow();
+	void addParameter(std::string_view name);
 	static constexpr auto parameterNameMaxSize = 256;
 	char parameterNameInput[parameterNameMaxSize] = "";
 	StringStream addParameterErrorMessage;
@@ -47,6 +47,7 @@ struct FirstOrderSystemGraph {
 	std::optional<Runtime::LoopFunction> loopFunction;
 	std::vector<float> loopFunctionVariablesBlock;
 	i64 loopFunctionInputCount() const;
+	float callLoopFunctionWithSingleOutput(float f);
 
 	struct Parameter {
 		std::string name;
