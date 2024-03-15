@@ -41,9 +41,11 @@ struct FirstOrderSystemGraph {
 	LoopFunctionArray derivativePlotOutput;
 
 	static constexpr i32 X_VARIABLE_INDEX = 0;
-	i64 parameterIndexToLoopFunctionVariableIndex(i64 parameterIndex);
+	i64 parameterIndexToLoopFunctionVariableIndex(i64 parameterIndex) const;
+	static constexpr i64 LOOP_FUNCTION_OUTPUT_COUNT = 1;
 	std::optional<Runtime::LoopFunction> loopFunction;
 	std::vector<float> loopFunctionVariablesBlock;
+	i64 loopFunctionInputCount() const;
 
 	struct Parameter {
 		std::string name;

@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <water_simulation/assets/IconsFontAwesome5.h>
 #include <imgui/imgui_internal.h>
+#include <engine/Math/MarchingSquares.hpp>
 
 template<typename T>
 struct Points2 {
@@ -158,16 +159,17 @@ void FirstOrderSystemGraph::derivativePlot() {
 			loopFunctionVariablesBlock[0] = x;
 			derivativePlotInput.append(loopFunctionVariablesBlock);
 		}
-		derivativePlotOutput.resizeWithoutCopy(derivativePlotInput.blockCount);
-		i64 dataCount = derivativePlotInput.blockCount / LoopFunctionArray::ITEMS_PER_DATA;
-		if (derivativePlotInput.blockCount % LoopFunctionArray::ITEMS_PER_DATA != 0) {
+		derivativePlotOutput.resizeWithoutCopy(derivativePlotInput.blockCount_);
+		/*i64 dataCount = derivativePlotInput.blockCount_ / LoopFunctionArray::ITEMS_PER_DATA;
+		if (derivativePlotInput.blockCount_ % LoopFunctionArray::ITEMS_PER_DATA != 0) {
 			dataCount += 1;
 		}
-		(*loopFunction)(derivativePlotInput.data, derivativePlotOutput.data, dataCount);
+		(*loopFunction)(derivativePlotInput.data(), derivativePlotOutput.data(), dataCount);*/
 		//memset(derivativePlotOutput.data, 0, derivativePlotOutput.dataCapacity * sizeof(__m256));
+		(*loopFunction)(derivativePlotInput, derivativePlotOutput);
 		std::vector<float> xs;
 		std::vector<float> ys;
-		for (i64 i = 0; i < derivativePlotOutput.blockCount; i++) {
+		for (i64 i = 0; i < derivativePlotOutput.blockCount_; i++) {
 			const float x = derivativePlotInput(i, 0);
 			const float y = derivativePlotOutput(i, 0);
 			xs.push_back(x);
@@ -216,11 +218,16 @@ void FirstOrderSystemGraph::potentialPlot() {
 	ImPlot::EndPlot();
 }
 
+//void plotVec2s(const char* label, const std::span<Vec2>&vs) {
+//	const auto pointsData = reinterpret_cast<const float*>(vs.data());
+//	ImPlot::PlotScatter(label, pointsData, pointsData + 1, vs.size(), 0, 0, sizeof(float) * 2);
+//}
+
 void FirstOrderSystemGraph::bifurcationPlot() {
 	if (!ImPlot::BeginPlot("##main plot", ImVec2(-1.0f, -1.0f), ImPlotFlags_Equal)) {
 		return;
 	}
-	if (parameters.size() == 0) {
+	if (parameters.size() == 0 || !loopFunction.has_value()) {
 		ImPlot::EndPlot();
 		return;
 	}
@@ -232,49 +239,49 @@ void FirstOrderSystemGraph::bifurcationPlot() {
 
 	const auto limits = ImPlot::GetPlotLimits();
 
-	LoopFunctionArray output(1);
+	LoopFunctionArray input(loopFunctionInputCount());
+	LoopFunctionArray output(LOOP_FUNCTION_OUTPUT_COUNT);
 	auto variablesBlock = loopFunctionVariablesBlock;
 
 	const auto steps = 200;
 	for (i32 yi = 0; yi < steps; yi++) {
 		for (i32 xi = 0; xi < steps; xi++) {
-			const auto xt = float(i) / float(steps - 1);
-			const auto yt = float(i) / float(steps - 1);
-			const auto x = lerp(min, max, xt);
-			const auto y = lerp(min, max, yt);
-			variablesBlock[0] = x;
-			variablesBlock[parameterIndex] = y;
-			derivativePlotInput.append(variablesBlock);
+			const auto xt = float(xi) / float(steps - 1);
+			const auto yt = float(yi) / float(steps - 1);
+			const auto parameterValue = lerp(limits.X.Min, limits.X.Max, xt);
+			const auto variableValue = lerp(limits.Y.Min, limits.Y.Max, yt);
+			variablesBlock[0] = variableValue;
+			variablesBlock[parameterIndexToLoopFunctionVariableIndex(parameterIndex)] = parameterValue;
+			input.append(variablesBlock);
 		}
 	}
+	output.resizeWithoutCopy(input.blockCount());
 
+	(*loopFunction)(input, output);
 
-	for (i32 i = 0; i <= steps - 1; i++) {
-		const auto t = float(i) / float(steps - 1);
-		const auto x = lerp(min, max, t);
-		loopFunctionVariablesBlock[0] = x;
-		derivativePlotInput.append(loopFunctionVariablesBlock);
+	const auto grid = Span2d<const float>(output.data()->m256_f32, steps, steps);
+
+	std::vector<MarchingSquaresLine> marchingSquaresOutput;
+	marchingSquares2(marchingSquaresOutput, grid, 0.0f, true);
+	for (auto& segment : marchingSquaresOutput) {
+		auto scale = [&](Vec2 pos) -> Vec2 {
+			pos /= Vec2(grid.size());
+			pos.x = lerp(limits.X.Min, limits.X.Max, pos.x);
+			pos.y = lerp(limits.Y.Min, limits.Y.Max, pos.y);
+			return pos;
+		};
+		segment.a = scale(segment.a);
+		segment.b = scale(segment.b);
 	}
-	derivativePlotOutput.resizeWithoutCopy(derivativePlotInput.blockCount);
-	i64 dataCount = derivativePlotInput.blockCount / LoopFunctionArray::ITEMS_PER_DATA;
-	if (derivativePlotInput.blockCount % LoopFunctionArray::ITEMS_PER_DATA != 0) {
-		dataCount += 1;
-	}
-	(*loopFunction)(derivativePlotInput.data, derivativePlotOutput.data, dataCount);
-	//for (int i = 0; i < )
+	
+	const auto pointsData = reinterpret_cast<const float*>(marchingSquaresOutput.data());
+	ImPlot::PlotLine("label", pointsData, pointsData + 1, marchingSquaresOutput.size() * 2, ImPlotLineFlags_Segments, 0, sizeof(float) * 2);
 
 	ImPlot::EndPlot();
 }
 
 void FirstOrderSystemGraph::settings() {
 	bool recompile = false;
-
-	/*auto editor = [&]() {
-		if (Gui::inputText("x' = ", formulaInput, std::size(formulaInput))) {
-			recompile = true;
-		}
-	};
-	GUI_PROPERTY_EDITOR({ editor(); });*/
 
 	ImGui::Text("x'=");
 	ImGui::SameLine();
@@ -388,7 +395,9 @@ void FirstOrderSystemGraph::addParameterWindow() {
 	if (ImGui::Button("add")) {
 		const std::string_view parameterName = parameterNameInput;
 
-		if (variableExists(parameterName)) {
+		if (trimString(parameterName).length() == 0) {
+
+		} else if (variableExists(parameterName)) {
 			addParameterErrorMessage.string().clear();
 			putnn(addParameterErrorMessage, "'%' is already a variable name", parameterName);
 			addParameterError = true;
@@ -451,13 +460,17 @@ void FirstOrderSystemGraph::parameterSettingsWindow() {
 	ImGui::EndPopup();
 }
 
-i64 FirstOrderSystemGraph::parameterIndexToLoopFunctionVariableIndex(i64 parameterIndex) {
+i64 FirstOrderSystemGraph::parameterIndexToLoopFunctionVariableIndex(i64 parameterIndex) const {
 	static constexpr auto variableCount = 1;
 	return variableCount + parameterIndex;
 }
 
 bool FirstOrderSystemGraph::parameterExists(std::string_view name) {
 	return std::find_if(parameters.begin(), parameters.end(), [&](const Parameter& p) { return p.name == name; }) != parameters.end();
+}
+
+i64 FirstOrderSystemGraph::loopFunctionInputCount() const {
+	return 1 + parameters.size();
 }
 
 bool FirstOrderSystemGraph::variableExists(std::string_view name) {
