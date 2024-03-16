@@ -2,6 +2,7 @@
 #include <engine/Math/Vec2.hpp>
 #include <engine/Math/Vec3.hpp>
 #include <vector>
+#include <water_simulation/PlotCompiler.hpp>
 
 struct SecondOrderSystemGraph {
 	SecondOrderSystemGraph();
@@ -20,4 +21,8 @@ struct SecondOrderSystemGraph {
 	std::vector<TestPoint> testPoints;
 
 	float spacing = 0.1f;
+
+	PlotCompiler::FormulaInput xFormulaInput;
+	PlotCompiler::FormulaInput yFormulaInput;
+	PlotCompiler plotCompiler;
 };

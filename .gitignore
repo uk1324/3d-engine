@@ -6,6 +6,7 @@ generated/
 cached/
 *Data.hpp
 *Data.glsl
+settings.json
 
 # https://github.com/github/gitignore/blob/main/CMake.gitignore
 CMakeLists.txt.user

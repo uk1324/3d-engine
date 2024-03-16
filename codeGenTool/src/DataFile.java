@@ -167,6 +167,9 @@ class Enum extends Declaration {
     public boolean getIsImGuiCombo() {
         return attributes.stream().anyMatch(a -> a instanceof EnumAttributeImGuiCombo);
     }
+    public boolean getIsJson() {
+        return attributes.stream().anyMatch(a -> a instanceof EnumAttributeJson);
+    }
 }
 
 class EnumDefinition {
@@ -289,6 +292,7 @@ abstract class EnumAttribute { }
 
 class EnumAttributeToStr extends EnumAttribute { }
 class EnumAttributeImGuiCombo extends EnumAttribute { }
+class EnumAttributeJson extends EnumAttribute { }
 
 class Cpp extends Declaration {
     public String cppSource;

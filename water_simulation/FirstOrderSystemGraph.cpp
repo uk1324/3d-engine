@@ -61,22 +61,11 @@ void plotAntiderivative(Function function) {
 }
 
 FirstOrderSystemGraph::FirstOrderSystemGraph() 
-	: runtime(scannerReporter, parserReporter, irCompilerReporter)
-	, derivativePlotInput(1)
+	: derivativePlotInput(1)
 	, derivativePlotOutput(1) {
 
-	variables.push_back(Variable{ .name = "x" });
-
-	ImGuiIO& io = ImGui::GetIO();
-	float baseFontSize = 20.0f;
-	float iconFontSize = baseFontSize * 2.0f / 3.0f; // FontAwesome fonts need to have their sizes reduced by 2.0f/3.0f in order to align correctly
-
-	static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_16_FA, 0 };
-	ImFontConfig icons_config;
-	icons_config.MergeMode = true;
-	icons_config.PixelSnapH = true;
-	icons_config.GlyphMinAdvanceX = iconFontSize;
-	io.Fonts->AddFontFromFileTTF("water_simulation/assets/" FONT_ICON_FILE_NAME_FAS, iconFontSize, &icons_config, icons_ranges);
+	plotCompiler.variables.push_back(Variable{ .name = "x" });
+	plotCompiler.formulaInputs.push_back(&formulaInput);
 }
 
 void FirstOrderSystemGraph::update() {
@@ -124,7 +113,6 @@ void FirstOrderSystemGraph::update() {
 		bifurcationPlots.erase(f, l);
 	}
 	
-
 	ImGui::Begin(settingsWindowName);
 	settings();
 	ImGui::End();
@@ -137,7 +125,7 @@ void FirstOrderSystemGraph::derivativePlot() {
 	ImPlot::SetupAxis(ImAxis_X1, "x");
 	ImPlot::SetupAxis(ImAxis_Y1, "x'");
 
-	if (!loopFunction.has_value()) {
+	if (!formulaInput.loopFunction.has_value()) {
 		ImPlot::EndPlot();
 		return;
 	}
@@ -146,15 +134,15 @@ void FirstOrderSystemGraph::derivativePlot() {
 	const auto min = float(limits.X.Min);
 	const auto max = float(limits.X.Max);
 	i32 steps = 200;
-	derivativePlotInput.reset(variables.size() + parameters.size());
+	derivativePlotInput.reset(plotCompiler.variables.size() + plotCompiler.parameters.size());
 	for (i32 i = 0; i <= steps - 1; i++) {
 		const auto t = float(i) / float(steps - 1);
 		const auto x = lerp(min, max, t);
-		loopFunctionVariablesBlock[0] = x;
-		derivativePlotInput.append(loopFunctionVariablesBlock);
+		plotCompiler.loopFunctionVariablesBlock[0] = x;
+		derivativePlotInput.append(plotCompiler.loopFunctionVariablesBlock);
 	}
 	derivativePlotOutput.resizeWithoutCopy(derivativePlotInput.blockCount_);
-	(*loopFunction)(derivativePlotInput, derivativePlotOutput);
+	(*formulaInput.loopFunction)(derivativePlotInput, derivativePlotOutput);
 
 	std::vector<float> xs;
 	std::vector<float> ys;
@@ -179,7 +167,7 @@ void FirstOrderSystemGraph::derivativePlot() {
 		const auto result = bisect<float>(
 			xs[i],
 			xs[i + 1],
-			[this](float x) { return callLoopFunctionWithSingleOutput(x); },
+			[this](float x) { return plotCompiler.callLoopFunctionWithSingleOutput(formulaInput, x); },
 			10,
 			0.0f // Set to 0.0, because the code doesn't account for zoom so just always do the 2 iterations.
 		);
@@ -225,7 +213,7 @@ void FirstOrderSystemGraph::potentialPlot() {
 	ImPlot::SetupAxis(ImAxis_X1, "x");
 	ImPlot::SetupAxis(ImAxis_Y1, "potential");
 
-	if (!loopFunction.has_value()) {
+	if (!formulaInput.loopFunction.has_value()) {
 		ImPlot::EndPlot();
 		return;
 	}
@@ -233,7 +221,7 @@ void FirstOrderSystemGraph::potentialPlot() {
 	const auto plotRect = ImPlot::GetPlotLimits();
 	Points2<float> points;
 	auto function = [&](float x) {
-		return callLoopFunctionWithSingleOutput(x);
+		return plotCompiler.callLoopFunctionWithSingleOutput(formulaInput, x);
 	};
 
 	computeAntiderivative<float>(points, function, 0.0, plotRect.X.Max, 200);
@@ -250,27 +238,27 @@ void FirstOrderSystemGraph::bifurcationPlot(std::string_view parameterName) {
 	if (!ImPlot::BeginPlot("##bifurcation plot", ImVec2(-1.0f, -1.0f), ImPlotFlags_Equal)) {
 		return;
 	}
-	if (parameters.size() == 0 || !loopFunction.has_value()) {
+	if (plotCompiler.parameters.size() == 0 || !formulaInput.loopFunction.has_value()) {
 		ImPlot::EndPlot();
 		return;
 	}
 
-	const auto parameterIndex = parameterNameToParameterIndex(parameterName);
+	const auto parameterIndex = plotCompiler.parameterNameToParameterIndex(parameterName);
 	if (!parameterIndex.has_value()) {
 		ASSERT_NOT_REACHED();
 		ImPlot::EndPlot();
 		return;
 	}
-	const auto& paramter = parameters[*parameterIndex];
+	const auto& paramter = plotCompiler.parameters[*parameterIndex];
 
 	ImPlot::SetupAxis(ImAxis_X1, paramter.name.c_str());
 	ImPlot::SetupAxis(ImAxis_Y1, "x");
 
 	const auto limits = ImPlot::GetPlotLimits();
 
-	LoopFunctionArray input(loopFunctionInputCount());
+	LoopFunctionArray input(plotCompiler.loopFunctionInputCount());
 	LoopFunctionArray output(LOOP_FUNCTION_OUTPUT_COUNT);
-	auto variablesBlock = loopFunctionVariablesBlock;
+	auto variablesBlock = plotCompiler.loopFunctionVariablesBlock;
 	const auto steps = 200;
 	for (i32 yi = 0; yi < steps; yi++) {
 		for (i32 xi = 0; xi < steps; xi++) {
@@ -279,13 +267,13 @@ void FirstOrderSystemGraph::bifurcationPlot(std::string_view parameterName) {
 			const auto parameterValue = lerp(limits.X.Min, limits.X.Max, xt);
 			const auto variableValue = lerp(limits.Y.Min, limits.Y.Max, yt);
 			variablesBlock[0] = variableValue;
-			variablesBlock[parameterIndexToLoopFunctionVariableIndex(*parameterIndex)] = parameterValue;
+			variablesBlock[plotCompiler.parameterIndexToLoopFunctionVariableIndex(*parameterIndex)] = parameterValue;
 			input.append(variablesBlock);
 		}
 	}
 	output.resizeWithoutCopy(input.blockCount());
 
-	(*loopFunction)(input, output);
+	(*formulaInput.loopFunction)(input, output);
 
 	const auto grid = Span2d<const float>(output.data()->m256_f32, steps, steps);
 
@@ -308,264 +296,87 @@ void FirstOrderSystemGraph::bifurcationPlot(std::string_view parameterName) {
 	ImPlot::EndPlot();
 }
 
-void FirstOrderSystemGraph::settings() {
-	ImGui::Text("x'=");
-	ImGui::SameLine();
-	bool recompile = false;
-	if (ImGui::InputText("##formulaInput", formulaInput, std::size(formulaInput))) {
-		recompile = true;
-	}
-
-	if (recompile) {
-		recompileFormula();
-	}
-
-	// TODO: Could add an message to add a paramter if there is an error about an undefined variable.
-	const auto scannerError = scannerReporter.errors.size() != 0;
-	const auto parserError = parserReporter.errors.size() != 0;
-	const auto irCompilerError = irCompilerReporter.errors.size() != 0;
-	const auto anyError = scannerError || parserError || irCompilerError;
-	if (trimString(formulaInput) != "" && anyError) {
-		errorMessageStream.string().clear();
-		if (scannerError) {
-			outputScannerErrorMessage(errorMessageStream, scannerReporter.errors[0], formulaInput, false);
-		} else if (parserError) {
-			outputParserErrorMessage(errorMessageStream, parserReporter.errors[0], formulaInput, false);
-		} else if (irCompilerError) {
-			outputIrCompilerErrorMessage(errorMessageStream, irCompilerReporter.errors[0], formulaInput, false);
-		}
-
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
-		ImGui::Text("%s", errorMessageStream.string().c_str());
-		ImGui::PopStyleColor();
-	}
-
-	if (ImGui::Button("add parameter")) {
-		ImGui::OpenPopup(addParameterWindowName);
-	}
-	addParameterWindow();
-
-
-	for (int i = 0; i < parameters.size(); i++) {
-		auto& parameter = parameters[i];
-		ImGui::PushID(i);
-		ImGui::Text("%s", parameter.name.c_str());
-		ImGui::SameLine();
-		const auto disableSlider = parameter.valueMin >= parameter.valueMax;
-		if (disableSlider) ImGui::BeginDisabled();
-		ImGui::SliderFloat("##parameterSlider", &parameter.value, parameter.valueMin, parameter.valueMax);
-		if (disableSlider) ImGui::EndDisabled();
-
-		loopFunctionVariablesBlock[parameterIndexToLoopFunctionVariableIndex(i)] = parameter.value;
-
-		ImGui::SameLine();
-		ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
-		if (ImGui::Button(ICON_FA_COG)) {
-			parameterIndex = i;
-			ImGui::OpenPopup(parameterSettingsWindowName);
-		}
-		
-		ImGui::PopStyleColor();
-		ImGui::PopID();
-	}
-
-	const auto parameterIndexHasValue = parameterIndex.has_value();
-	if (parameterIndexHasValue) ImGui::PushID(*parameterIndex);
-	parameterSettingsWindow();
-	if (parameterIndexHasValue) ImGui::PopID();
-}
-
 bool FirstOrderSystemGraph::examplesMenu() {
 	auto addParameterIfNotExists = [this]() {
 		const auto name = "a";
-		if (!parameterExists(name)) {
-			addParameter(name);
+		if (!plotCompiler.parameterExists(name)) {
+			plotCompiler.addParameter(name);
 		}
-	};
-
-	auto setFormula = [this](std::string_view text) {
-		if (text.length() + 1 > maxFormulaSize) {
-			ASSERT_NOT_REACHED();
-			return;
-		}
-		memcpy(formulaInput, text.data(), text.size());
-		formulaInput[text.size()] = '\0';
-		recompileFormula();
 	};
 
 	if (ImGui::MenuItem("saddle node bifurcation")) {
 		addParameterIfNotExists();
-		setFormula("a + x^2");
+		plotCompiler.setFormulaInput(formulaInput, "a + x^2");
 		return true;
 	}
 	if (ImGui::MenuItem("transcritical bifurcation")) {
-		setFormula("ax - x^2");
 		addParameterIfNotExists();
+		plotCompiler.setFormulaInput(formulaInput, "ax - x^2");
 		return true;
 	}
 	if (ImGui::MenuItem("pitchfork bifurcation")) {
 		addParameterIfNotExists();
-		setFormula("ax - x^3");
+		plotCompiler.setFormulaInput(formulaInput, "ax - x^3");
 		return true;
 	}
 
 	return false;
 }
 
-void FirstOrderSystemGraph::recompileFormula() {
-	scannerReporter.reset();
-	parserReporter.reset();
-	irCompilerReporter.reset();
-
-	put("recompiling");
-
-	recalculateRuntimeVariables();
-	loopFunction = runtime.compileFunction(formulaInput, runtimeVariables);
-}
-
-void FirstOrderSystemGraph::recalculateRuntimeVariables() {
-	runtimeVariables.clear();
-
-	loopFunctionVariablesBlock.clear();
-
-	for (const auto& variable : variables) {
-		runtimeVariables.push_back(variable);
-		loopFunctionVariablesBlock.push_back(0.0f);
-	}
-	for (const auto& parameter : parameters) {
-		runtimeVariables.push_back(Variable{ .name = parameter.name });
-		loopFunctionVariablesBlock.push_back(parameter.value);
-	}
-}
-
-void FirstOrderSystemGraph::addParameterWindow() {
-	const auto center = ImGui::GetMainViewport()->GetCenter();
-	ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-	if (!ImGui::BeginPopupModal(addParameterWindowName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-		return;
-	}
-
-	if (ImGui::InputText("##parameterName", parameterNameInput, std::size(parameterNameInput))) {
-		// If there was an error an the name was changed the don't show the error anymore.
-		addParameterError = false;
-	}
-
-	if (addParameterError == true) {
-		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
-		ImGui::Text("%s", addParameterErrorMessage.string().c_str());
-		ImGui::PopStyleColor();
-	}
-
-	if (ImGui::Button("add")) {
-		const std::string_view parameterName = parameterNameInput;
-
-		if (trimString(parameterName).length() == 0) {
-
-		} else if (variableExists(parameterName)) {
-			addParameterErrorMessage.string().clear();
-			putnn(addParameterErrorMessage, "'%' is already a variable name", parameterName);
-			addParameterError = true;
-		} else if (parameterExists(parameterName)) {
-			addParameterErrorMessage.string().clear();
-			putnn(addParameterErrorMessage, "'%' is already a parameter name", parameterName);
-			addParameterError = true;
-		} else {
-			addParameter(parameterName);
-			parameterNameInput[0] = '\0';
-			ImGui::CloseCurrentPopup();
-			addParameterError = false;
-		}
-	}
-	ImGui::SameLine();
-	if (ImGui::Button("cancel")) {
-		parameterNameInput[0] = '\0';
-		addParameterError = false;
-		ImGui::CloseCurrentPopup();
-	}
-
-	ImGui::EndPopup();
-}
-
-void FirstOrderSystemGraph::addParameter(std::string_view name) {
-	parameters.push_back(Parameter{
-		.name = std::string(name),
-		.value = 0.0f,
-		.valueMax = 10.0f,
-		.valueMin = -10.0f
-	});
-	recompileFormula();
-}
-
-void FirstOrderSystemGraph::parameterSettingsWindow() {
-	const auto center = ImGui::GetMainViewport()->GetCenter();
-	ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
-	if (!ImGui::BeginPopupModal(parameterSettingsWindowName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
-		return;
-	}
-
-	if (!parameterIndex.has_value()) {
-		ImGui::CloseCurrentPopup();
-		ImGui::EndPopup();
-		return;
-	}
-
-	if (*parameterIndex >= parameters.size()) {
-		ASSERT_NOT_REACHED();
-		ImGui::CloseCurrentPopup();
-		ImGui::EndPopup();
-		return;
-	}
-
-	auto& parameter = parameters[*parameterIndex];
-	ImGui::InputFloat("min", &parameter.valueMin);
-	ImGui::InputFloat("max", &parameter.valueMax);
+void FirstOrderSystemGraph::settings() {
+	plotCompiler.formulaInputGui("x'=", formulaInput);
 
 	if (ImGui::Button("create bifurcation diagram")) {
-		bifurcationPlots.push_back(BifurcationPlot{
-			.parameterName = parameter.name
-		});
-		ImGui::CloseCurrentPopup();
+		ImGui::OpenPopup(createBifurcationDiagramWindowName);
 	}
 
-	if (ImGui::Button("close")) {
-		parameterIndex = std::nullopt;
+	plotCompiler.settingsWindowContent();
+	createBifurcationDiagramWindow();
+}
+
+void FirstOrderSystemGraph::createBifurcationDiagramWindow() {
+	const auto center = ImGui::GetMainViewport()->GetCenter();
+	ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
+	if (!ImGui::BeginPopupModal(createBifurcationDiagramWindowName, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+		return;
+	}
+
+	if (selectedParameterIndex >= plotCompiler.parameters.size()) {
+		selectedParameterIndex = 0;
+	}
+
+	const auto noParameters = plotCompiler.parameters.size() == 0;
+	if (noParameters) {
+		if (ImGui::BeginCombo("parameter", "no parameters to select")) {
+			ImGui::EndCombo();
+		}
+	} else if (ImGui::BeginCombo("parameter", plotCompiler.parameters[selectedParameterIndex].name.c_str())) {
+		for (int i = 0; i < plotCompiler.parameters.size(); i++) {
+
+			const bool isSelected = (selectedParameterIndex == i);
+			if (ImGui::Selectable(plotCompiler.parameters[i].name.c_str(), isSelected)) {
+				selectedParameterIndex = i;
+			}
+
+			if (isSelected) {
+				ImGui::SetItemDefaultFocus();
+			}
+
+		}
+		ImGui::EndCombo();
+	}
+
+	if (!noParameters && ImGui::Button("create")) {
+		bifurcationPlots.push_back(BifurcationPlot{
+			.parameterName = plotCompiler.parameters[selectedParameterIndex].name
+		});
+		ImGui::CloseCurrentPopup();
+		ImGui::SameLine();
+	}
+
+	if (ImGui::Button("cancel")) {
 		ImGui::CloseCurrentPopup();
 	}
 
 	ImGui::EndPopup();
-}
-
-i64 FirstOrderSystemGraph::parameterIndexToLoopFunctionVariableIndex(i64 parameterIndex) const {
-	static constexpr auto variableCount = 1;
-	return variableCount + parameterIndex;
-}
-
-bool FirstOrderSystemGraph::parameterExists(std::string_view name) {
-	return std::ranges::find_if(parameters, [&](const Parameter& p) { return p.name == name; }) != parameters.end();
-}
-
-i64 FirstOrderSystemGraph::loopFunctionInputCount() const {
-	return 1 + parameters.size();
-}
-
-float FirstOrderSystemGraph::callLoopFunctionWithSingleOutput(float f) {
-	std::vector<__m256> vs;
-	const auto x = _mm256_set1_ps(f);
-	vs.push_back(x);
-	for (int i = 0; i < parameters.size(); i++) {
-		const auto a = _mm256_set1_ps(parameters[i].value);
-		vs.push_back(a);
-	}
-	__m256 out;
-	(*loopFunction)(vs.data(), &out, 1);
-	return out.m256_f32[0];
-}
-
-bool FirstOrderSystemGraph::variableExists(std::string_view name) {
-	return std::ranges::find_if(variables, [&](const Variable& v) { return v.name == name; }) != variables.end();
-}
-
-std::optional<i64> FirstOrderSystemGraph::parameterNameToParameterIndex(std::string_view name) const {
-	const auto it = std::ranges::find_if(parameters, [&](const Parameter& p) { return p.name == name; });
-	return it - parameters.begin();
 }

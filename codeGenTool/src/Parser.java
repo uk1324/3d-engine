@@ -216,6 +216,10 @@ public class Parser {
             return new EnumAttributeToStr();
         } else if (matchIdentifier("ImGuiCombo")) {
             return new EnumAttributeImGuiCombo();
+        } else if (matchIdentifier("Json")) {
+            output.addHppIncludePath(Config.JSON_PATH);
+            output.addCppIncludePath(Config.JSON_UTILS_PATH);
+            return new EnumAttributeJson();
         }
         throw new ParserError("expected enum attribute");
     }

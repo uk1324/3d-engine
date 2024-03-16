@@ -110,6 +110,11 @@ const char* toStr(<enum.name> value);
 <if(enum.isImGuiCombo)>
 void combo(<enum.name>* value);
 <endif>
+<if(enum.isJson)>
+Json::Value toJson(const <enum.name>& value);
+template\<>
+<enum.name> fromJson\<<enum.name>\>(const Json::Value& json);
+<endif>
 >>
 
 shader(shader) ::= <<

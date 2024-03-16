@@ -1,1 +1,3 @@
 Maybe do check on ranged int and float when serializing and deserializing
+
+Check enum when deserializing.

@@ -19,8 +19,8 @@ GraphDemo::GraphDemo() {
 void GraphDemo::update() {
 	glClear(GL_COLOR_BUFFER_BIT);
 
-	switch (state) {
-		using enum State;
+	switch (SettingsManager::settings.activePlotType) {
+		using enum SettingsPlotType;
 
 	case FIRST_ORDER_SYSTEM:
 		firstOrderSystem.update();
@@ -30,23 +30,24 @@ void GraphDemo::update() {
 		secondOrderSystem.update();
 		break;
 	}
+	bool plotTypeModified = false;
 
 	// OpenPopup doesn't work inside MainMenuBar.
 	// https://github.com/ocornut/imgui/issues/331
 	bool openHelpWindow = false;
 	if (ImGui::BeginMainMenuBar()) {
 		if (ImGui::BeginMenu("plot type")) {
-			if (ImGui::MenuItem("first order system")) {
-				state = State::FIRST_ORDER_SYSTEM;
-			} else if (ImGui::MenuItem("second order system")) {
-				state = State::SECOND_ORDER_SYSTEM;
+			if (plotTypeModified = ImGui::MenuItem("first order system")) {
+				SettingsManager::settings.activePlotType = SettingsPlotType::FIRST_ORDER_SYSTEM;
+			} else if (plotTypeModified = ImGui::MenuItem("second order system")) {
+				SettingsManager::settings.activePlotType = SettingsPlotType::SECOND_ORDER_SYSTEM;
 			}
 			ImGui::EndMenu();
 		}
 		if (ImGui::BeginMenu("examples")) {
 			if (ImGui::BeginMenu("first order")) {
-				if (firstOrderSystem.examplesMenu()) {
-					state = State::FIRST_ORDER_SYSTEM;
+				if (plotTypeModified = firstOrderSystem.examplesMenu()) {
+					SettingsManager::settings.activePlotType = SettingsPlotType::FIRST_ORDER_SYSTEM;
 				}
 				ImGui::EndMenu();
 			}
@@ -59,6 +60,10 @@ void GraphDemo::update() {
 			openHelpWindow = true;
 		}
 		ImGui::EndMainMenuBar();
+	}
+
+	if (plotTypeModified) {
+		SettingsManager::settings.saveToFile();
 	}
 
 	if (openHelpWindow) {

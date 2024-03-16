@@ -160,6 +160,7 @@ const char* toStr(<enum.name> value) {
         <enum.definitions : { definition | case <enum.name>::<definition.name>: return "<definition.name>"; }; separator="\n">
     }
 }
+<endif>
 <if(enum.isImGuiCombo)>
 void combo(<enum.name>* value) {
     switch (value) {
@@ -167,6 +168,13 @@ void combo(<enum.name>* value) {
     }
 }
 <endif>
+<if(enum.isJson)>
+Json::Value toJson(const <enum.name>& value) {
+    return Json::Value(static_cast\<Json::Value::IntType\>(value));
+}
+<enum.name> fromJson\<<enum.name>\>(const Json::Value& json) {
+    return static_cast\<<enum.name>\>(json.intNumber());
+}
 <endif>
 >>
 

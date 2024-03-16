@@ -1,0 +1,8 @@
+enum [[Json]] SettingsPlotType {
+	FIRST_ORDER_SYSTEM,
+	SECOND_ORDER_SYSTEM,
+}
+
+struct [[Json]] Settings {
+	SettingsPlotType activePlotType = `SettingsPlotType::FIRST_ORDER_SYSTEM`;
+}

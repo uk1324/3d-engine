@@ -4,8 +4,9 @@
 #include <engine/Math/OdeIntegration/RungeKutta4.hpp>
 #include <engine/Input/Input.hpp>
 
-SecondOrderSystemGraph::SecondOrderSystemGraph()
-{
+SecondOrderSystemGraph::SecondOrderSystemGraph() {
+	plotCompiler.formulaInputs.push_back(&xFormulaInput);
+	plotCompiler.formulaInputs.push_back(&yFormulaInput);
 }
 
 void plotLine(const char* label, const std::vector<Vec2>& vs) {
@@ -16,7 +17,7 @@ void plotLine(const char* label, const std::vector<Vec2>& vs) {
 void SecondOrderSystemGraph::update() {
 	auto id = ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 
-	const auto derivativePlotWindowName = "x' plot";
+	const auto derivativePlotWindowName = "v' plot";
 	const auto settingsWindowName = "settings";
 
 	static bool firstFrame = true;
@@ -135,5 +136,8 @@ void SecondOrderSystemGraph::derivativePlot() {
 }
 
 void SecondOrderSystemGraph::settings() {
+	plotCompiler.formulaInputGui("x'=", xFormulaInput);
+	plotCompiler.formulaInputGui("y'=", yFormulaInput);
+
 	ImGui::Checkbox("paused", &paused);
 }
