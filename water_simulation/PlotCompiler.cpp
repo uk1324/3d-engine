@@ -149,31 +149,17 @@ void PlotCompiler::formulaInputGui(const char* lhs, FormulaInput& formula) {
 	ImGui::Text(lhs);
 	ImGui::SameLine();
 	bool recompile = false;
+	ImGui::PushID(lhs);
 	if (ImGui::InputText("##formulaInput", formula.input, FormulaInput::INPUT_MAX_SIZE)) {
 		recompile = true;
 	}
+	ImGui::PopID();
 
 	if (recompile) {
 		compileFormula(formula);
 	}
 
-	// TODO: Could add an message to add a paramter if there is an error about an undefined variable.
-	const auto scannerError = scannerReporter.errors.size() != 0;
-	const auto parserError = parserReporter.errors.size() != 0;
-	const auto irCompilerError = irCompilerReporter.errors.size() != 0;
-	const auto anyError = scannerError || parserError || irCompilerError;
-	if (trimString(formula.input) != "" && anyError) {
-		formula.errorMessageStream.string().clear();
-		if (scannerError) {
-			outputScannerErrorMessage(formula.errorMessageStream, scannerReporter.errors[0], formula.input, false);
-		}
-		else if (parserError) {
-			outputParserErrorMessage(formula.errorMessageStream, parserReporter.errors[0], formula.input, false);
-		}
-		else if (irCompilerError) {
-			outputIrCompilerErrorMessage(formula.errorMessageStream, irCompilerReporter.errors[0], formula.input, false);
-		}
-
+	if (formula.errorMessageStream.string().size() != 0) {
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
 		ImGui::Text("%s", formula.errorMessageStream.string().c_str());
 		ImGui::PopStyleColor();
@@ -200,6 +186,29 @@ void PlotCompiler::compileFormula(FormulaInput& formula) {
 
 	recalculateRuntimeVariables();
 	formula.loopFunction = runtime.compileFunction(formula.input, runtimeVariables);
+
+	// TODO: Could add an message to add a paramter if there is an error about an undefined variable.
+	// Could either store different reporters in each FormulaInput then the error messages would be regenerated on each frame or could store things like the error message and which undefined parameters to add in the FormulaInput.
+	const auto scannerError = scannerReporter.errors.size() != 0;
+	const auto parserError = parserReporter.errors.size() != 0;
+	const auto irCompilerError = irCompilerReporter.errors.size() != 0;
+	const auto anyError = scannerError || parserError || irCompilerError;
+	if (trimString(formula.input) != "" && anyError) {
+		formula.errorMessageStream.string().clear();
+		if (scannerError) {
+			outputScannerErrorMessage(formula.errorMessageStream, scannerReporter.errors[0], formula.input, false);
+		}
+		else if (parserError) {
+			outputParserErrorMessage(formula.errorMessageStream, parserReporter.errors[0], formula.input, false);
+		}
+		else if (irCompilerError) {
+			outputIrCompilerErrorMessage(formula.errorMessageStream, irCompilerReporter.errors[0], formula.input, false);
+		}
+
+		scannerReporter.reset();
+		parserReporter.reset();
+		irCompilerReporter.reset();
+	}
 }
 
 
@@ -228,9 +237,14 @@ void PlotCompiler::addParameter(std::string_view name) {
 	recompileAllFormulas();
 }
 
+void PlotCompiler::addParameterIfNotExists(std::string_view name) {
+	if (!parameterExists(name)) {
+		addParameter(name);
+	}
+}
+
 i64 PlotCompiler::parameterIndexToLoopFunctionVariableIndex(i64 parameterIndex) const {
-	static constexpr auto variableCount = 1;
-	return variableCount + parameterIndex;
+	return variables.size() + parameterIndex;
 }
 
 bool PlotCompiler::parameterExists(std::string_view name) {

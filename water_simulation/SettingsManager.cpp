@@ -2,6 +2,7 @@
 #include <FileIo.hpp>
 #include <engine/Json/Json.hpp>
 #include <fstream>
+#include <Put.hpp>
 #include <filesystem>
 
 SettingsManager::SettingsManager()
@@ -25,6 +26,7 @@ SettingsManager::SettingsManager()
 auto SettingsManager::saveToFile() const -> void {
 	std::ofstream file{ settingsPath };
 	Json::prettyPrint(file, toJson(*this));
+	put("saving settings");
 }
 
 auto SettingsManager::saveAtScopeEnd() const -> RaiiSaver {

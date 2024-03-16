@@ -56,6 +56,7 @@ struct PlotCompiler {
 	std::optional<i64> parameterNameToParameterIndex(std::string_view name) const;
 	i64 parameterIndexToLoopFunctionVariableIndex(i64 parameterIndex) const;
 	void addParameter(std::string_view name);
+	void addParameterIfNotExists(std::string_view name);
 	char parameterNameInput[256] = "";
 
 	std::vector<float> loopFunctionVariablesBlock;

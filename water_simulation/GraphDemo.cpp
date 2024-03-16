@@ -52,6 +52,9 @@ void GraphDemo::update() {
 				ImGui::EndMenu();
 			}
 			if (ImGui::BeginMenu("second order")) {
+				if (plotTypeModified = secondOrderSystem.examplesMenu()) {
+					SettingsManager::settings.activePlotType = SettingsPlotType::SECOND_ORDER_SYSTEM;
+				}
 				ImGui::EndMenu();
 			}
 			ImGui::EndMenu();

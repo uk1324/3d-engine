@@ -10,6 +10,7 @@ struct SecondOrderSystemGraph {
 	void update();
 	void derivativePlot();
 	void settings();
+	bool examplesMenu();
 
 	std::vector<Vec2> points;
 

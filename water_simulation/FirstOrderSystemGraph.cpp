@@ -224,11 +224,19 @@ void FirstOrderSystemGraph::potentialPlot() {
 		return plotCompiler.callLoopFunctionWithSingleOutput(formulaInput, x);
 	};
 
+	// The potential is negated.
+	auto flipY = [&points]() {
+		for (auto& y : points.ys) {
+			y = -y;
+		}
+	};
 	computeAntiderivative<float>(points, function, 0.0, plotRect.X.Max, 200);
+	flipY();
 	ImPlot::PlotLine("antiderivative", points.xs.data(), points.ys.data(), points.xs.size());
 	points.xs.clear();
 	points.ys.clear();
 	computeAntiderivative<float>(points, function, 0.0, plotRect.X.Min, 200);
+	flipY();
 	ImPlot::PlotLine("antiderivative", points.xs.data(), points.ys.data(), points.xs.size());
 
 	ImPlot::EndPlot();
@@ -297,25 +305,18 @@ void FirstOrderSystemGraph::bifurcationPlot(std::string_view parameterName) {
 }
 
 bool FirstOrderSystemGraph::examplesMenu() {
-	auto addParameterIfNotExists = [this]() {
-		const auto name = "a";
-		if (!plotCompiler.parameterExists(name)) {
-			plotCompiler.addParameter(name);
-		}
-	};
-
 	if (ImGui::MenuItem("saddle node bifurcation")) {
-		addParameterIfNotExists();
+		plotCompiler.addParameterIfNotExists("a");
 		plotCompiler.setFormulaInput(formulaInput, "a + x^2");
 		return true;
 	}
 	if (ImGui::MenuItem("transcritical bifurcation")) {
-		addParameterIfNotExists();
+		plotCompiler.addParameterIfNotExists("a");
 		plotCompiler.setFormulaInput(formulaInput, "ax - x^2");
 		return true;
 	}
 	if (ImGui::MenuItem("pitchfork bifurcation")) {
-		addParameterIfNotExists();
+		plotCompiler.addParameterIfNotExists("a");
 		plotCompiler.setFormulaInput(formulaInput, "ax - x^3");
 		return true;
 	}
