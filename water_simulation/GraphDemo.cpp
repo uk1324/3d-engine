@@ -12,11 +12,15 @@
 // TODO: Allow the compiler to compile 1f32 and 8f32 options
 // Does plotting a 3d graph the finding the intersection with zero do anything more than just using marching squares.
 
-GraphDemo::GraphDemo() {
+GraphDemo::GraphDemo() 
+	: plotter(FunctionPlotter2d::make()) {
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 }
 
 void GraphDemo::update() {
+	plotter.update();
+
+	return;
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	switch (SettingsManager::settings.activePlotType) {

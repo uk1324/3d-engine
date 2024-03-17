@@ -15,11 +15,11 @@ struct Vertex3d {
 	Vec3 position;
 };
 
-struct Camera3d {
-	Vec3 position;
-	float yRotation;
-	float xRotation;
-};
+//struct Camera3d {
+//	Vec3 position;
+//	float yRotation;
+//	float xRotation;
+//};
 
 struct Renderer {
 	static Renderer make();

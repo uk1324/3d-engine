@@ -6,6 +6,8 @@
 
 // TODO: Could graph the potentials of conservative/irrotational fields.
 
+// TODO: Could allow intersecting a sufrace with a plane. The result would just be the sum of the intersection with each triangle.
+
 static constexpr auto X_VARIABLE_INDEX_IN_BLOCK = 0;
 static constexpr auto Y_VARIABLE_INDEX_IN_BLOCK = 1;
 
@@ -63,14 +65,6 @@ void SecondOrderSystemGraph::derivativePlot() {
 		ImPlot::EndPlot();
 		return;
 	}
-
-	//if (!paused) {
-	//	float dt = 1.0f / 60.0f;
-	//	for (auto& point : testPoints) {
-	//		point.history.push_back(point.pos);
-	//		point.pos = rungeKutta4Step(calculateDerivative, point.pos, 0.0f, dt);
-	//	}
-	//}
 	
 	const auto plotRect = ImPlot::GetPlotLimits();
 	// TODO: To find the fixed points could compute the abs() of all the values then find the local minima. If the minima are near zero then I could run root finding.
@@ -147,35 +141,60 @@ void SecondOrderSystemGraph::derivativePlot() {
 	}
 	runIntegration();
 
+	std::vector<__m256> calculateDerivativeInput;
+	for (i32 i = 0; i < inputBlock.size(); i++) {
+		__m256 v;
+		v.m256_f32[0] = inputBlock[i];
+		calculateDerivativeInput.push_back(v);
+	}
+	auto calculateDerivative = [&](Vec2 pos, float t) -> Vec2 {
+		calculateDerivativeInput[X_VARIABLE_INDEX_IN_BLOCK].m256_f32[0] = pos.x;
+		calculateDerivativeInput[Y_VARIABLE_INDEX_IN_BLOCK].m256_f32[0] = pos.y;
+		__m256 output;
+		(*xFormulaInput.loopFunction)(calculateDerivativeInput.data(), &output, 1);
+		const auto x = output.m256_f32[0];
+		(*yFormulaInput.loopFunction)(calculateDerivativeInput.data(), &output, 1);
+		const auto y = output.m256_f32[0];
+		return Vec2(x, y);
+	};
+
+	if (!paused) {
+		float dt = 1.0f / 60.0f;
+		for (auto& point : testPoints) {
+			point.history.push_back(point.pos);
+			point.pos = rungeKutta4Step(calculateDerivative, point.pos, 0.0f, dt);
+		}
+	}
 
 	const auto pointsData = reinterpret_cast<float*>(points.data());
 	ImPlot::PlotLine("streamlines", pointsData, pointsData + 1, points.size(), ImPlotLineFlags_Segments, 0, sizeof(Vec2));
 
-	//{
-	//	const auto testPointsData = reinterpret_cast<const u8*>(testPoints.data());
-	//	ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
-	//	ImPlot::PlotScatter(
-	//		"testPoints",
-	//		reinterpret_cast<const float*>(testPointsData + offsetof(TestPoint, pos.x)),
-	//		reinterpret_cast<const float*>(testPointsData + offsetof(TestPoint, pos.y)),
-	//		testPoints.size(),
-	//		0,
-	//		0,
-	//		sizeof(TestPoint)
-	//	);
-	//	for (const auto& p : testPoints) {
-	//		plotLine("test", p.history);
-	//	}
-	//	ImPlot::PopStyleColor();
-	//}
+	{
+		const auto testPointsData = reinterpret_cast<const u8*>(testPoints.data());
+		ImPlot::PushStyleColor(ImPlotCol_MarkerFill, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+		ImPlot::PushStyleColor(ImPlotCol_MarkerOutline, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+		ImPlot::PlotScatter(
+			"testPoints",
+			reinterpret_cast<const float*>(testPointsData + offsetof(TestPoint, pos.x)),
+			reinterpret_cast<const float*>(testPointsData + offsetof(TestPoint, pos.y)),
+			testPoints.size(),
+			0,
+			0,
+			sizeof(TestPoint)
+		);
+		for (const auto& p : testPoints) {
+			plotLine("test", p.history);
+		}
+		ImPlot::PopStyleColor();
+	}
 
-	//Input::ignoreImGuiWantCapture = true;
-	//if (Input::isMouseButtonDown(MouseButton::MIDDLE)) {
-	//	const auto mousePos = ImPlot::GetPlotMousePos();
-	//	const auto p = TestPoint{ Vec2(mousePos.x, mousePos.y) };
-	//	testPoints.push_back(p);
-	//}
-	//Input::ignoreImGuiWantCapture = false;
+	Input::ignoreImGuiWantCapture = true;
+	if (Input::isMouseButtonDown(MouseButton::MIDDLE)) {
+		const auto mousePos = ImPlot::GetPlotMousePos();
+		const auto p = TestPoint{ Vec2(mousePos.x, mousePos.y) };
+		testPoints.push_back(p);
+	}
+	Input::ignoreImGuiWantCapture = false;
 
 	ImPlot::EndPlot();
 }
@@ -220,6 +239,9 @@ bool SecondOrderSystemGraph::examplesMenu() {
 		plotCompiler.setFormulaInput(yFormulaInput, "-sin(x)");
 		return true;
 	}
+
+	// x' = sin(x)
+	// y' = sin(xy)
 
 	return false;
 }

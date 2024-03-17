@@ -193,8 +193,8 @@ void PlotCompiler::compileFormula(FormulaInput& formula) {
 	const auto parserError = parserReporter.errors.size() != 0;
 	const auto irCompilerError = irCompilerReporter.errors.size() != 0;
 	const auto anyError = scannerError || parserError || irCompilerError;
+	formula.errorMessageStream.string().clear();
 	if (trimString(formula.input) != "" && anyError) {
-		formula.errorMessageStream.string().clear();
 		if (scannerError) {
 			outputScannerErrorMessage(formula.errorMessageStream, scannerReporter.errors[0], formula.input, false);
 		}

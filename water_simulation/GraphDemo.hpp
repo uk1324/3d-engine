@@ -7,6 +7,7 @@
 #include <water_simulation/SecondOrderSystemGraph.hpp>
 #include <imgui/imgui.h>
 #include <water_simulation/SettingsManager.hpp>
+#include <water_simulation/FunctionPlotter2d.hpp>
 
 struct GraphDemo {
 	GraphDemo();
@@ -23,4 +24,5 @@ struct GraphDemo {
 
 	FirstOrderSystemGraph firstOrderSystem;
 	SecondOrderSystemGraph secondOrderSystem;
+	FunctionPlotter2d plotter;
 };
