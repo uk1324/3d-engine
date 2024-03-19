@@ -217,12 +217,11 @@ void marchingSquares2(std::vector<MarchingSquaresLine>& output, Span2d<const flo
 		return grid(x, y) < boundaryValue;
 	};
 
-	auto add = [&output](Vec2 a, Vec2 b) {
-		output.push_back(MarchingSquaresLine{ a, b });
-	};
-
 	for (i64 yi = 0; yi < grid.sizeY() - 1; yi++) {
 		for (i64 xi = 0; xi < grid.sizeX() - 1; xi++) {
+			auto add = [&output, &xi, &yi](Vec2 a, Vec2 b) {
+				output.push_back(MarchingSquaresLine{ a, b, Vec2T<i32>(xi, yi)});
+			};
 			/*
 			x, y+1 | x+1, y+1
 			-----------------
@@ -376,4 +375,16 @@ void marchingSquares2(std::vector<MarchingSquaresLine>& output, Span2d<const flo
 			}
 		}
 	}
+}
+
+Vec2T<i32> MarchingSquaresLine::topLeftIndex() const {
+	return Vec2T<i32>(bottomLeftIndex.x, bottomLeftIndex.y + 1);
+}
+
+Vec2T<i32> MarchingSquaresLine::bottomRightIndex() const {
+	return Vec2T<i32>(bottomLeftIndex.x + 1, bottomLeftIndex.y);
+}
+
+Vec2T<i32> MarchingSquaresLine::topRightIndex() const {
+	return Vec2T<i32>(bottomLeftIndex.x + 1, bottomLeftIndex.y + 1);
 }

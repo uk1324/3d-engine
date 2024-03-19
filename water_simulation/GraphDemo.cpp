@@ -18,9 +18,9 @@ GraphDemo::GraphDemo()
 }
 
 void GraphDemo::update() {
-	plotter.update();
+	/*plotter.update();
 
-	return;
+	return;*/
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	switch (SettingsManager::settings.activePlotType) {

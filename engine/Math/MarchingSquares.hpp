@@ -8,6 +8,10 @@ std::vector<std::vector<Vec2>> marchingSquares(Span2d<const float> grid, bool pi
 
 struct MarchingSquaresLine {
 	Vec2 a, b;
+	Vec2T<i32> bottomLeftIndex;
+	Vec2T<i32> topLeftIndex() const;
+	Vec2T<i32> bottomRightIndex() const;
+	Vec2T<i32> topRightIndex() const;
 };
 // Calculates the lines which make the isolines.
 /*

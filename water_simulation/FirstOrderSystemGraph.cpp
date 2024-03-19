@@ -9,8 +9,12 @@
 #include <algorithm>
 #include <water_simulation/assets/IconsFontAwesome5.h>
 #include <imgui/imgui_internal.h>
+#include <water_simulation/PlotUtils.hpp>
 #include <engine/Math/RootFinding/bisection.hpp>
 #include <engine/Math/MarchingSquares.hpp>
+
+const auto STABLE_FIXED_POINTS_COLOR = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
+const auto UNSTABLE_FIXED_POINTS_COLOR = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
 
 void scatterPlotVec2s(const char* label, const std::vector<Vec2>&vs) {
 	const auto pointsData = reinterpret_cast<const float*>(vs.data());
@@ -189,16 +193,14 @@ void FirstOrderSystemGraph::derivativePlot() {
 
 	ImPlot::PlotLine("x'", xs.data(), ys.data(), xs.size());
 
-	const auto green = ImVec4(0.0f, 1.0f, 0.0f, 1.0f);
-	ImPlot::PushStyleColor(ImPlotCol_MarkerFill, green);
-	ImPlot::PushStyleColor(ImPlotCol_MarkerOutline, green);
+	ImPlot::PushStyleColor(ImPlotCol_MarkerFill, STABLE_FIXED_POINTS_COLOR);
+	ImPlot::PushStyleColor(ImPlotCol_MarkerOutline, STABLE_FIXED_POINTS_COLOR);
 	scatterPlotVec2s("stable fixed points", stableFixedPoints);
 	ImPlot::PopStyleColor();
 	ImPlot::PopStyleColor();
 
-	const auto red = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
-	ImPlot::PushStyleColor(ImPlotCol_MarkerFill, red);
-	ImPlot::PushStyleColor(ImPlotCol_MarkerOutline, red);
+	ImPlot::PushStyleColor(ImPlotCol_MarkerFill, UNSTABLE_FIXED_POINTS_COLOR);
+	ImPlot::PushStyleColor(ImPlotCol_MarkerOutline, UNSTABLE_FIXED_POINTS_COLOR);
 	scatterPlotVec2s("unstable fixed points", unstableFixedPoints);
 	ImPlot::PopStyleColor();
 	ImPlot::PopStyleColor();
@@ -252,6 +254,7 @@ void FirstOrderSystemGraph::bifurcationPlot(std::string_view parameterName) {
 	}
 
 	const auto parameterIndex = plotCompiler.parameterNameToParameterIndex(parameterName);
+	// TODO: Maybe delete the window if the parameter was deleted
 	if (!parameterIndex.has_value()) {
 		ASSERT_NOT_REACHED();
 		ImPlot::EndPlot();
@@ -285,6 +288,9 @@ void FirstOrderSystemGraph::bifurcationPlot(std::string_view parameterName) {
 
 	const auto grid = Span2d<const float>(output.data()->m256_f32, steps, steps);
 
+	std::vector<Vec2> stableLines;
+	std::vector<Vec2> unstableLines;
+
 	std::vector<MarchingSquaresLine> marchingSquaresOutput;
 	marchingSquares2(marchingSquaresOutput, grid, 0.0f, true);
 	for (auto& segment : marchingSquaresOutput) {
@@ -294,12 +300,30 @@ void FirstOrderSystemGraph::bifurcationPlot(std::string_view parameterName) {
 			pos.y = lerp(limits.Y.Min, limits.Y.Max, pos.y);
 			return pos;
 		};
-		segment.a = scale(segment.a);
-		segment.b = scale(segment.b);
+		const Vec2 a = scale(segment.a);
+		const Vec2 b = scale(segment.b);
+		/*
+		Average
+		float aboveValue = grid(segment.topLeftIndex().x, segment.topLeftIndex().y) + grid(segment.topRightIndex().x, segment.topRightIndex().y);
+		float belowValue = grid(segment.bottomLeftIndex.x, segment.bottomLeftIndex.y) + grid(segment.bottomRightIndex().x, segment.bottomRightIndex().y);*/
+		const float aboveValue = grid(segment.topLeftIndex().x, segment.topLeftIndex().y);
+		const float belowValue = grid(segment.bottomLeftIndex.x, segment.bottomLeftIndex.y);
+		if (aboveValue < belowValue) {
+			stableLines.push_back(a);
+			stableLines.push_back(b);
+		} else {
+			unstableLines.push_back(a);
+			unstableLines.push_back(b);
+		}
 	}
 	
-	const auto pointsData = reinterpret_cast<const float*>(marchingSquaresOutput.data());
-	ImPlot::PlotLine("fixed points", pointsData, pointsData + 1, marchingSquaresOutput.size() * 2, ImPlotLineFlags_Segments, 0, sizeof(float) * 2);
+	ImPlot::PushStyleColor(ImPlotCol_Line, STABLE_FIXED_POINTS_COLOR);
+	plotVec2LineSegments("stable fixed points", stableLines);
+	ImPlot::PopStyleColor();
+
+	ImPlot::PushStyleColor(ImPlotCol_Line, UNSTABLE_FIXED_POINTS_COLOR);
+	plotVec2LineSegments("unstable fixed points", unstableLines);
+	ImPlot::PopStyleColor();
 
 	ImPlot::EndPlot();
 }
@@ -318,6 +342,20 @@ bool FirstOrderSystemGraph::examplesMenu() {
 	if (ImGui::MenuItem("pitchfork bifurcation")) {
 		plotCompiler.addParameterIfNotExists("a");
 		plotCompiler.setFormulaInput(formulaInput, "ax - x^3");
+		return true;
+	}
+	if (ImGui::MenuItem("pitchfork bifurcation with imperfection parameter")) {
+		plotCompiler.addParameterIfNotExists("a");
+		plotCompiler.addParameterIfNotExists("b");
+		plotCompiler.setFormulaInput(formulaInput, "ax - x^3 + b");
+		return true;
+	}
+	if (ImGui::MenuItem("pitchfork bifurcation hysteresis")) {
+		plotCompiler.addParameterIfNotExists("a");
+		plotCompiler.addParameterIfNotExists("b");
+		plotCompiler.setFormulaInput(formulaInput, "ax + x^3 + -(1/10)x^5");
+		// a is small the only fixed point is the center. Then as you increase the center becomes unstable and the points get attracted to the other fixed points, but if you vary the system back to below the bifurction point the points won't return back to the center fixed point. They only do after you vary it even further than the bifurcation point.
+		// This is only visible nicly on the potential plot.
 		return true;
 	}
 
