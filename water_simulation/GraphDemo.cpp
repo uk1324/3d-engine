@@ -87,6 +87,7 @@ void GraphDemo::openHelpWindow() {
 }
 
 void GraphDemo::helpWindow() {
+	ImPlot::ShowDemoWindow();
 	const auto center = ImGui::GetMainViewport()->GetCenter();
 	ImGui::SetNextWindowPos(center, ImGuiCond_Always, ImVec2(0.5f, 0.5f));
 	ImGui::SetNextWindowSize(ImVec2(ImGui::GetMainViewport()->Size.x / 2.0f, -1.0f));

@@ -352,7 +352,6 @@ bool FirstOrderSystemGraph::examplesMenu() {
 	}
 	if (ImGui::MenuItem("pitchfork bifurcation hysteresis")) {
 		plotCompiler.addParameterIfNotExists("a");
-		plotCompiler.addParameterIfNotExists("b");
 		plotCompiler.setFormulaInput(formulaInput, "ax + x^3 + -(1/10)x^5");
 		// a is small the only fixed point is the center. Then as you increase the center becomes unstable and the points get attracted to the other fixed points, but if you vary the system back to below the bifurction point the points won't return back to the center fixed point. They only do after you vary it even further than the bifurcation point.
 		// This is only visible nicly on the potential plot.

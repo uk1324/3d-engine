@@ -75,6 +75,7 @@ void SecondOrderSystemGraph::derivativePlot() {
 	LoopFunctionArray input(plotCompiler.runtimeVariables.size());
 	LoopFunctionArray outputX(1);
 	LoopFunctionArray outputY(1);
+	std::vector<float> streamlineLength;
 
 	const auto minX = i32(floor(plotRect.X.Min / spacing));
 	const auto minY = i32(floor(plotRect.Y.Min / spacing));
@@ -83,6 +84,9 @@ void SecondOrderSystemGraph::derivativePlot() {
 	points.clear();
 
 	auto runIntegration = [&]() {
+		streamlineLength.clear();
+		streamlineLength.resize(input.blockCount(), 0.0f);
+
 		const auto stepCount = 15;
 		outputX.resizeWithoutCopy(input.blockCount());
 		outputY.resizeWithoutCopy(input.blockCount());
@@ -96,8 +100,62 @@ void SecondOrderSystemGraph::derivativePlot() {
 					input(i, X_VARIABLE_INDEX_IN_BLOCK),
 					input(i, Y_VARIABLE_INDEX_IN_BLOCK)
 				);
-				input(i, X_VARIABLE_INDEX_IN_BLOCK) += outputX(i, 0) * step;
-				input(i, Y_VARIABLE_INDEX_IN_BLOCK) += outputY(i, 0) * step;
+				float dx = outputX(i, 0) * step;
+				float dy = outputY(i, 0) * step;
+
+				const auto maxLength = spacing;
+				if (streamlineLength[i] > maxLength) {
+					continue;
+				}
+
+				const auto newLength = streamlineLength[i] + sqrt(dx * dx + dy * dy);
+
+				const auto newLengthLeft = maxLength - newLength;
+				const bool tooLong = newLengthLeft <= 0;
+				if (tooLong) {
+					// Take longest possible step that doesn't exceed the max length.
+					/*
+					l = streamlineLength
+					m = spacing
+					x = dx
+					y = dy
+					a - what step should be taken.
+					l + sqrt(a * x^2 + a * y^2) = m
+					sqrt(a * x^2 + a * y^2) = m - l // l < m because length is smaller than maxLength
+					a * (x^2 + y^2) = (m -l)^2
+					a = (m - l)^2 / (x^2 + y^2).
+					*/
+					/*float scale = 1.0f;
+					while (streamlineLength[i] + sqrt(scale * dx * dx + scale * dy * dy) > maxLength) {
+						scale /= 5.0f;
+					}
+					dx *= scale;
+					dy *= scale;*/
+					const double currentLengthLeft = maxLength - streamlineLength[i];
+					const auto normalized = Vec2(dx, dy).normalized() * currentLengthLeft;
+					dx = normalized.x;
+					dy = normalized.y;
+					///*const auto a = (currentLengthLeft * currentLengthLeft) / (double(dx) * double(dx) + double(dy) * double(dy));*/
+					//const auto a = 1.0 / ((double(dx) * double(dx) + double(dy) * double(dy)) / (currentLengthLeft * currentLengthLeft));
+					//const auto oldDx = dx;
+					//const auto oldDy = dy;
+					//dx *= a;
+					//dy *= a;
+
+					//const auto newLength = streamlineLength[i] + sqrt(dx * dx + dy * dy);
+					//const auto lengthLeft = maxLength - newLength;
+					//static float maxLengthLeft = 0.0f;
+					//if (std::abs(lengthLeft) > maxLengthLeft) {
+					//	maxLengthLeft = lengthLeft;
+					//}
+					int xa = 5;
+				}
+
+				// Set the new length even if tooLong, so that if tooLong the next doesn't continue.
+				streamlineLength[i] = newLength;
+
+				input(i, X_VARIABLE_INDEX_IN_BLOCK) += dx;
+				input(i, Y_VARIABLE_INDEX_IN_BLOCK) += dy;
 				const Vec2 newPos(
 					input(i, X_VARIABLE_INDEX_IN_BLOCK),
 					input(i, Y_VARIABLE_INDEX_IN_BLOCK)
@@ -125,7 +183,7 @@ void SecondOrderSystemGraph::derivativePlot() {
 
 		input.clear();
 	};
-
+	//ImPlot::GetPlotDrawList()->AddLine()
 	for (i32 xi = minX; xi <= maxX; xi++) {
 		for (i32 yi = minY; yi <= maxY; yi++) {
 			const auto x = float(xi) * spacing;
@@ -166,6 +224,7 @@ void SecondOrderSystemGraph::derivativePlot() {
 		}
 	}
 
+	// TODO: Change the color based on the velocity length.
 	const auto pointsData = reinterpret_cast<float*>(points.data());
 	ImPlot::PlotLine("streamlines", pointsData, pointsData + 1, points.size(), ImPlotLineFlags_Segments, 0, sizeof(Vec2));
 
@@ -239,6 +298,26 @@ bool SecondOrderSystemGraph::examplesMenu() {
 		plotCompiler.setFormulaInput(yFormulaInput, "-sin(x)");
 		return true;
 	}
+	if (ImGui::MenuItem("van der Pol oscillator")) {
+		plotCompiler.setFormulaInput(xFormulaInput, "y");
+		plotCompiler.setFormulaInput(yFormulaInput, "-x + y(1 - x^2)");
+		return true;
+	}
+	if (ImGui::MenuItem("dipole fixed point")) {
+		plotCompiler.setFormulaInput(xFormulaInput, "2xy");
+		plotCompiler.setFormulaInput(yFormulaInput, "y^2-x^2");
+		return true;
+	}
+	//if (ImGui::MenuItem("two-eyed monster")) {
+	//	plotCompiler.setFormulaInput(xFormulaInput, "y + y^2");
+	//	plotCompiler.setFormulaInput(yFormulaInput, "-(1/2)x + (1/5)y - xy + (6/5)y^2");
+	//	return true;
+	//}
+	//if (ImGui::MenuItem("parrot")) {
+	//	plotCompiler.setFormulaInput(xFormulaInput, "y + y^2");
+	//	plotCompiler.setFormulaInput(yFormulaInput, "-x + (1/5)y - xy + (6/5)y^2");
+	//	return true;
+	//}
 
 	// x' = sin(x)
 	// y' = sin(xy)
