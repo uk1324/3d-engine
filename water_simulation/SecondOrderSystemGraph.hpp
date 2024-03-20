@@ -12,7 +12,7 @@ struct SecondOrderSystemGraph {
 	void settings();
 	bool examplesMenu();
 
-	std::vector<Vec2> points;
+	//std::vector<Vec2> points;
 
 	bool paused = false;
 	struct TestPoint {

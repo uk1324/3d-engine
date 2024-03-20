@@ -2,7 +2,10 @@
 #include <imgui/implot.h>
 #include <imgui/imgui_internal.h>
 #include <engine/Math/OdeIntegration/RungeKutta4.hpp>
+#include <engine/Math/Color.hpp>
+#include <water_simulation/PlotUtils.hpp>
 #include <engine/Input/Input.hpp>
+#include <Array2d.hpp>
 
 // TODO: Could graph the potentials of conservative/irrotational fields.
 
@@ -65,125 +68,112 @@ void SecondOrderSystemGraph::derivativePlot() {
 		ImPlot::EndPlot();
 		return;
 	}
+
+	ImPlot::PushStyleColor(ImPlotCol_PlotBg, { 0.5f, 0.5f, 0.5f, 1.0f });
 	
 	const auto plotRect = ImPlot::GetPlotLimits();
 	// TODO: To find the fixed points could compute the abs() of all the values then find the local minima. If the minima are near zero then I could run root finding.
-	// TODO: Could use NaN to make breaks in lines.
 
 	std::vector<float> inputBlock = plotCompiler.loopFunctionVariablesBlock;
 	const auto capacity = 24;
+	const auto stepCount = 15;
 	LoopFunctionArray input(plotCompiler.runtimeVariables.size());
 	LoopFunctionArray outputX(1);
 	LoopFunctionArray outputY(1);
 	std::vector<float> streamlineLength;
-
-	const auto minX = i32(floor(plotRect.X.Min / spacing));
-	const auto minY = i32(floor(plotRect.Y.Min / spacing));
-	const auto maxX = i32(ceil(plotRect.X.Max / spacing));
-	const auto maxY = i32(ceil(plotRect.Y.Max / spacing));
-	points.clear();
+	std::vector<i32> streamlinePointCount;
+	const auto posCount = stepCount + 1;
+	Array2d<Vec2> streamlineIndexToPos(capacity, posCount);
 
 	auto runIntegration = [&]() {
 		streamlineLength.clear();
 		streamlineLength.resize(input.blockCount(), 0.0f);
+		streamlinePointCount.clear();
+		streamlinePointCount.resize(input.blockCount());
 
-		const auto stepCount = 15;
 		outputX.resizeWithoutCopy(input.blockCount());
 		outputY.resizeWithoutCopy(input.blockCount());
-		for (i32 i = 0; i < stepCount; i++) {
+		for (i32 stepIndex = 0; stepIndex < stepCount; stepIndex++) {
 			(*xFormulaInput.loopFunction)(input, outputX);
 			(*yFormulaInput.loopFunction)(input, outputY);
 
 			const auto step = spacing / 5;
-			for (i32 i = 0; i < input.blockCount(); i++) {
+			for (i32 streamLineIndex = 0; streamLineIndex < input.blockCount(); streamLineIndex++) {
 				const Vec2 oldPos(
-					input(i, X_VARIABLE_INDEX_IN_BLOCK),
-					input(i, Y_VARIABLE_INDEX_IN_BLOCK)
+					input(streamLineIndex, X_VARIABLE_INDEX_IN_BLOCK),
+					input(streamLineIndex, Y_VARIABLE_INDEX_IN_BLOCK)
 				);
-				float dx = outputX(i, 0) * step;
-				float dy = outputY(i, 0) * step;
+				float dx = outputX(streamLineIndex, 0) * step;
+				float dy = outputY(streamLineIndex, 0) * step;
 
-				const auto maxLength = spacing;
-				if (streamlineLength[i] > maxLength) {
+				const auto maxLength = spacing * 0.9f;
+				const auto newLength = streamlineLength[streamLineIndex] + sqrt(dx * dx + dy * dy);
+
+				if (streamlineLength[streamLineIndex] > maxLength) {
+					streamlineLength[streamLineIndex] = newLength; // Still update for later use. // TODO: Why bother calculating it if you could just take the value of the derivative as the approximation of the length.
 					continue;
 				}
-
-				const auto newLength = streamlineLength[i] + sqrt(dx * dx + dy * dy);
 
 				const auto newLengthLeft = maxLength - newLength;
 				const bool tooLong = newLengthLeft <= 0;
 				if (tooLong) {
 					// Take longest possible step that doesn't exceed the max length.
-					/*
-					l = streamlineLength
-					m = spacing
-					x = dx
-					y = dy
-					a - what step should be taken.
-					l + sqrt(a * x^2 + a * y^2) = m
-					sqrt(a * x^2 + a * y^2) = m - l // l < m because length is smaller than maxLength
-					a * (x^2 + y^2) = (m -l)^2
-					a = (m - l)^2 / (x^2 + y^2).
-					*/
-					/*float scale = 1.0f;
-					while (streamlineLength[i] + sqrt(scale * dx * dx + scale * dy * dy) > maxLength) {
-						scale /= 5.0f;
-					}
-					dx *= scale;
-					dy *= scale;*/
-					const double currentLengthLeft = maxLength - streamlineLength[i];
+					const double currentLengthLeft = maxLength - streamlineLength[streamLineIndex];
 					const auto normalized = Vec2(dx, dy).normalized() * currentLengthLeft;
 					dx = normalized.x;
 					dy = normalized.y;
-					///*const auto a = (currentLengthLeft * currentLengthLeft) / (double(dx) * double(dx) + double(dy) * double(dy));*/
-					//const auto a = 1.0 / ((double(dx) * double(dx) + double(dy) * double(dy)) / (currentLengthLeft * currentLengthLeft));
-					//const auto oldDx = dx;
-					//const auto oldDy = dy;
-					//dx *= a;
-					//dy *= a;
-
-					//const auto newLength = streamlineLength[i] + sqrt(dx * dx + dy * dy);
-					//const auto lengthLeft = maxLength - newLength;
-					//static float maxLengthLeft = 0.0f;
-					//if (std::abs(lengthLeft) > maxLengthLeft) {
-					//	maxLengthLeft = lengthLeft;
-					//}
-					int xa = 5;
 				}
 
 				// Set the new length even if tooLong, so that if tooLong the next doesn't continue.
-				streamlineLength[i] = newLength;
+				streamlineLength[streamLineIndex] = newLength;
 
-				input(i, X_VARIABLE_INDEX_IN_BLOCK) += dx;
-				input(i, Y_VARIABLE_INDEX_IN_BLOCK) += dy;
+				input(streamLineIndex, X_VARIABLE_INDEX_IN_BLOCK) += dx;
+				input(streamLineIndex, Y_VARIABLE_INDEX_IN_BLOCK) += dy;
 				const Vec2 newPos(
-					input(i, X_VARIABLE_INDEX_IN_BLOCK),
-					input(i, Y_VARIABLE_INDEX_IN_BLOCK)
+					input(streamLineIndex, X_VARIABLE_INDEX_IN_BLOCK),
+					input(streamLineIndex, Y_VARIABLE_INDEX_IN_BLOCK)
 				);
-				points.push_back(oldPos);
-				points.push_back(newPos);
+				if (stepIndex == 0) {
+					streamlineIndexToPos(streamLineIndex, 0) = oldPos;
+				}
+				streamlineIndexToPos(streamLineIndex, stepIndex + 1) = newPos;
+				streamlinePointCount[streamLineIndex] = stepIndex + 2;
 			}
 		}
 
-		for (i32 i = 0; i < input.blockCount(); i++) {
-			const Vec2 lastPos(input(i, X_VARIABLE_INDEX_IN_BLOCK), input(i, Y_VARIABLE_INDEX_IN_BLOCK));
-			Vec2 derivative(outputX(i, 0), outputY(i, 0));
-			// TODO: Could use complex number rotation.
+		ImPlot::PushPlotClipRect();
+		for (i64 streamlineIndex = 0; streamlineIndex < input.blockCount(); streamlineIndex++) {
+			const auto color = Color3::scientificColoring(streamlineLength[streamlineIndex], 0.0f, 5.0f);
+			const auto colorInt = plotColorToColorInt(color);
+
+			for (i64 pointIndex = 0; pointIndex < streamlinePointCount[streamlineIndex] - 1; pointIndex++) {
+				const auto start = streamlineIndexToPos(streamlineIndex, pointIndex);
+				const auto end = streamlineIndexToPos(streamlineIndex, pointIndex + 1);
+				plotAddLine(start, end, colorInt);
+			}
+
+			const auto count = streamlinePointCount[streamlineIndex];
+			const auto lastPos = streamlineIndexToPos(streamlineIndex, count - 1);
+			const auto derivative = lastPos - streamlineIndexToPos(streamlineIndex, count - 2);
 			const auto angle = derivative.angle();
 			const auto a = Vec2::oriented(angle + 0.4f);
 			const auto b = Vec2::oriented(angle - 0.4f);
 			if (derivative.lengthSq() == 0.0f) {
 				continue;
 			}
-			points.push_back(lastPos);
-			points.push_back(lastPos - a.normalized() * 0.01f);
-			points.push_back(lastPos);
-			points.push_back(lastPos - b.normalized() * 0.01f);
+			plotAddLine(lastPos, lastPos - a.normalized() * 0.01f, colorInt);
+			plotAddLine(lastPos, lastPos - b.normalized() * 0.01f, colorInt);
+
 		}
+		ImPlot::PopPlotClipRect();
 
 		input.clear();
 	};
-	//ImPlot::GetPlotDrawList()->AddLine()
+
+	const auto minX = i32(floor(plotRect.X.Min / spacing));
+	const auto minY = i32(floor(plotRect.Y.Min / spacing));
+	const auto maxX = i32(ceil(plotRect.X.Max / spacing));
+	const auto maxY = i32(ceil(plotRect.Y.Max / spacing));
 	for (i32 xi = minX; xi <= maxX; xi++) {
 		for (i32 yi = minY; yi <= maxY; yi++) {
 			const auto x = float(xi) * spacing;
@@ -224,14 +214,11 @@ void SecondOrderSystemGraph::derivativePlot() {
 		}
 	}
 
-	// TODO: Change the color based on the velocity length.
-	const auto pointsData = reinterpret_cast<float*>(points.data());
-	ImPlot::PlotLine("streamlines", pointsData, pointsData + 1, points.size(), ImPlotLineFlags_Segments, 0, sizeof(Vec2));
-
 	{
 		const auto testPointsData = reinterpret_cast<const u8*>(testPoints.data());
 		ImPlot::PushStyleColor(ImPlotCol_MarkerFill, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
 		ImPlot::PushStyleColor(ImPlotCol_MarkerOutline, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
+		ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
 		ImPlot::PlotScatter(
 			"testPoints",
 			reinterpret_cast<const float*>(testPointsData + offsetof(TestPoint, pos.x)),
@@ -245,6 +232,8 @@ void SecondOrderSystemGraph::derivativePlot() {
 			plotLine("test", p.history);
 		}
 		ImPlot::PopStyleColor();
+		ImPlot::PopStyleColor();
+		ImPlot::PopStyleColor();
 	}
 
 	Input::ignoreImGuiWantCapture = true;
@@ -254,6 +243,8 @@ void SecondOrderSystemGraph::derivativePlot() {
 		testPoints.push_back(p);
 	}
 	Input::ignoreImGuiWantCapture = false;
+
+	ImPlot::PopStyleColor();
 
 	ImPlot::EndPlot();
 }
