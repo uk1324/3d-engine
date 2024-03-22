@@ -1,5 +1,4 @@
 #include "FirstOrderSystemGraph.hpp"
-#include "FirstOrderSystemGraph.hpp"
 #include <water_simulation/FirstOrderSystemGraph.hpp>
 #include <dependencies/math-compiler/src/errorMessage.hpp>
 #include <imgui/implot.h>
@@ -66,10 +65,10 @@ void plotAntiderivative(Function function) {
 
 FirstOrderSystemGraph::FirstOrderSystemGraph() 
 	: derivativePlotInput(1)
-	, derivativePlotOutput(1) {
+	, derivativePlotOutput(1)
+	, formulaInput(*plotCompiler.allocateFormulaInput()) {
 
 	plotCompiler.variables.push_back(Variable{ .name = "x" });
-	plotCompiler.formulaInputs.push_back(&formulaInput);
 }
 
 void FirstOrderSystemGraph::update() {

@@ -5,6 +5,8 @@
 #include <engine/Math/Color.hpp>
 #include <water_simulation/PlotUtils.hpp>
 #include <engine/Input/Input.hpp>
+#include <engine/Math/MarchingSquares.hpp>
+#include <engine/Math/Utils.hpp>
 #include <Gui.hpp>
 #include <Array2d.hpp>
 #include <iomanip>
@@ -13,12 +15,15 @@
 
 // TODO: Could allow intersecting a sufrace with a plane. The result would just be the sum of the intersection with each triangle.
 
+// TODO: To find the fixed points could compute the abs() of all the values then find the local minima. If the minima are near zero then I could run root finding
+
 static constexpr auto X_VARIABLE_INDEX_IN_BLOCK = 0;
 static constexpr auto Y_VARIABLE_INDEX_IN_BLOCK = 1;
 
-SecondOrderSystemGraph::SecondOrderSystemGraph() {
-	plotCompiler.formulaInputs.push_back(&xFormulaInput);
-	plotCompiler.formulaInputs.push_back(&yFormulaInput);
+SecondOrderSystemGraph::SecondOrderSystemGraph()
+	: xFormulaInput(*plotCompiler.allocateFormulaInput())
+	, yFormulaInput(*plotCompiler.allocateFormulaInput()) {
+
 	plotCompiler.variables.push_back(Variable{ .name = "x" });
 	plotCompiler.variables.push_back(Variable{ .name = "y" });
 }
@@ -66,15 +71,48 @@ void SecondOrderSystemGraph::derivativePlot() {
 	ImPlot::SetupAxis(ImAxis_X1, "x");
 	ImPlot::SetupAxis(ImAxis_Y1, "y");
 
-	if (!xFormulaInput.loopFunction.has_value() || !yFormulaInput.loopFunction.has_value()) {
-		ImPlot::EndPlot();
-		return;
-	}
-
 	ImPlot::PushStyleColor(ImPlotCol_PlotBg, { 0.5f, 0.5f, 0.5f, 1.0f });
 	
+	plotStreamlines();
+
+	plotTestPoints();
+
+	if (formulaType == FormulaType::LINEAR) {
+		ImPlot::PushPlotClipRect();
+		// In 2d either both vectors are real or both complex.
+		if (linearFormulaMatrixEigenvectors[0].eigenvalue.imag() == 0.0f) {
+			auto drawEigenvector = [](const Vec2T<Complex32>& v) {
+				plotAddArrow(
+					Vec2(0.0f),
+					Vec2(v.x.real(), v.y.real()).normalized(),
+					Color3::RED,
+					0.1f
+				);
+			};
+			drawEigenvector(linearFormulaMatrixEigenvectors[0].eigenvector);
+			drawEigenvector(linearFormulaMatrixEigenvectors[1].eigenvector);
+		}
+		ImPlot::PopPlotClipRect();
+	}
+	for (const auto& graph : implicitFunctionGraphs) {
+		drawImplicitFunctionGraph(graph.formulaInput->input, graph.color, *graph.formulaInput);
+	}
+
+	if (drawNullclines) {
+ 		drawImplicitFunctionGraph("x'=0", Color3::RED, xFormulaInput);
+		drawImplicitFunctionGraph("y'=0", Color3::RED, yFormulaInput);
+	}
+
+	ImPlot::PopStyleColor();
+
+	ImPlot::EndPlot();
+}
+
+void SecondOrderSystemGraph::plotStreamlines() {
+	if (!xFormulaInput.loopFunction.has_value() || !yFormulaInput.loopFunction.has_value()) {
+		return;
+	}
 	const auto plotRect = ImPlot::GetPlotLimits();
-	// TODO: To find the fixed points could compute the abs() of all the values then find the local minima. If the minima are near zero then I could run root finding.
 
 	std::vector<float> inputBlock = plotCompiler.loopFunctionVariablesBlock;
 	const auto capacity = 24;
@@ -191,7 +229,14 @@ void SecondOrderSystemGraph::derivativePlot() {
 		}
 	}
 	runIntegration();
+}
 
+void SecondOrderSystemGraph::plotTestPoints() {
+	if (!xFormulaInput.loopFunction.has_value() || !yFormulaInput.loopFunction.has_value()) {
+		return;
+	}
+
+	std::vector<float> inputBlock = plotCompiler.loopFunctionVariablesBlock;
 	std::vector<__m256> calculateDerivativeInput;
 	for (i32 i = 0; i < inputBlock.size(); i++) {
 		__m256 v;
@@ -207,7 +252,7 @@ void SecondOrderSystemGraph::derivativePlot() {
 		(*yFormulaInput.loopFunction)(calculateDerivativeInput.data(), &output, 1);
 		const auto y = output.m256_f32[0];
 		return Vec2(x, y);
-	};
+		};
 
 	if (!paused) {
 		float dt = 1.0f / 60.0f;
@@ -223,7 +268,7 @@ void SecondOrderSystemGraph::derivativePlot() {
 		ImPlot::PushStyleColor(ImPlotCol_MarkerOutline, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
 		ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(0.0f, 0.0f, 0.0f, 1.0f));
 		ImPlot::PlotScatter(
-			"testPoints",
+			"test points",
 			reinterpret_cast<const float*>(testPointsData + offsetof(TestPoint, pos.x)),
 			reinterpret_cast<const float*>(testPointsData + offsetof(TestPoint, pos.y)),
 			testPoints.size(),
@@ -246,28 +291,6 @@ void SecondOrderSystemGraph::derivativePlot() {
 		testPoints.push_back(p);
 	}
 	Input::ignoreImGuiWantCapture = false;
-
-	if (formulaType == FormulaType::LINEAR) {
-		ImPlot::PushPlotClipRect();
-		// In 2d either both vectors are real or both complex.
-		if (linearFormulaMatrixEigenvectors[0].eigenvalue.imag() == 0.0f) {
-			auto drawEigenvector = [](const Vec2T<Complex32>& v) {
-				plotAddArrow(
-					Vec2(0.0f),
-					Vec2(v.x.real(), v.y.real()).normalized(),
-					Color3::RED,
-					0.1f
-				);
-			};
-			drawEigenvector(linearFormulaMatrixEigenvectors[0].eigenvector);
-			drawEigenvector(linearFormulaMatrixEigenvectors[1].eigenvector);
-		}
-		ImPlot::PopPlotClipRect();
-	}
-
-	ImPlot::PopStyleColor();
-
-	ImPlot::EndPlot();
 }
 
 void SecondOrderSystemGraph::settings() {
@@ -366,22 +389,33 @@ void SecondOrderSystemGraph::settings() {
 		plotCompiler.formulaInputGui("y'=", yFormulaInput);
 		break;
 	}
+	ImGui::Checkbox("draw nullclines", &drawNullclines);
+
 	plotCompiler.settingsWindowContent();
 
+	if (ImGui::Button("add implicit function graph")) {
+		implicitFunctionGraphs.push_back(ImplicitFunctionGraph{
+			.formulaInput = plotCompiler.allocateFormulaInput(),
+			.color = Color3::RED,
+			.isHidden = false,
+		});
+	}
+	const auto [f, l] = std::ranges::remove_if(
+		implicitFunctionGraphs, 
+		[&](ImplicitFunctionGraph& plot) -> bool {
+			return implicitFunctionGraphSettings(plot);
+		}
+	);
+	implicitFunctionGraphs.erase(f, l);
+
+	ImGui::SeparatorText("test points");
+	if (ImGui::Button("remove all")) {
+		testPoints.clear();
+	}
 	ImGui::Checkbox("paused", &paused);
 }
 
 bool SecondOrderSystemGraph::examplesMenu() {
-	//if (ImGui::MenuItem("symmetrical unstable node")) {
-	//	plotCompiler.setFormulaInput(xFormulaInput, "x");
-	//	plotCompiler.setFormulaInput(yFormulaInput, "y");
-	//	return true;
-	//}
-	//if (ImGui::MenuItem("symmetrical stable node")) {
-	//	plotCompiler.setFormulaInput(xFormulaInput, "-x");
-	//	plotCompiler.setFormulaInput(yFormulaInput, "-y");
-	//	return true;
-	//}
 	if (ImGui::MenuItem("symmetrical saddle node")) {
 		plotCompiler.setFormulaInput(xFormulaInput, "x");
 		plotCompiler.setFormulaInput(yFormulaInput, "-y");
@@ -429,19 +463,93 @@ bool SecondOrderSystemGraph::examplesMenu() {
 		formulaType = FormulaType::GENERAL;
 		return true;
 	}
-	//if (ImGui::MenuItem("two-eyed monster")) {
-	//	plotCompiler.setFormulaInput(xFormulaInput, "y + y^2");
-	//	plotCompiler.setFormulaInput(yFormulaInput, "-(1/2)x + (1/5)y - xy + (6/5)y^2");
-	//	return true;
-	//}
-	//if (ImGui::MenuItem("parrot")) {
-	//	plotCompiler.setFormulaInput(xFormulaInput, "y + y^2");
-	//	plotCompiler.setFormulaInput(yFormulaInput, "-x + (1/5)y - xy + (6/5)y^2");
-	//	return true;
-	//}
+	if (ImGui::MenuItem("two-eyed monster")) {
+		plotCompiler.setFormulaInput(xFormulaInput, "y + y^2");
+		plotCompiler.setFormulaInput(yFormulaInput, "-(1/2)x + (1/5)y - xy + (6/5)y^2");
+		return true;
+	}
+	if (ImGui::MenuItem("parrot")) {
+		plotCompiler.setFormulaInput(xFormulaInput, "y + y^2");
+		plotCompiler.setFormulaInput(yFormulaInput, "-x + (1/5)y - xy + (6/5)y^2");
+		return true;
+	}
 
 	// x' = sin(x)
 	// y' = sin(xy)
 
 	return false;
 }
+
+bool SecondOrderSystemGraph::implicitFunctionGraphSettings(ImplicitFunctionGraph& graph) {
+	ImGui::PushID(&graph); // Don't think there should be any issue with the pointer being invalidated, because the invalidation wouldn't happen while using the input. Alternatively could use hash of the string name.
+
+	bool xNotPressed = true;
+	const auto open = ImGui::CollapsingHeader("", &xNotPressed);
+	bool remove = !xNotPressed;
+	
+	if (!open) {
+		ImGui::SameLine();
+		ImGui::Text(graph.formulaInput->input);
+		ImGui::PopID();
+		return remove;
+	}
+
+	plotCompiler.formulaInputGui("0=", *graph.formulaInput);
+	ImGui::ColorEdit3("color", graph.color.data());
+
+	ImGui::PopID();
+	return remove;
+}
+
+void SecondOrderSystemGraph::drawImplicitFunctionGraph(
+	const char* label, 
+	Vec3 color,
+	const PlotCompiler::FormulaInput& formula) {
+	if (!formula.loopFunction.has_value()) {
+		return;
+	}
+
+	const auto limits = ImPlot::GetPlotLimits();
+
+	LoopFunctionArray input(plotCompiler.loopFunctionInputCount());
+	LoopFunctionArray output(1);
+	auto variablesBlock = plotCompiler.loopFunctionVariablesBlock;
+	const auto steps = 200;
+	for (i32 yi = 0; yi < steps; yi++) {
+		for (i32 xi = 0; xi < steps; xi++) {
+			const auto xt = float(xi) / float(steps - 1);
+			const auto yt = float(yi) / float(steps - 1);
+			const auto x = lerp(limits.X.Min, limits.X.Max, xt);
+			const auto y = lerp(limits.Y.Min, limits.Y.Max, yt);
+			variablesBlock[X_VARIABLE_INDEX_IN_BLOCK] = x;
+			variablesBlock[Y_VARIABLE_INDEX_IN_BLOCK] = y;
+			input.append(variablesBlock);
+		}
+	}
+	output.resizeWithoutCopy(input.blockCount());
+
+	(*formula.loopFunction)(input, output);
+
+	const auto grid = Span2d<const float>(output.data()->m256_f32, steps, steps);
+
+	std::vector<MarchingSquaresLine> marchingSquaresOutput;
+	marchingSquares2(marchingSquaresOutput, grid, 0.0f, true);
+	std::vector<Vec2> lines;
+	for (auto& segment : marchingSquaresOutput) {
+		auto scale = [&](Vec2 pos) -> Vec2 {
+			pos /= Vec2(grid.size());
+			pos.x = lerp(limits.X.Min, limits.X.Max, pos.x);
+			pos.y = lerp(limits.Y.Min, limits.Y.Max, pos.y);
+			return pos;
+		};
+		const Vec2 a = scale(segment.a);
+		const Vec2 b = scale(segment.b);
+		lines.push_back(a);
+		lines.push_back(b);
+	}
+
+	ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(color.x, color.y, color.z, 1.0f));
+	plotVec2LineSegments(label, lines);
+	ImPlot::PopStyleColor();
+}
+

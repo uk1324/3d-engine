@@ -20,9 +20,20 @@ PlotCompiler::PlotCompiler()
 	io.Fonts->AddFontFromFileTTF("water_simulation/assets/" FONT_ICON_FILE_NAME_FAS, iconFontSize, &icons_config, icons_ranges);
 }
 
+PlotCompiler::FormulaInput* PlotCompiler::allocateFormulaInput() {
+	FormulaInput& formula = allocatedFormulaInputs.emplace_back();
+	return &formula;
+}
+
+void PlotCompiler::freeFormulaInput(FormulaInput* formula) {
+	allocatedFormulaInputs.remove_if([&](FormulaInput& f) {
+		return &f == formula;
+	});
+}
+
 void PlotCompiler::recompileAllFormulas() {
-	for (auto formula : formulaInputs) {
-		compileFormula(*formula);
+	for (auto& formula : allocatedFormulaInputs) {
+		compileFormula(formula);
 	}
 }
 
@@ -159,9 +170,9 @@ void PlotCompiler::formulaInputGui(const char* lhs, FormulaInput& formula) {
 		compileFormula(formula);
 	}
 
-	if (formula.errorMessageStream.string().size() != 0) {
+	if (formula.errorMessage.size() != 0) {
 		ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.0f, 0.0f, 1.0f));
-		ImGui::Text("%s", formula.errorMessageStream.string().c_str());
+		ImGui::Text("%s", formula.errorMessage.c_str());
 		ImGui::PopStyleColor();
 	}
 }
@@ -193,16 +204,17 @@ void PlotCompiler::compileFormula(FormulaInput& formula) {
 	const auto parserError = parserReporter.errors.size() != 0;
 	const auto irCompilerError = irCompilerReporter.errors.size() != 0;
 	const auto anyError = scannerError || parserError || irCompilerError;
-	formula.errorMessageStream.string().clear();
+	formula.errorMessage.clear();
 	if (trimString(formula.input) != "" && anyError) {
+		StringRefStream errorStream(formula.errorMessage);
 		if (scannerError) {
-			outputScannerErrorMessage(formula.errorMessageStream, scannerReporter.errors[0], formula.input, false);
+			outputScannerErrorMessage(errorStream, scannerReporter.errors[0], formula.input, false);
 		}
 		else if (parserError) {
-			outputParserErrorMessage(formula.errorMessageStream, parserReporter.errors[0], formula.input, false);
+			outputParserErrorMessage(errorStream, parserReporter.errors[0], formula.input, false);
 		}
 		else if (irCompilerError) {
-			outputIrCompilerErrorMessage(formula.errorMessageStream, irCompilerReporter.errors[0], formula.input, false);
+			outputIrCompilerErrorMessage(errorStream, irCompilerReporter.errors[0], formula.input, false);
 		}
 
 		scannerReporter.reset();
@@ -210,7 +222,6 @@ void PlotCompiler::compileFormula(FormulaInput& formula) {
 		irCompilerReporter.reset();
 	}
 }
-
 
 void PlotCompiler::recalculateRuntimeVariables() {
 	runtimeVariables.clear();
@@ -252,7 +263,7 @@ bool PlotCompiler::parameterExists(std::string_view name) {
 }
 
 i64 PlotCompiler::loopFunctionInputCount() const {
-	return 1 + parameters.size();
+	return variables.size() + parameters.size();
 }
 
 float PlotCompiler::callLoopFunctionWithSingleOutput(const FormulaInput& formula, float f) {

@@ -1,0 +1,10 @@
+Not sure how to correctly plot implicit functions like xy = 0. This graph looks like an 'x' in the middle. The issue is that this is a inbetween case between hyperbolas with arms in different directions. There is a single 'x' case and infinitely many hyperbolic cases. 
+Marching squares only inspects 4 values around a point and based on that determines what lines to place in the case of xy = 0 it would be:
+<0 | >0
+-------
+>0 | <0
+So it predicts a saddle point.
+
+Another algorithm that could be used would be computing the intersection of a plane z = 0 with the mesh of z = 0 with xy = 0. Because it just linearly interpolates between values this probably wouldn't work any better than marching squares.
+
+To detect this kind of point you could show that the arms are connected in the middle. One way to do this might be rootfinding (maybe idk). Then 4 lines instead of 2 would be added and interpolated in the marching squares algorithm.

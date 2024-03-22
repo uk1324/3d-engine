@@ -27,6 +27,6 @@ struct FirstOrderSystemGraph {
 	static constexpr i32 X_VARIABLE_INDEX = 0;
 	static constexpr i64 LOOP_FUNCTION_OUTPUT_COUNT = 1;
 
-	PlotCompiler::FormulaInput formulaInput;
-	PlotCompiler plotCompiler;
+	PlotCompiler plotCompiler; // Has to be above FormulaInputs for thing to be initialized in the right order.
+	PlotCompiler::FormulaInput& formulaInput;
 };

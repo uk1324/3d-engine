@@ -7,14 +7,29 @@
 #include <water_simulation/Eigenvectors.hpp>
 
 struct SecondOrderSystemGraph {
+
 	SecondOrderSystemGraph();
 
 	void update();
 	void derivativePlot();
+	void plotStreamlines();
+	void plotTestPoints();
 	void settings();
 	bool examplesMenu();
 
-	//std::vector<Vec2> points;
+	struct ImplicitFunctionGraph {
+		// Can't be a reference to be (copyable?) I think not sure.
+		PlotCompiler::FormulaInput* formulaInput;
+		Vec3 color;
+		bool isHidden = false;
+	};
+	std::vector<ImplicitFunctionGraph> implicitFunctionGraphs;
+
+	bool implicitFunctionGraphSettings(ImplicitFunctionGraph& graph);
+	void drawImplicitFunctionGraph(
+		const char* label, 
+		Vec3 color,
+		const PlotCompiler::FormulaInput& formula);
 
 	bool paused = false;
 	struct TestPoint {
@@ -22,6 +37,8 @@ struct SecondOrderSystemGraph {
 		std::vector<Vec2> history;
 	};
 	std::vector<TestPoint> testPoints;
+
+	bool drawNullclines = false;
 
 	float spacing = 0.2f;
 
@@ -35,7 +52,7 @@ struct SecondOrderSystemGraph {
 	Mat2 linearFormulaMatrix = Mat2(Vec2(0.0f), Vec2(0.0f));
 	std::array<Eigenvector, 2> linearFormulaMatrixEigenvectors;
 
-	PlotCompiler::FormulaInput xFormulaInput;
-	PlotCompiler::FormulaInput yFormulaInput;
-	PlotCompiler plotCompiler;
+	PlotCompiler plotCompiler; // Has to be above FormulaInputs for thing to be initialized in the right order.
+	PlotCompiler::FormulaInput& xFormulaInput;
+	PlotCompiler::FormulaInput& yFormulaInput;
 };

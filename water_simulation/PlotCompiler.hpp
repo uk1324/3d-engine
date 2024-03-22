@@ -5,25 +5,29 @@
 #include <dependencies/math-compiler/src/listParserMessageReporter.hpp>
 #include <dependencies/math-compiler/src/listScannerMessageReporter.hpp>
 #include <dependencies/math-compiler/src/utils/stringStream.hpp>
+#include <StringRefStream.hpp>
 #include <StringStream.hpp>
+#include <list>
 
 struct PlotCompiler {
 	PlotCompiler();
 
-	// !! Formula inputs must be added to the list.
 	struct FormulaInput {
 		static constexpr auto INPUT_MAX_SIZE = 256;
 
 		char input[INPUT_MAX_SIZE] = "";
-		StringStream errorMessageStream;
+		std::string errorMessage;
 		std::optional<Runtime::LoopFunction> loopFunction;
 	};
 	void formulaInputGui(const char* lhs, FormulaInput& formula);
 	void setFormulaInput(FormulaInput& formula, std::string_view text);
 	void compileFormula(FormulaInput& formula);
 
-	// TODO: This is kinda hacky.
-	std::vector<FormulaInput*> formulaInputs;
+	// TODO: Make a container that can store items linearly without invalidating pointers. Simplest option would probably be an array with a bitset (they could be allocated together) that would track which slots are free.
+	std::list<FormulaInput> allocatedFormulaInputs;
+	FormulaInput* allocateFormulaInput();
+	void freeFormulaInput(FormulaInput* formula);
+
 	void recompileAllFormulas();
 
 
