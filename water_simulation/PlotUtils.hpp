@@ -51,5 +51,8 @@ void plotVec2LineSegments(const char* label, std::span<const Vec2> segmentEndpoi
 void plotAddLine(Vec2 start, Vec2 end, Vec3 color);
 void plotAddLine(Vec2 start, Vec2 end, u32 color);
 ImU32 plotColorToColorInt(Vec3 color);
+
+void plotAddArrow(Vec2 start, Vec2 end, u32 color, float arrowheadLength);
+void plotAddArrow(Vec2 start, Vec2 end, Vec3 color, float arrowheadLength);
 //u32 intColor(Vec2 start, Vec2 end, Vec3 color);
 //u32 intColor(Vec2 start, Vec2 end, Vec3 color);

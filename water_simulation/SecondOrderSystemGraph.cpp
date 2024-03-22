@@ -5,7 +5,9 @@
 #include <engine/Math/Color.hpp>
 #include <water_simulation/PlotUtils.hpp>
 #include <engine/Input/Input.hpp>
+#include <Gui.hpp>
 #include <Array2d.hpp>
+#include <iomanip>
 
 // TODO: Could graph the potentials of conservative/irrotational fields.
 
@@ -161,8 +163,9 @@ void SecondOrderSystemGraph::derivativePlot() {
 			if (derivative.lengthSq() == 0.0f) {
 				continue;
 			}
-			plotAddLine(lastPos, lastPos - a.normalized() * 0.01f, colorInt);
-			plotAddLine(lastPos, lastPos - b.normalized() * 0.01f, colorInt);
+			const auto arrowheadLength = spacing * 0.1f;
+			plotAddLine(lastPos, lastPos - a.normalized() * arrowheadLength, colorInt);
+			plotAddLine(lastPos, lastPos - b.normalized() * arrowheadLength, colorInt);
 
 		}
 		ImPlot::PopPlotClipRect();
@@ -244,14 +247,125 @@ void SecondOrderSystemGraph::derivativePlot() {
 	}
 	Input::ignoreImGuiWantCapture = false;
 
+	if (formulaType == FormulaType::LINEAR) {
+		ImPlot::PushPlotClipRect();
+		// In 2d either both vectors are real or both complex.
+		if (linearFormulaMatrixEigenvectors[0].eigenvalue.imag() == 0.0f) {
+			auto drawEigenvector = [](const Vec2T<Complex32>& v) {
+				plotAddArrow(
+					Vec2(0.0f),
+					Vec2(v.x.real(), v.y.real()).normalized(),
+					Color3::RED,
+					0.1f
+				);
+			};
+			drawEigenvector(linearFormulaMatrixEigenvectors[0].eigenvector);
+			drawEigenvector(linearFormulaMatrixEigenvectors[1].eigenvector);
+		}
+		ImPlot::PopPlotClipRect();
+	}
+
 	ImPlot::PopStyleColor();
 
 	ImPlot::EndPlot();
 }
 
 void SecondOrderSystemGraph::settings() {
-	plotCompiler.formulaInputGui("x'=", xFormulaInput);
-	plotCompiler.formulaInputGui("y'=", yFormulaInput);
+	auto updateLinearFormula = [this]() {
+		// Using a stream so this doesn't break if there is scientific notation
+		StringStream formula;
+		formula << std::setprecision(1000);
+
+		formula << linearFormulaMatrix[0][0] << "x + " << linearFormulaMatrix[0][1] << "y";
+		plotCompiler.setFormulaInput(xFormulaInput, formula.string());
+
+		formula.string().clear();
+		formula << linearFormulaMatrix[1][0] << "x + " << linearFormulaMatrix[1][1] << "y";
+		plotCompiler.setFormulaInput(yFormulaInput, formula.string());
+
+		linearFormulaMatrixEigenvectors = computeEigenvectors(linearFormulaMatrix);
+	};
+
+	auto printComplex = [](std::ostream& os, Complex32 c) {
+		os << c.real();
+		if (c.imag() != 0.0f) {
+			os << " + " << c.imag() << "i";
+		}
+	};
+
+	auto printComplexVector = [&](std::ostream& os, const Vec2T<Complex32>& v) {
+		os << "[";
+		printComplex(os, v.x);
+		os << ", ";
+		printComplex(os, v.y);
+		os << "]";
+	};
+
+	auto printEigenvector = [&](std::ostream& os, const Eigenvector& e) {
+		printComplexVector(os, e.eigenvector);
+		os << '\n';
+		printComplex(os, e.eigenvalue);
+		os << '\n';
+	};
+
+	if (ImGui::Combo("formula type", reinterpret_cast<int*>(&formulaType), formulaTypeNames)) {
+		updateLinearFormula();
+	}
+	switch (formulaType) {
+		using enum FormulaType;
+	case LINEAR: {
+		auto row0 = Vec2(linearFormulaMatrix[0][0], linearFormulaMatrix[1][0]);
+		auto row1 = Vec2(linearFormulaMatrix[0][1], linearFormulaMatrix[1][1]);
+		bool modified = false;
+		modified |= ImGui::InputFloat2("##row0", row0.data());
+		modified |= ImGui::InputFloat2("##row1", row1.data());
+		linearFormulaMatrix = Mat2(Vec2(row0.x, row1.x), Vec2(row0.y, row1.y));
+		if (modified) {
+			updateLinearFormula();
+		}
+
+		StringStream s;
+		printEigenvector(s, linearFormulaMatrixEigenvectors[0]);
+		printEigenvector(s, linearFormulaMatrixEigenvectors[1]);
+
+		const auto determinant = linearFormulaMatrix.det();
+		const auto trace = linearFormulaMatrix[0][0] + linearFormulaMatrix[1][1];
+		const auto discriminant = trace * trace - 4.0f * determinant;
+		if (determinant == 0.0f) {
+			s << "non isolated fixed points";
+		} else if (determinant < 0.0f) {
+			s << "saddle point";
+		} else {
+			if (trace > 0.0f) {
+				if (discriminant > 0.0f) {
+					s << "ustable node";
+				} else if (discriminant < 0.0f) {
+					s << "unstable spiral";
+				} else {
+					s << "unstable degenerate node";
+				}
+			} else if (trace < 0.0f) {
+				if (discriminant > 0.0f) {
+					s << "stable node";
+				} else if (discriminant < 0.0f) {
+					s << "stable spiral";
+				} else {
+					s << "stable degenerate node";
+				}
+			} else {
+				s << "center";
+			}
+		}
+		s << '\n';
+		ImGui::Text("%s", s.string().c_str());
+		break;
+	}
+		
+	case GENERAL:
+		plotCompiler.formulaInputGui("x'=", xFormulaInput);
+		plotCompiler.formulaInputGui("y'=", yFormulaInput);
+		break;
+	}
 	plotCompiler.settingsWindowContent();
 
 	ImGui::Checkbox("paused", &paused);
@@ -271,32 +385,48 @@ bool SecondOrderSystemGraph::examplesMenu() {
 	if (ImGui::MenuItem("symmetrical saddle node")) {
 		plotCompiler.setFormulaInput(xFormulaInput, "x");
 		plotCompiler.setFormulaInput(yFormulaInput, "-y");
+		formulaType = FormulaType::GENERAL;
 		return true;
 	}
 	if (ImGui::MenuItem("symmetrical saddle node")) {
 		plotCompiler.setFormulaInput(xFormulaInput, "x");
 		plotCompiler.setFormulaInput(yFormulaInput, "-y");
+		formulaType = FormulaType::GENERAL;
 		return true;
 	}
 	if (ImGui::MenuItem("damped harmonic oscillator")) {
 		plotCompiler.addParameterIfNotExists("a");
 		plotCompiler.setFormulaInput(xFormulaInput, "y");
 		plotCompiler.setFormulaInput(yFormulaInput, "-x-ay");
+		formulaType = FormulaType::GENERAL;
 		return true;
 	}
 	if (ImGui::MenuItem("pendulum")) {
 		plotCompiler.setFormulaInput(xFormulaInput, "y");
 		plotCompiler.setFormulaInput(yFormulaInput, "-sin(x)");
+		formulaType = FormulaType::GENERAL;
 		return true;
 	}
 	if (ImGui::MenuItem("van der Pol oscillator")) {
 		plotCompiler.setFormulaInput(xFormulaInput, "y");
 		plotCompiler.setFormulaInput(yFormulaInput, "-x + y(1 - x^2)");
+		formulaType = FormulaType::GENERAL;
 		return true;
 	}
 	if (ImGui::MenuItem("dipole fixed point")) {
 		plotCompiler.setFormulaInput(xFormulaInput, "2xy");
 		plotCompiler.setFormulaInput(yFormulaInput, "y^2-x^2");
+		formulaType = FormulaType::GENERAL;
+		return true;
+	} 
+	if (ImGui::MenuItem("gravitational well")) {
+		plotCompiler.setFormulaInput(xFormulaInput, "y");
+		plotCompiler.addParameterIfNotExists("d"); // distance between the bodies.
+		plotCompiler.addParameterIfNotExists("m1");
+		plotCompiler.addParameterIfNotExists("m2");
+		plotCompiler.addParameterIfNotExists("G");
+		plotCompiler.setFormulaInput(yFormulaInput, "Gm1/x^2 - Gm2/(d-x)^2");
+		formulaType = FormulaType::GENERAL;
 		return true;
 	}
 	//if (ImGui::MenuItem("two-eyed monster")) {
