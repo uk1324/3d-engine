@@ -47,6 +47,7 @@ void main() {
 	float y = height(texturePos);
 	vec3 vertex = vec3(vertexPosition.x, y, vertexPosition.z);
 	gl_Position = instanceTransform * vec4(vertex, 1.0);
+	vertex.y /= instanceScale.y;
 	fragmentWorldPosition = (instanceModel * vec4(vertex, 1.0)).xyz;
 	//normal = vec3(texturePos, 0.0);
 	fragNormal = getNormal(texturePos);

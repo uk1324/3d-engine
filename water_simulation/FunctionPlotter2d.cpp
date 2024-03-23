@@ -183,8 +183,9 @@ void FunctionPlotter2d::update() {
 			float yt = float(yi) / float(SAMPLES_PER_SIDE - 1);
 			float x = lerp(graphMin.x, graphMax.x, xt);
 			float y = lerp(graphMin.y, graphMax.y, yt);
-			float z = 1.5f * sin(x + 0.2f) + cos(y);
-			//float z = x*y;
+			//float z = 1.5f * sin(x + 0.2f) + cos(y);
+			float z = x*y;
+			//float z = x * x * x + x * y;
 			array(xi, yi) = z;
 		}
 	}
@@ -206,6 +207,11 @@ void FunctionPlotter2d::update() {
 		.cameraWorldPosition = movementController.position
 	};
 	shaderSetUniforms(basicShadingShader, fragUniforms);
+
+	insliderfloat(test, 0.0f, -2.0f, 2.0f);
+	basicShadingShader.set("test", test);
+	chkbox(test1);
+	basicShadingShader.set("test1", test1);
 
 	basicShadingShader.use();
 	basicShadingShader.setTexture("heightmap", 0, graphTexture);
