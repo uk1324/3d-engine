@@ -4,11 +4,16 @@
 #include <string_view>
 #include <Types.hpp>
 
+namespace TextureSettings {
+
+}
+
 struct Texture {
-	//enum class Target {
-	//	GL_TEXTURE_2D = 0x0DE1,
-	//	GL_TEXTURE_CUBE_MAP = 0x8513,
-	//};
+	enum class Target {
+		TEXTURE_2D = 0x0DE1,
+		TEXTURE_1D = 0x0DE0,
+		TEXTURE_CUBE_MAP = 0x8513,
+	};
 
 	enum class Format {
 		DEPTH = 0x1902,
@@ -30,6 +35,7 @@ struct Texture {
 	};
 
 	struct Settings {
+		Target target;
 		Format format = Format::RGBA;
 		Filter magFilter = Filter::LINEAR;
 		Filter minFilter = Filter::LINEAR;

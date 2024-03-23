@@ -17,34 +17,46 @@ Then you can choose the amount of vertices per size without weird redindexing an
 #include <engine/Graphics/Vao.hpp>
 #include <engine/Graphics/ShaderProgram.hpp>
 #include <engine/Graphics/Ibo.hpp>
+#include <engine/Graphics/Fbo.hpp>
+#include <vector>
 #include <water_simulation/Camera3d.hpp>
+#include <water_simulation/Shaders/plotShaderData.hpp>
+#include <water_simulation/IndexedMesh.hpp>
+#include <Array2d.hpp>
 
 struct FunctionPlotter2d {
-	//FunctionPlotter2d();
 	static FunctionPlotter2d make();
 
 	void update();
 
 	Vbo instancesVbo;
-	//Vbo triangleVbo;
-	//Vao triangleVao;
 
-	/*Vao infiniteLinesVao;
-	Vbo infiniteLinesVbo;
-	ShaderProgram infinteLinesShader;*/
+	void drawGraph(Span2d<const float> heightValues, Vec2 rangeMin, Vec2 rangeMax, Vec3 scale);
 
-	Mat4 transformTriangle(const Vec3& v0, const Vec3& v1, const Vec3& v2);
+	std::vector<PlotShaderInstance> graph2dInstances;
 
 	ShaderProgram basicShadingShader;
 
 	Camera3d movementController;
 
+	Vec2 graphMin = Vec2(-3.0f);
+	Vec2 graphMax = Vec2(3.0f);
+	Vec3 graphScale = Vec3(1.0f);
 
 	float elapsed = 0.0f;
+	static constexpr float BLOCK_SIZE = 1.0f;
+	static constexpr i32 LAYER_COUNT = 100;
+	static constexpr i32 VERTICES_PER_SIZE = LAYER_COUNT + 1;
 
-	Vbo quadVbo;
-	Vao quadVao;
+	static constexpr i32 SAMPLES_PER_SIDE = 100;
 
-	Vbo graph2dVbo;
-	Vao graph2dVao;
+	Texture colorMap1d;
+
+	Vbo graphVbo;
+	Ibo graphIbo;
+	Vao graphVao;
+	Texture graphTexture;
+
+	IndexedMeshBuilder<PlotShaderVertex> graphMesh;
+	Array2d<float> array;
 };

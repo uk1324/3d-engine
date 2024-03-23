@@ -8,6 +8,8 @@ out vec3 unnormalizedDirection;
 
 /*generated end*/
 
+uniform sampler2D heightmap;
+
 void main() {
 	unnormalizedDirection = vertexPosition;
 	gl_Position = transform * vec4(vertexPosition, 1.0);

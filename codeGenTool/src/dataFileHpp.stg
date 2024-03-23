@@ -85,6 +85,17 @@ template\<\>
 <if(struct.isUniform)>
 void shaderSetUniforms(ShaderProgram& shader, const <struct.name>& value);
 <endif>
+
+<if(struct.isHash)>
+template\<>
+struct std::hash\<<struct.name>\> {
+    std::size_t operator()(const <struct.name>& value) const noexcept {
+        size_t hash = 0;
+        <struct.fields : { field | hash = hashCombine(hash, std::hash\<<field.dataType.name>\>()(value.<field.name>)); } >
+        return hash;
+    }
+};
+<endif>
 >>
 
 declarationInStruct(declaration) ::= <%

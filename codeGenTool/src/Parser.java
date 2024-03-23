@@ -207,6 +207,8 @@ public class Parser {
             return new StructAttributeBullet();
         } else if (matchIdentifier("LayoutStd140")) {
             return new StructAttributeLayoutStd140();
+        } else if (matchIdentifier("Hash")) {
+            return new StructAttributeHash();
         }
         throw new ParserError("expected struct attribute");
     }

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Math/Vec2.hpp"
+#include <span>
 
 template<typename T>
 class Span2d {
@@ -23,7 +24,8 @@ public:
 	i64 sizeY() const;
 	Vec2T<i64> size() const;
 	T* data() const;
-
+	std::span<T> span();
+	std::span<const T> span() const;
 private:
 	T* data_;
 	i64 sizeX_;
@@ -107,4 +109,14 @@ Vec2T<i64> Span2d<T>::size() const {
 template<typename T>
 T* Span2d<T>::data() const {
 	return data_;
+}
+
+template<typename T>
+std::span<T> Span2d<T>::span() {
+	return std::span<T>(data_, sizeX_ * sizeY_);
+}
+
+template<typename T>
+std::span<const T> Span2d<T>::span() const {
+	return std::span<const T>(data_, sizeX_ * sizeY_);
 }

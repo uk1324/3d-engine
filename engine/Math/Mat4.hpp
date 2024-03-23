@@ -66,12 +66,12 @@ Mat4T<T> Mat4T<T>::lookAt(const Vec3T<T>& position, const Vec3T<T>& target, cons
 
 	// Translated every object by -position and rotates in the opposite direction to the forward direction. If everything is moved in the reverse direction that it look the same as if the camera was moving to position and rotating to the forward direction.
 	// The rotation is transposed, because the inverse of a orthonormal matrix is equal to it's transpose.
-	return Mat4T<T>::translation(-position) * Mat4T<T>{
+	return Mat4T<T>{
 		Vec4T<T>(right.x, cameraUp.x, forward.x, 0),
 		Vec4T<T>(right.y, cameraUp.y, forward.y, 0),
 		Vec4T<T>(right.z, cameraUp.z, forward.z, 0),
 		Vec4T<T>(0, 0, 0, 1)
-	};
+	} * Mat4T<T>::translation(-position);
 }
 
 template<typename T>
@@ -192,7 +192,8 @@ Vec4T<T>& Mat4T<T>::operator[](i32 i) {
 template<typename T>
 Mat4T<T> Mat4T<T>::operator*(const Mat4T& other) const {
 	const auto& m = *this;
-	return Mat4T(m[0] * other, m[1] * other, m[2] * other, m[3] * other);
+	/*return Mat4T(m[0] * other, m[1] * other, m[2] * other, m[3] * other);*/
+	return Mat4T(other[0] * m, other[1] * m, other[2] * m, other[3] * m);
 }
 
 template<typename T>

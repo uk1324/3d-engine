@@ -2,14 +2,31 @@
 #include <engine/Math/Mat4.hpp>
 `
 
-struct PlotShaderVertex {
+struct [[Hash]] PlotShaderVertex {
 	Vec3 position;
-	Vec3 normal = `Vec3(0.0f)`;
+
+	`
+	bool operator==(const PlotShaderVertex&) const = default;
+	`
 }
 
 shader PlotShader {
 	vertexStruct = PlotShaderVertex;
 	vertInstance = {
 		Mat4 transform;
+		Mat4 model;
+		Vec3 scale;
+		Vec2 samplingScale;
+		float colormapMin;
+		float colormapMax;
+	};
+	vertOut = {
+		vec3 fragNormal;
+		float colormapValue01;
+		vec3 fragmentWorldPosition;
+
+	};
+	fragUniforms = {
+		Vec3 cameraWorldPosition;
 	};
 }

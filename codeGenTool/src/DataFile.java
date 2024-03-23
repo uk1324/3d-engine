@@ -134,6 +134,9 @@ class Struct extends Declaration {
     public boolean getIsLayoutStd140() {
         return attributes.stream().anyMatch(a -> a instanceof StructAttributeLayoutStd140);
     }
+    public boolean getIsHash() {
+        return attributes.stream().anyMatch(a -> a instanceof StructAttributeHash);
+    }
 }
 
 abstract class StructAttribute { }
@@ -149,6 +152,7 @@ class StructAttributeUniform extends StructAttribute { }
 // Or could just use u64, but then it would be harder to modify and the variable names would need to do used instead of types.
 class StructAttributeBullet extends StructAttribute { }
 class StructAttributeLayoutStd140 extends StructAttribute { }
+class StructAttributeHash extends StructAttribute { }
 
 class Enum extends Declaration {
     public String name;
