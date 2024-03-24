@@ -27,7 +27,8 @@ Then you can choose the amount of vertices per size without weird redindexing an
 struct FunctionPlotter2d {
 	static FunctionPlotter2d make();
 
-	void update();
+	void update(Vec2 windowSize);
+	Vec2 windowSize_;
 
 	Vbo instancesVbo;
 

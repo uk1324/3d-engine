@@ -1,4 +1,6 @@
 #include "GraphDemo.hpp"
+#include <engine/Math/Vec2.hpp>
+#include <engine/Math/Vec4.hpp>
 #include <glad/glad.h>
 #include <imgui/implot.h>
 #include <imgui/imgui_internal.h>
@@ -13,14 +15,47 @@
 // Does plotting a 3d graph the finding the intersection with zero do anything more than just using marching squares.
 
 GraphDemo::GraphDemo() 
-	: plotter(FunctionPlotter2d::make()) {
+	: plotter(FunctionPlotter2d::make())
+	, texture(Texture::generate()) {
+	texture.bind();
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 100, 100, 0, GL_RGBA, GL_FLOAT, nullptr);
+	glBindTexture(GL_TEXTURE_2D, 0);
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 }
-
+#include <engine/Math/Aabb.hpp>
 void GraphDemo::update() {
-	plotter.update();
 
+	/*plotter.update();
+	return;*/
+	ImGui::Begin("editor");
+	Aabb sceneWindowWindowSpace = Aabb::fromCorners(
+		Vec2(ImGui::GetWindowPos()) + ImGui::GetWindowContentRegionMin(),
+		Vec2(ImGui::GetWindowPos()) + ImGui::GetWindowContentRegionMax()
+	);
+
+
+	const auto sceneWindowSize = sceneWindowWindowSpace.size();
+	window.update(sceneWindowSize);
+	window.fbo.bind();
+	glViewport(0, 0, sceneWindowSize.x, sceneWindowSize.y);
+	plotter.update(sceneWindowSize);
+	Fbo::unbind();
+	/*ImGui::Image(reinterpret_cast<void*>(window.colorTexture.handle()), sceneWindowSize, Vec2(0.0f, 1.0f), Vec2(1.0f, 0.0f));*/
+	ImGui::Image(reinterpret_cast<void*>(window.colorTexture.handle()), sceneWindowSize, Vec2(0.0f, 1.0f), Vec2(1.0f, 0.0f));
+	ImGui::End();
+	//ImGui::CaptureMouseFromApp(false);
 	return;
+
+	//if (ImGui::IsWindowHovered()) {
+	//	Input::ignoreImGuiWantCapture = true;
+	//} else {
+	//	Input::ignoreImGuiWantCapture = false;
+	//}
+
+	//ImGui::End();
+	//plotter.update();
+
+	//return;
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	switch (SettingsManager::settings.activePlotType) {

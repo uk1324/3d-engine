@@ -8,6 +8,7 @@
 #include <imgui/imgui.h>
 #include <water_simulation/SettingsManager.hpp>
 #include <water_simulation/FunctionPlotter2d.hpp>
+#include <water_simulation/RenderWindow.hpp>
 
 struct GraphDemo {
 	GraphDemo();
@@ -21,8 +22,10 @@ struct GraphDemo {
 		SECOND_ORDER_SYSTEM,
 	};*/
 	//State state = State::FIRST_ORDER_SYSTEM;
-
+	Texture texture;
 	FirstOrderSystemGraph firstOrderSystem;
 	SecondOrderSystemGraph secondOrderSystem;
 	FunctionPlotter2d plotter;
+
+	RenderWindow window;
 };

@@ -20,11 +20,14 @@ shader PlotShader {
 		float colormapMin;
 		float colormapMax;
 	};
+	fragInstance = {
+		Vec3 rangeScale;
+		Vec2 rangeTranslation;
+	};
 	vertOut = {
 		vec3 fragNormal;
 		float colormapValue01;
 		vec3 fragmentWorldPosition;
-
 	};
 	fragUniforms = {
 		Vec3 cameraWorldPosition;

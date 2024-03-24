@@ -7,10 +7,20 @@ layout(location = 9) in vec3 instanceScale;
 layout(location = 10) in vec2 instanceSamplingScale; 
 layout(location = 11) in float instanceColormapMin; 
 layout(location = 12) in float instanceColormapMax; 
+layout(location = 13) in vec3 instanceRangeScale; 
+layout(location = 14) in vec2 instanceRangeTranslation; 
 
 out vec3 fragNormal; 
 out float colormapValue01; 
 out vec3 fragmentWorldPosition; 
+
+out vec3 rangeScale; 
+out vec2 rangeTranslation; 
+
+void passToFragment() {
+    rangeScale = instanceRangeScale; 
+    rangeTranslation = instanceRangeTranslation; 
+}
 
 /*generated end*/
 
@@ -44,13 +54,12 @@ vec3 getNormal(const vec2 p)  {
 }
 
 void main() {
+	passToFragment();
 	float y = height(texturePos);
 	vec3 vertex = vec3(vertexPosition.x, y, vertexPosition.z);
 	gl_Position = instanceTransform * vec4(vertex, 1.0);
 	vertex.y /= instanceScale.y;
 	fragmentWorldPosition = (instanceModel * vec4(vertex, 1.0)).xyz;
-	//normal = vec3(texturePos, 0.0);
 	fragNormal = getNormal(texturePos);
-	colormapValue01 = (y - instanceColormapMin) / (instanceColormapMax - instanceColormapMin);
-	//normal = vec3(1, 0, 0);
+	colormapValue01 = (vertex.y - instanceColormapMin) / (instanceColormapMax - instanceColormapMin);
 }

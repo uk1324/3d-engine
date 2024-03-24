@@ -121,7 +121,7 @@ FunctionPlotter2d FunctionPlotter2d::make() {
 
 	glBindTexture(GL_TEXTURE_2D, 0);
 #define MOVE(name) .name = std::move(name)
-	Window::disableCursor();
+	//Window::disableCursor();
 	return FunctionPlotter2d{
 		.instancesVbo = std::move(instancesVbo),
 		.basicShadingShader = ShaderProgram::compile(PLOT_SHADER_SHADER_VERT_PATH, PLOT_SHADER_SHADER_FRAG_PATH),
@@ -154,14 +154,16 @@ static void drawInstances(Vao& vao, Vbo& instancesVbo, const std::vector<Instanc
 	}
 }
 
-void FunctionPlotter2d::update() {
+void FunctionPlotter2d::update(Vec2 windowSize) {
 	if (Input::isKeyDown(KeyCode::T)) {
 		Window::toggleCursor();
+		ImGui::GetIO().ConfigFlags ^= (ImGuiConfigFlags_None & ImGuiConfigFlags_NavNoCaptureKeyboard);
 	}
+	windowSize_ = windowSize;
 
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glViewport(0, 0, Window::size().x, Window::size().y);
+	glViewport(0, 0, windowSize.x, windowSize.y);
 	glEnable(GL_DEPTH_TEST);
 
 	if (Input::isKeyDown(KeyCode::X)) {
@@ -172,11 +174,6 @@ void FunctionPlotter2d::update() {
 	ImGui::SliderFloat("range", &range, 1.0f, 4.0f);
 	graphMin = -Vec2(range);
 	graphMax = Vec2(range);*/
-
-	ImGui::SliderFloat3("scale", graphScale.data(), 0.1f, 3.0f);
-
-	ImGui::SliderFloat2("min", graphMin.data(), -10.0f, 10.0f);
-	ImGui::SliderFloat2("max", graphMax.data(), -10.0f, 10.0f);
 	for (i32 xi = 0; xi < SAMPLES_PER_SIDE; xi++) {
 		for (i32 yi = 0; yi < SAMPLES_PER_SIDE; yi++) {
 			float xt = float(xi) / float(SAMPLES_PER_SIDE - 1);
@@ -186,6 +183,10 @@ void FunctionPlotter2d::update() {
 			//float z = 1.5f * sin(x + 0.2f) + cos(y);
 			float z = x*y;
 			//float z = x * x * x + x * y;
+			//float z = x * x - y * y * y;
+			//float z = y * y - x * x * (x + 1.0f);
+			//float z = x * x * x * x * x - y * y;
+			//float z = y * y - x * x * x * x;
 			array(xi, yi) = z;
 		}
 	}
@@ -201,17 +202,22 @@ void FunctionPlotter2d::update() {
 	} else {
 		movementController.lastMousePosition = std::nullopt;
 	}
-	ImGui::InputFloat3("pos", movementController.position.data());
 
 	PlotShaderFragUniforms fragUniforms{
 		.cameraWorldPosition = movementController.position
 	};
 	shaderSetUniforms(basicShadingShader, fragUniforms);
 
-	insliderfloat(test, 0.0f, -2.0f, 2.0f);
-	basicShadingShader.set("test", test);
-	chkbox(test1);
-	basicShadingShader.set("test1", test1);
+	ImGui::Begin("ss");
+	ImGui::SliderFloat3("scale", graphScale.data(), 0.1f, 3.0f);
+
+	ImGui::SliderFloat2("min", graphMin.data(), -10.0f, 10.0f);
+	ImGui::SliderFloat2("max", graphMax.data(), -10.0f, 10.0f);
+	ImGui::End();
+	//insliderfloat(test, 0.0f, -2.0f, 2.0f);
+	//basicShadingShader.set("test", test);
+	//chkbox(test1);
+	//basicShadingShader.set("test1", test1);
 
 	basicShadingShader.use();
 	basicShadingShader.setTexture("heightmap", 0, graphTexture);
@@ -225,7 +231,7 @@ void FunctionPlotter2d::update() {
 
 void FunctionPlotter2d::drawGraph(Span2d<const float> heightValues, Vec2 rangeMin, Vec2 rangeMax, Vec3 scale) {
 	const auto view = movementController.viewMatrix();
-	const auto projection = Mat4::perspective(degToRad(90.0f), Window::aspectRatio(), 0.1f, 1000.0f);
+	const auto projection = Mat4::perspective(degToRad(90.0f), windowSize_.xOverY(), 0.1f, 1000.0f);
 
 	const auto graphSideLength = LAYER_COUNT * BLOCK_SIZE;
 	const auto to01Scale = 1.0f / graphSideLength;
@@ -243,7 +249,6 @@ void FunctionPlotter2d::drawGraph(Span2d<const float> heightValues, Vec2 rangeMi
 	const auto transform = projection * view * model;
 
 	Vec3 shaderScale = Vec3(scale.x * range.x, scale.y, scale.z * range.y);
-
 	const auto minValue = std::ranges::min_element(heightValues.span());
 	const auto maxValue = std::ranges::max_element(heightValues.span());
 	graph2dInstances.push_back(PlotShaderInstance{ 
@@ -252,6 +257,8 @@ void FunctionPlotter2d::drawGraph(Span2d<const float> heightValues, Vec2 rangeMi
 		.scale = shaderScale,
 		.samplingScale = Vec2(to01Scale),
 		.colormapMin = *minValue,
-		.colormapMax = *maxValue
+		.colormapMax = *maxValue,
+		.rangeScale = scale,
+		.rangeTranslation = (rangeMin + rangeMax) / 2.0
 	});
 }
