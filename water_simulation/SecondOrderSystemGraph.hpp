@@ -32,6 +32,7 @@ struct SecondOrderSystemGraph {
 		const PlotCompiler::FormulaInput& formula);
 
 	bool spawnPointsOnBoundaryNextFrame = false;
+	bool spawnGridOfPointsNextFrame = false;
 
 	bool paused = false;
 	struct TestPoint {

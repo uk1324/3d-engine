@@ -296,6 +296,7 @@ void SecondOrderSystemGraph::plotTestPoints() {
 	// TODO: Something like this https://github.com/matplotlib/matplotlib/blob/main/lib/matplotlib/streamplot.py
 	if (spawnPointsOnBoundaryNextFrame) {
 		spawnPointsOnBoundaryNextFrame = false;
+
 		const auto limits = ImPlot::GetPlotLimits();
 		const auto spacing = 0.3f;
 		const auto samplesX = i32((limits.X.Max - limits.X.Min) / spacing);
@@ -312,7 +313,29 @@ void SecondOrderSystemGraph::plotTestPoints() {
 			const float y = lerp(limits.Y.Min, limits.Y.Max, t);
 			testPoints.push_back(TestPoint{ Vec2(limits.X.Min, y) });
 			testPoints.push_back(TestPoint{ Vec2(limits.X.Max, y) });
-		} 
+		}
+	}
+
+	if (spawnGridOfPointsNextFrame) {
+		spawnGridOfPointsNextFrame = false;
+		const auto limits = ImPlot::GetPlotLimits();
+		const auto spacing = 0.3f;
+		const auto samplesX = i32((limits.X.Max - limits.X.Min) / spacing);
+		const auto samplesY = i32((limits.Y.Max - limits.Y.Min) / spacing);
+		i64 xiMin = 0;
+		i64 xiMax = samplesX;
+		i64 yiMin = 0;
+		i64 yiMax = samplesY;
+
+		for (i64 xi = 0; xi < samplesX; xi++) {
+			for (i64 yi = 0; yi < samplesY; yi++) {
+				const float xt = float(xi) / float(samplesX - 1);
+				const float yt = float(yi) / float(samplesY - 1);
+				const float x = lerp(limits.X.Min, limits.X.Max, xt);
+				const float y = lerp(limits.Y.Min, limits.Y.Max, yt);
+				testPoints.push_back(TestPoint{ Vec2(x, y) });
+			}
+		}
 	}
 }
 
@@ -437,6 +460,9 @@ void SecondOrderSystemGraph::settings() {
 	}
 	if (ImGui::Button("spawn on boundary")) {
 		spawnPointsOnBoundaryNextFrame = true;
+	}
+	if (ImGui::Button("spawn grid")) {
+		spawnGridOfPointsNextFrame = true;
 	}
 	ImGui::Checkbox("paused", &paused);
 }
