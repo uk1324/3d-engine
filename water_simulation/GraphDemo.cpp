@@ -24,38 +24,25 @@ GraphDemo::GraphDemo()
 }
 #include <engine/Math/Aabb.hpp>
 void GraphDemo::update() {
-
-	/*plotter.update();
-	return;*/
-	ImGui::Begin("editor");
-	Aabb sceneWindowWindowSpace = Aabb::fromCorners(
-		Vec2(ImGui::GetWindowPos()) + ImGui::GetWindowContentRegionMin(),
-		Vec2(ImGui::GetWindowPos()) + ImGui::GetWindowContentRegionMax()
-	);
+	//ImGui::Begin("editor");
+	//Aabb sceneWindowWindowSpace = Aabb::fromCorners(
+	//	Vec2(ImGui::GetWindowPos()) + ImGui::GetWindowContentRegionMin(),
+	//	Vec2(ImGui::GetWindowPos()) + ImGui::GetWindowContentRegionMax()
+	//);
 
 
-	const auto sceneWindowSize = sceneWindowWindowSpace.size();
-	window.update(sceneWindowSize);
-	window.fbo.bind();
-	glViewport(0, 0, sceneWindowSize.x, sceneWindowSize.y);
-	plotter.update(sceneWindowSize);
-	Fbo::unbind();
-	/*ImGui::Image(reinterpret_cast<void*>(window.colorTexture.handle()), sceneWindowSize, Vec2(0.0f, 1.0f), Vec2(1.0f, 0.0f));*/
-	ImGui::Image(reinterpret_cast<void*>(window.colorTexture.handle()), sceneWindowSize, Vec2(0.0f, 1.0f), Vec2(1.0f, 0.0f));
-	ImGui::End();
-	//ImGui::CaptureMouseFromApp(false);
-	return;
-
-	//if (ImGui::IsWindowHovered()) {
-	//	Input::ignoreImGuiWantCapture = true;
-	//} else {
-	//	Input::ignoreImGuiWantCapture = false;
-	//}
-
+	//const auto sceneWindowSize = sceneWindowWindowSpace.size();
+	//window.update(sceneWindowSize);
+	//window.fbo.bind();
+	//glViewport(0, 0, sceneWindowSize.x, sceneWindowSize.y);
+	//plotter.update(sceneWindowSize);
+	//Fbo::unbind();
+	///*ImGui::Image(reinterpret_cast<void*>(window.colorTexture.handle()), sceneWindowSize, Vec2(0.0f, 1.0f), Vec2(1.0f, 0.0f));*/
+	//ImGui::Image(reinterpret_cast<void*>(window.colorTexture.handle()), sceneWindowSize, Vec2(0.0f, 1.0f), Vec2(1.0f, 0.0f));
 	//ImGui::End();
-	//plotter.update();
-
+	////ImGui::CaptureMouseFromApp(false);
 	//return;
+
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	switch (SettingsManager::settings.activePlotType) {

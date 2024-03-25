@@ -31,8 +31,11 @@ struct SecondOrderSystemGraph {
 		Vec3 color,
 		const PlotCompiler::FormulaInput& formula);
 
+	bool spawnPointsOnBoundaryNextFrame = false;
+
 	bool paused = false;
 	struct TestPoint {
+		// TODO: Maybe add a way to integrate backwards and forwards in time.
 		Vec2 pos;
 		std::vector<Vec2> history;
 	};

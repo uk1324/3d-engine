@@ -64,6 +64,7 @@ void SecondOrderSystemGraph::update() {
 }
 
 void SecondOrderSystemGraph::derivativePlot() {
+	// ImPlotFlags_CanvasOnly
 	if (!ImPlot::BeginPlot("##main plot", ImVec2(-1.0f, -1.0f), ImPlotFlags_Equal)) {
 		return;
 	}
@@ -291,6 +292,28 @@ void SecondOrderSystemGraph::plotTestPoints() {
 		testPoints.push_back(p);
 	}
 	Input::ignoreImGuiWantCapture = false;
+
+	// TODO: Something like this https://github.com/matplotlib/matplotlib/blob/main/lib/matplotlib/streamplot.py
+	if (spawnPointsOnBoundaryNextFrame) {
+		spawnPointsOnBoundaryNextFrame = false;
+		const auto limits = ImPlot::GetPlotLimits();
+		const auto spacing = 0.3f;
+		const auto samplesX = i32((limits.X.Max - limits.X.Min) / spacing);
+		for (i64 i = 0; i < samplesX; i++) {
+			const float t = float(i) / float(samplesX - 1);
+			const float x = lerp(limits.X.Min, limits.X.Max, t);
+			testPoints.push_back(TestPoint{ Vec2(x, limits.Y.Min) });
+			testPoints.push_back(TestPoint{ Vec2(x, limits.Y.Max) });
+		}
+
+		const auto samplesY = i32((limits.Y.Max - limits.Y.Min) / spacing);
+		for (i64 i = 0; i < samplesY; i++) {
+			const float t = float(i) / float(samplesY - 1);
+			const float y = lerp(limits.Y.Min, limits.Y.Max, t);
+			testPoints.push_back(TestPoint{ Vec2(limits.X.Min, y) });
+			testPoints.push_back(TestPoint{ Vec2(limits.X.Max, y) });
+		} 
+	}
 }
 
 void SecondOrderSystemGraph::settings() {
@@ -411,6 +434,9 @@ void SecondOrderSystemGraph::settings() {
 	ImGui::SeparatorText("test points");
 	if (ImGui::Button("remove all")) {
 		testPoints.clear();
+	}
+	if (ImGui::Button("spawn on boundary")) {
+		spawnPointsOnBoundaryNextFrame = true;
 	}
 	ImGui::Checkbox("paused", &paused);
 }
