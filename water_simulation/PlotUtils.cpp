@@ -1,5 +1,10 @@
 #include "PlotUtils.hpp"
 
+void plotVec2Scatter(const char* label, std::span<const Vec2> points) {
+	const auto pointsData = reinterpret_cast<const float*>(points.data());
+	ImPlot::PlotScatter(label, pointsData, pointsData + 1, points.size(), 0, 0, sizeof(Vec2));
+}
+
 void plotVec2LineSegments(const char* label, std::span<const Vec2> segmentEndpoints) {
 	const auto pointsData = reinterpret_cast<const float*>(segmentEndpoints.data());
 	ImPlot::PlotLine(

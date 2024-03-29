@@ -7,6 +7,7 @@
 #include <engine/Input/Input.hpp>
 #include <engine/Math/MarchingSquares.hpp>
 #include <engine/Math/Utils.hpp>
+#include <engine/Math/LineSegment.hpp>
 #include <Gui.hpp>
 #include <Array2d.hpp>
 #include <iomanip>
@@ -63,6 +64,8 @@ void SecondOrderSystemGraph::update() {
 	ImGui::End();
 }
 
+#include <engine/Math/IntersectLineSegments.hpp>
+
 void SecondOrderSystemGraph::derivativePlot() {
 	// ImPlotFlags_CanvasOnly
 	if (!ImPlot::BeginPlot("##main plot", ImVec2(-1.0f, -1.0f), ImPlotFlags_Equal)) {
@@ -73,8 +76,10 @@ void SecondOrderSystemGraph::derivativePlot() {
 	ImPlot::SetupAxis(ImAxis_Y1, "y");
 
 	ImPlot::PushStyleColor(ImPlotCol_PlotBg, { 0.5f, 0.5f, 0.5f, 1.0f });
-	
+
 	plotStreamlines();
+
+	plotFixedPoints();
 
 	plotTestPoints();
 
@@ -89,7 +94,7 @@ void SecondOrderSystemGraph::derivativePlot() {
 					Color3::RED,
 					0.1f
 				);
-			};
+				};
 			drawEigenvector(linearFormulaMatrixEigenvectors[0].eigenvector);
 			drawEigenvector(linearFormulaMatrixEigenvectors[1].eigenvector);
 		}
@@ -99,9 +104,110 @@ void SecondOrderSystemGraph::derivativePlot() {
 		drawImplicitFunctionGraph(graph.formulaInput->input, graph.color, *graph.formulaInput);
 	}
 
-	if (drawNullclines) {
- 		drawImplicitFunctionGraph("x'=0", Color3::RED, xFormulaInput);
-		drawImplicitFunctionGraph("y'=0", Color3::RED, yFormulaInput);
+	if (xFormulaInput.loopFunction.has_value() && yFormulaInput.loopFunction.has_value()) {
+		//std::vector<Vec2> xGraph;
+		//calculateImplicitFunctionGraph(*xFormulaInput.loopFunction, xGraph);
+		//std::vector<Vec2> yGraph;
+		//calculateImplicitFunctionGraph(*yFormulaInput.loopFunction, yGraph);
+
+		//if (drawNullclines) {
+		//	ImPlot::PushStyleColor(ImPlotCol_Line, Vec4(Color3::RED));
+		//	/*plotVec2LineSegments("x'=0", xGraph);*/
+		//	plotVec2Scatter("x'=0", xGraph);
+		//	ImPlot::PopStyleColor();
+
+		//	ImPlot::PushStyleColor(ImPlotCol_Line, Vec4(Color3::GREEN));
+		//	plotVec2Scatter("y'=0", yGraph);
+		//	ImPlot::PopStyleColor();
+		//}
+
+
+		//std::vector<Vec2> fixedPoints;
+		////intersectLineSegments(xGraph, yGraph, fixedPoints);
+
+		//ASSERT(xGraph.size() % 2 == 0);
+		//ASSERT(yGraph.size() % 2 == 0);
+		//for (i64 i = 0; i < xGraph.size(); i += 2) {
+		//	const auto& x0 = xGraph[i];
+		//	const auto& x1 = xGraph[i + 1];
+		//	for (i64 j = 0; j < yGraph.size(); j += 2) {
+		//		const auto& y0 = yGraph[j];
+		//		const auto& y1 = yGraph[j + 1];
+
+		//		const auto intersection = LineSegment{ x0, x1 }.intersection(LineSegment{ y0, y1 });
+		//		if (intersection.has_value()) {
+		//			fixedPoints.push_back(*intersection);
+		//		}
+		//	}
+		//}
+
+		//plotVec2Scatter("fixed points", fixedPoints);
+		const auto steps = 200;
+
+		auto computeGraphForIntersection = [&](
+			const Runtime::LoopFunction& function,
+			std::vector<MarchingSquares3Line>& marchingSquaresOutput,
+			Array2d<MarchingSquaresGridCell>& gridCellToLines,
+			std::vector<Vec2>& graphEndpoints) {
+
+			LoopFunctionArray output(1);
+			computeLoopFunctionOnVisibleRegion(function, output, steps, steps);
+			const auto grid = Span2d<const float>(output.data()->m256_f32, steps, steps);
+
+			marchingSquares3(marchingSquaresOutput, gridCellToLines.span2d(), grid, 0.0f, true);
+
+			const auto limits = ImPlot::GetPlotLimits();
+			for (auto& segment : marchingSquaresOutput) {
+				auto scale = [&](Vec2 pos) -> Vec2 {
+					pos /= Vec2(grid.size());
+					pos.x = lerp(limits.X.Min, limits.X.Max, pos.x);
+					pos.y = lerp(limits.Y.Min, limits.Y.Max, pos.y);
+					return pos;
+				};
+				segment.a = scale(segment.a);
+				segment.b = scale(segment.b);
+				graphEndpoints.push_back(segment.a);
+				graphEndpoints.push_back(segment.b);
+			}
+		};
+
+		std::vector<MarchingSquares3Line> yGraphLines;
+		Array2d<MarchingSquaresGridCell> yGraphGridCellToLines(steps - 1, steps - 1);
+		std::vector<Vec2> yGraphEndpoints;
+		computeGraphForIntersection(*yFormulaInput.loopFunction, yGraphLines, yGraphGridCellToLines, yGraphEndpoints);
+		std::vector<MarchingSquares3Line> xGraphLines;
+		Array2d<MarchingSquaresGridCell> xGraphGridCellToLines(steps - 1, steps - 1);
+		std::vector<Vec2> xGraphEndpoints;
+		computeGraphForIntersection(*xFormulaInput.loopFunction, xGraphLines, xGraphGridCellToLines, xGraphEndpoints);
+		
+		std::vector<Vec2> intersections;
+		auto checkIntersection = [&](MarchingSquares3Line& xLine, i32 yLineIndex) {
+			const auto& yLine = yGraphLines[yLineIndex];
+			const auto intersection = LineSegment{ xLine.a, xLine.b }.intersection(LineSegment{ yLine.a, yLine.b });
+			if (intersection.has_value()) {
+				intersections.push_back(*intersection);
+			}
+		};
+
+		for (auto& xLine : xGraphLines) {
+			const auto& yLinesInTheSameBoxAsTheXLine = yGraphGridCellToLines(xLine.gridIndex.x, xLine.gridIndex.y);
+			if (yLinesInTheSameBoxAsTheXLine.line1Index != MarchingSquaresGridCell::EMPTY) {
+				checkIntersection(xLine, yLinesInTheSameBoxAsTheXLine.line1Index);
+			}
+			if (yLinesInTheSameBoxAsTheXLine.line2Index != MarchingSquaresGridCell::EMPTY) {
+				checkIntersection(xLine, yLinesInTheSameBoxAsTheXLine.line2Index);
+			}
+		}
+
+		ImPlot::PushStyleColor(ImPlotCol_Line, Vec4(Color3::RED));
+		plotVec2LineSegments("x'=0", xGraphEndpoints);
+		ImPlot::PopStyleColor();
+
+		ImPlot::PushStyleColor(ImPlotCol_Line, Vec4(Color3::GREEN));
+		plotVec2LineSegments("y'=0", yGraphEndpoints);
+		ImPlot::PopStyleColor();
+
+		plotVec2Scatter("fixed points", intersections);
 	}
 
 	ImPlot::PopStyleColor();
@@ -338,6 +444,85 @@ void SecondOrderSystemGraph::plotTestPoints() {
 		}
 	}
 }
+#include <Dbg.hpp>
+void SecondOrderSystemGraph::plotFixedPoints() {
+	if (!xFormulaInput.loopFunction.has_value() || !yFormulaInput.loopFunction.has_value()) {
+		return;
+	}
+	/*
+	Finding zeros of a system of continous functions is hard, because for example a triangle mapped into any other closed curve (not sure if it has to be non self intersecting). Also it doesn't have to be bijective so it isn't a homeomorphism. For example you can map the triangle to a line.
+	When you map a triangle then the map of the triangle doesn't have to be a subset or superset of the triangle created by the set of mapped points.
+
+	I think an example of a map that create self intersection is the complex x^2 function. You can probably come up with weird cases by thing about the as vector fields and when the vectors change signs.
+
+	The condition that there are vertices with sign ++, --, +-, -+ in a polygon doesn't ensure that there is a zero inside it. Also a if there is a zero inside a region it doesn't mean that the sign's have to match this pattern.
+	Example
+	Draw 2 straight lines intersecting at a point. Then draw a box such that the lines intersect 2 opposite lines of a box, but don't intersect the other 2. Then there is a zero inside, but the signs don't match.
+	A counterexample for there other thing: https://youtu.be/rMg61nfkZ3M?feature=shared&t=420.
+
+	If a quadrilateral that contains a solution and has the sign at vertices with the pattern specified above. The the algorithm in the video can be used to find the root to arbitrary precision.
+
+	Not sure if this is the same algorithm as described in the video.
+	https://en.wikipedia.org/wiki/Bisection_method#Generalization_to_higher_dimensions
+
+	I wonder if the function maps convex sets (for example triangles) to other convex sets then can be algorithm be simplified, because a triangle is the smallest set convex set containing 3 points (this was said in the book by Pavel Alexandrov i think). So the map of the triangle will be a superset of the triangle made from the map of the vertices. This is wrong I think. Wouldn't it need to map the to concave sets for this to work.
+	I guess if the set is convex then something like GJK can be used.
+
+	Using interval arithmetic you can get a bounding box for the values that a rectangular region gets mapped to, but if the output region contains zero it doesn't mean the the a point from the input region gets mapped to zero, because it is just a bounding box. You would need to somehow compute the inverse to get the region. You could try using a iterative method that would try to converge the region into a region containing the root.
+
+	One options could be to consider all the possible sign cases and based on that conservatively choose if it is possible for the root to be there. Then check all the possible spots and if they converge add then return them as roots.
+
+	The probablem with just intersecting the graphs is that it breaks at singular points like double points or infinite points. Convervatively at saddle points a cross could be added. That is 4 lines 2 corresponding 2 each possible direction around the point could be added.
+
+	"Generalization of the Bolzano theorem for simplices"
+	Bolzano–Poincaré–Miranda theorem is closely related to important theorems in analysis and topology as well as it is an invaluable tool for verified solutions of numerical problems by means of interval arithmetic [list of references]
+	*/
+
+	// https://en.wikipedia.org/wiki/Bentley%E2%80%93Ottmann_algorithm
+	//const auto jump = 5;
+	//for (i32 xi = 0; xi < steps - jump; xi += jump) {
+	//	for (i32 yi = 0; yi < steps - jump; yi += jump) {
+	//		Vec2 p00 = calulcatePos(xi, yi);
+	//		Vec2 v00(gridX(xi, yi), gridY(xi, yi));
+
+	//		if (p00.length() < 0.001f) {
+	//			int x = 5;
+	//		}
+
+	//		Vec2 p10 = calulcatePos(xi + jump, yi);
+	//		Vec2 v10(gridX(xi + jump, yi), gridY(xi + jump, yi));
+
+	//		Vec2 p01 = calulcatePos(xi, yi + jump);
+	//		Vec2 v01(gridX(xi, yi + jump), gridY(xi, yi + jump));
+
+	//		Vec2 p11 = calulcatePos(xi + jump, yi + jump);
+	//		Vec2 v11(gridX(xi + jump, yi + jump), gridY(xi + jump, yi + jump));
+
+	//		u8 signCombinations = 0b0000;
+	//		auto checkSignCombinations = [&signCombinations](Vec2 v) {
+	//			if (v.x >= 0.0f && v.y >= 0.0f) signCombinations |= 0b1000;
+	//			if (v.x <= 0.0f && v.y >= 0.0f) signCombinations |= 0b0100;
+	//			if (v.x >= 0.0f && v.y <= 0.0f) signCombinations |= 0b0010;
+	//			if (v.x <= 0.0f && v.y <= 0.0f) signCombinations |= 0b0001;
+	//		};
+	//		checkSignCombinations(v00);
+	//		checkSignCombinations(v01);
+	//		checkSignCombinations(v10);
+	//		checkSignCombinations(v11);
+
+	//		if (signCombinations != 0b1111) {
+	//			continue;
+	//		}
+	//		fixedPoints.push_back(p00);
+	//		fixedPoints.push_back(p10);
+	//		fixedPoints.push_back(p01);
+	//		fixedPoints.push_back(p11);
+	//	}
+	//}
+
+	/*const auto data = reinterpret_cast<float*>(fixedPoints.data());
+	ImPlot::PlotScatter("fixed points", data, data + 1, fixedPoints.size(), 0, 0, sizeof(Vec2));*/
+}
 
 void SecondOrderSystemGraph::settings() {
 	auto updateLinearFormula = [this]() {
@@ -500,6 +685,8 @@ bool SecondOrderSystemGraph::examplesMenu() {
 		return true;
 	}
 	if (ImGui::MenuItem("dipole fixed point")) {
+		// This is just the complex function x^2. You can get weird things when using complex polynomials, because whole lines get mapped to zero, because what the map does it wrap the complex plane around itself multiple times. This result in multiple lines intersecting at a single point.
+		// TODO: https://mabotkin.github.io/complex/
 		plotCompiler.setFormulaInput(xFormulaInput, "2xy");
 		plotCompiler.setFormulaInput(yFormulaInput, "y^2-x^2");
 		formulaType = FormulaType::GENERAL;
@@ -532,6 +719,31 @@ bool SecondOrderSystemGraph::examplesMenu() {
 	return false;
 }
 
+void SecondOrderSystemGraph::computeLoopFunctionOnVisibleRegion(const Runtime::LoopFunction& function, LoopFunctionArray& output, i32 stepsX, i32 stepsY) {
+
+	auto& input = computeLoopFunctionOnVisibleRegionState.input;
+	input.reset(plotCompiler.loopFunctionInputCount());
+
+	const auto limits = ImPlot::GetPlotLimits();
+
+	auto variablesBlock = plotCompiler.loopFunctionVariablesBlock;
+	for (i32 yi = 0; yi < stepsX; yi++) {
+		for (i32 xi = 0; xi < stepsY; xi++) {
+			const auto xt = float(xi) / float(stepsX - 1);
+			const auto yt = float(yi) / float(stepsY - 1);
+			const auto x = lerp(limits.X.Min, limits.X.Max, xt);
+			const auto y = lerp(limits.Y.Min, limits.Y.Max, yt);
+			variablesBlock[X_VARIABLE_INDEX_IN_BLOCK] = x;
+			variablesBlock[Y_VARIABLE_INDEX_IN_BLOCK] = y;
+			input.append(variablesBlock);
+		}
+	}
+	output.reset(1);
+	output.resizeWithoutCopy(input.blockCount());
+
+	function(input, output);
+}
+
 bool SecondOrderSystemGraph::implicitFunctionGraphSettings(ImplicitFunctionGraph& graph) {
 	ImGui::PushID(&graph); // Don't think there should be any issue with the pointer being invalidated, because the invalidation wouldn't happen while using the input. Alternatively could use hash of the string name.
 
@@ -557,36 +769,29 @@ void SecondOrderSystemGraph::drawImplicitFunctionGraph(
 	const char* label, 
 	Vec3 color,
 	const PlotCompiler::FormulaInput& formula) {
+
 	if (!formula.loopFunction.has_value()) {
 		return;
 	}
 
+	std::vector<Vec2> lines;
+	calculateImplicitFunctionGraph(*formula.loopFunction, lines);
+	ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(color.x, color.y, color.z, 1.0f));
+	plotVec2LineSegments(label, lines);
+	ImPlot::PopStyleColor();
+}
+
+void SecondOrderSystemGraph::calculateImplicitFunctionGraph(const Runtime::LoopFunction& function, std::vector<Vec2>& out) {
 	const auto limits = ImPlot::GetPlotLimits();
 
-	LoopFunctionArray input(plotCompiler.loopFunctionInputCount());
 	LoopFunctionArray output(1);
-	auto variablesBlock = plotCompiler.loopFunctionVariablesBlock;
 	const auto steps = 200;
-	for (i32 yi = 0; yi < steps; yi++) {
-		for (i32 xi = 0; xi < steps; xi++) {
-			const auto xt = float(xi) / float(steps - 1);
-			const auto yt = float(yi) / float(steps - 1);
-			const auto x = lerp(limits.X.Min, limits.X.Max, xt);
-			const auto y = lerp(limits.Y.Min, limits.Y.Max, yt);
-			variablesBlock[X_VARIABLE_INDEX_IN_BLOCK] = x;
-			variablesBlock[Y_VARIABLE_INDEX_IN_BLOCK] = y;
-			input.append(variablesBlock);
-		}
-	}
-	output.resizeWithoutCopy(input.blockCount());
-
-	(*formula.loopFunction)(input, output);
-
+	computeLoopFunctionOnVisibleRegion(function, output, steps, steps);
 	const auto grid = Span2d<const float>(output.data()->m256_f32, steps, steps);
 
 	std::vector<MarchingSquaresLine> marchingSquaresOutput;
 	marchingSquares2(marchingSquaresOutput, grid, 0.0f, true);
-	std::vector<Vec2> lines;
+
 	for (auto& segment : marchingSquaresOutput) {
 		auto scale = [&](Vec2 pos) -> Vec2 {
 			pos /= Vec2(grid.size());
@@ -596,12 +801,7 @@ void SecondOrderSystemGraph::drawImplicitFunctionGraph(
 		};
 		const Vec2 a = scale(segment.a);
 		const Vec2 b = scale(segment.b);
-		lines.push_back(a);
-		lines.push_back(b);
+		out.push_back(a);
+		out.push_back(b);
 	}
-
-	ImPlot::PushStyleColor(ImPlotCol_Line, ImVec4(color.x, color.y, color.z, 1.0f));
-	plotVec2LineSegments(label, lines);
-	ImPlot::PopStyleColor();
 }
-

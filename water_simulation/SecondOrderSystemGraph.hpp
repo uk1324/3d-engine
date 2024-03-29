@@ -14,8 +14,15 @@ struct SecondOrderSystemGraph {
 	void derivativePlot();
 	void plotStreamlines();
 	void plotTestPoints();
+	void plotFixedPoints();
 	void settings();
 	bool examplesMenu();
+	
+	struct ComputeLoopFunctionOnVisibleRegionState {
+		LoopFunctionArray input = LoopFunctionArray(0);
+	};
+	void computeLoopFunctionOnVisibleRegion(const Runtime::LoopFunction& function, LoopFunctionArray& output, i32 stepsX, i32 stepsY);
+	ComputeLoopFunctionOnVisibleRegionState computeLoopFunctionOnVisibleRegionState;
 
 	struct ImplicitFunctionGraph {
 		// Can't be a reference to be (copyable?) I think not sure.
@@ -30,6 +37,7 @@ struct SecondOrderSystemGraph {
 		const char* label, 
 		Vec3 color,
 		const PlotCompiler::FormulaInput& formula);
+	void calculateImplicitFunctionGraph(const Runtime::LoopFunction& function, std::vector<Vec2>& out);
 
 	bool spawnPointsOnBoundaryNextFrame = false;
 	bool spawnGridOfPointsNextFrame = false;

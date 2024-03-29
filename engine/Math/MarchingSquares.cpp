@@ -377,6 +377,152 @@ void marchingSquares2(std::vector<MarchingSquaresLine>& output, Span2d<const flo
 	}
 }
 
+void marchingSquares3(
+	std::vector<MarchingSquares3Line>& linesOut,
+	Span2d<MarchingSquaresGridCell> gridCellToStoredLinesOut,
+	Span2d<const float> grid,
+	float boundaryValue,
+	bool lerp) {
+
+	std::fill(
+		gridCellToStoredLinesOut.span().begin(),
+		gridCellToStoredLinesOut.span().end(), 
+		MarchingSquaresGridCell{ 
+			.line1Index = MarchingSquaresGridCell::EMPTY, 
+			.line2Index = MarchingSquaresGridCell::EMPTY,
+		});
+
+	auto smallerThanBoundaryValue = [&grid, &boundaryValue](i64 x, i64 y) {
+		return grid(x, y) < boundaryValue;
+	};
+
+	ASSERT(gridCellToStoredLinesOut.size() == grid.size() - Vec2T<i64>(1));
+
+	for (i64 yi = 0; yi < grid.sizeY() - 1; yi++) {
+		for (i64 xi = 0; xi < grid.sizeX() - 1; xi++) {
+			auto add = [&linesOut, &xi, &yi](Vec2 a, Vec2 b) {
+				linesOut.push_back(MarchingSquares3Line{ a, b, Vec2T<i32>(xi, yi)});
+			};
+			auto setLineIndexInGrid = [&]() {
+				gridCellToStoredLinesOut(xi, yi).line1Index = linesOut.size();
+				gridCellToStoredLinesOut(xi, yi).line2Index = MarchingSquaresGridCell::EMPTY;
+			};
+			auto setLineIndexInGridTwice = [&]() {
+				gridCellToStoredLinesOut(xi, yi).line1Index = linesOut.size();
+				gridCellToStoredLinesOut(xi, yi).line2Index = linesOut.size() + 1;
+			};
+
+			const auto configuration =
+				(static_cast<i32>(smallerThanBoundaryValue(xi, yi + 1)) << 3)
+				| (static_cast<i32>(smallerThanBoundaryValue(xi + 1, yi + 1)) << 2) 
+				| (static_cast<i32>(smallerThanBoundaryValue(xi, yi)) << 1)
+				| static_cast<i32>(smallerThanBoundaryValue(xi + 1, yi));
+
+			auto at = [&](i64 x, i64 y) {
+				return grid(x, y) - boundaryValue;
+			};
+
+			auto lerpY = [&](i64 x) {
+				if (!lerp || isnan(grid(x, yi)) || isnan(grid(x, yi + 1))) {
+					return 0.5f;
+				}
+				const auto dy = 1.0f;
+				float slope = (at(x, yi + 1) - at(x, yi)) / dy;
+				const auto y = -at(x, yi) / slope;
+				return y;
+			};
+
+			auto lerpX = [&](i64 y) {
+				if (!lerp || isnan(grid(xi, y)) || isnan(grid(xi + 1, y))) {
+					return 0.5f;
+				}
+				const auto dx = 1.0f;
+				float slope = (at(xi + 1, y) - at(xi, y)) / dx;
+				const auto x = -at(xi, y) / slope;
+				return x;
+			};
+
+			switch (configuration) {
+			// oo xx
+			// oo xx
+			case 0b0000:
+			case 0b1111:
+				break;
+
+			// xo ox
+			// oo xx
+			case 0b1000:
+			case 0b0111:
+				setLineIndexInGrid();
+				add(Vec2(xi + 0.5f, yi + 0.5f + lerpY(xi)), Vec2(xi + 0.5f + lerpX(yi + 1), yi + 1.5f));
+				break;
+
+			// ox xo
+			// oo xx
+			case 0b0100:
+			case 0b1011: {
+				setLineIndexInGrid();
+				add(Vec2(xi + 0.5f + lerpX(yi + 1), yi + 1.5f), Vec2(xi + 1.5f, yi + 0.5f + lerpY(xi + 1)));
+				break;
+			}
+			
+
+			// oo xx
+			// xo ox
+			case 0b0010:
+			case 0b1101:
+				setLineIndexInGrid();
+				add(Vec2(xi + 0.5f, yi + 0.5f + lerpY(xi)), Vec2(xi + 0.5f + lerpX(yi), yi + 0.5f));
+				break;
+
+			// oo xx
+			// ox xo
+			case 0b0001:
+			case 0b1110:
+				setLineIndexInGrid();
+				add(Vec2(xi + 0.5f + lerpX(yi), yi + 0.5f), Vec2(xi + 1.5f, yi + 0.5f + lerpY(xi + 1)));
+				break;
+
+			// xx oo
+			// oo xx
+			case 0b1100:
+			case 0b0011:
+				setLineIndexInGrid();
+				add(Vec2(xi + 0.5f, yi + 0.5f + lerpY(xi)), Vec2(xi + 1.5f, yi + 0.5f + lerpY(xi + 1)));
+				break;
+
+			// xo ox
+			// xo ox
+			case 0b1010:
+			case 0b0101:
+				setLineIndexInGrid();
+				add(Vec2(xi + 0.5 + lerpX(yi), yi + 0.5f), Vec2(xi + 0.5f + lerpX(yi + 1), yi + 1.5f));
+				break;
+
+			// xo
+			// ox
+			case 0b1001:
+				setLineIndexInGridTwice();
+				add(Vec2(xi + 0.5f, yi + 1.0f), Vec2(xi + 1.0f, yi + 1.5f));
+				add(Vec2(xi + 1.0f, yi + 0.5f), Vec2(xi + 1.5f, yi + 1.0f));
+				break;
+
+			// ox
+			// xo
+			case 0b0110:
+				setLineIndexInGridTwice();
+				add(Vec2(xi + 1.0f, yi + 0.5f), Vec2(xi + 0.5f, yi + 1.0f));
+				add(Vec2(xi + 1.0f, yi + 1.5f), Vec2(xi + 1.5f, yi + 1.0f));
+				break;
+
+			default:
+				ASSERT_NOT_REACHED();
+				break;
+			}
+		}
+	}
+}
+
 Vec2T<i32> MarchingSquaresLine::topLeftIndex() const {
 	return Vec2T<i32>(bottomLeftIndex.x, bottomLeftIndex.y + 1);
 }
