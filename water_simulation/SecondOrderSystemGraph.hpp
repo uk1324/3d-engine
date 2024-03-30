@@ -5,12 +5,14 @@
 #include <vector>
 #include <water_simulation/PlotCompiler.hpp>
 #include <water_simulation/Eigenvectors.hpp>
+#include <engine/Graphics/ShaderProgram.hpp>
+#include <framework/Renderer2d.hpp>
 
 struct SecondOrderSystemGraph {
 
 	SecondOrderSystemGraph();
 
-	void update();
+	void update(Renderer2d& renderer2d);
 	void derivativePlot();
 	std::vector<Vec2> fixedPoints;
 	void plotStreamlines();
@@ -87,6 +89,15 @@ struct SecondOrderSystemGraph {
 	} linearizationToolState;
 	void linearizationToolSettings();
 	void linearizationToolUpdate();
+
+	struct BasinOfAttractionWindow {
+		std::optional<ShaderProgram> shaderProgram;
+		Camera camera;
+		std::optional<Vec2> grabStartPosWorldSpace;
+
+		void update(const SecondOrderSystemGraph& state, Renderer2d& renderer2d);
+		void recompileShader(SecondOrderSystemGraph& state, Renderer2d& renderer2d);
+	} basinOfAttractionWindow;
 
 	Mat2 linearFormulaMatrix = Mat2(Vec2(0.0f), Vec2(0.0f));
 	std::array<Eigenvector, 2> linearFormulaMatrixEigenvectors;

@@ -34,13 +34,13 @@ void plotLine(const char* label, const std::vector<Vec2>& vs) {
 	ImPlot::PlotLine(label, pointsData, pointsData + 1, vs.size(), 0, 0, sizeof(float) * 2);
 }
 
-void SecondOrderSystemGraph::update() {
-	auto id = ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+void SecondOrderSystemGraph::update(Renderer2d& renderer2d) {
+	//auto id = ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 
 	const auto derivativePlotWindowName = "derivative plot";
 	const auto settingsWindowName = "settings";
 
-	static bool firstFrame = true;
+	/*static bool firstFrame = true;
 	if (firstFrame) {
 		ImGui::DockBuilderRemoveNode(id);
 		ImGui::DockBuilderAddNode(id);
@@ -53,7 +53,7 @@ void SecondOrderSystemGraph::update() {
 
 		ImGui::DockBuilderFinish(id);
 		firstFrame = false;
-	}
+	}*/
 
 	ImGui::Begin(derivativePlotWindowName);
 	derivativePlot();
@@ -62,9 +62,16 @@ void SecondOrderSystemGraph::update() {
 	ImGui::Begin(settingsWindowName);
 	settings();
 	ImGui::End();
-}
 
-#include <engine/Math/IntersectLineSegments.hpp>
+	const auto& modifiedFormulaInputs = plotCompiler.updateEndOfFrame();
+
+	for (const auto& input : modifiedFormulaInputs) {
+		if (input == &xFormulaInput || input == &yFormulaInput) {
+			basinOfAttractionWindow.recompileShader(*this, renderer2d);
+		}
+	}
+	basinOfAttractionWindow.update(*this, renderer2d);
+}
 
 void SecondOrderSystemGraph::derivativePlot() {
 	// ImPlotFlags_CanvasOnly
@@ -769,4 +776,143 @@ void SecondOrderSystemGraph::linearizationToolUpdate() {
 	if (snapToFixedPoint) {
 		s.pointToLinearlizeAbout = *closestFixedPoint;
 	}
+}
+
+#include <glad/glad.h>
+
+void SecondOrderSystemGraph::BasinOfAttractionWindow::update(
+	const SecondOrderSystemGraph& state,
+	Renderer2d& renderer2d) {
+	if (!shaderProgram.has_value()) {
+		return;
+	}
+
+	if (Input::isMouseButtonHeld(MouseButton::LEFT)) {
+		const auto cursorPos = Input::cursorPosClipSpace() * camera.clipSpaceToWorldSpace();
+		if (grabStartPosWorldSpace.has_value()) {
+			const auto differece = *grabStartPosWorldSpace - cursorPos;
+			camera.pos += differece;
+		} else {
+			grabStartPosWorldSpace = cursorPos;
+		}
+	}
+	if (Input::isMouseButtonUp(MouseButton::LEFT)) {
+		grabStartPosWorldSpace = std::nullopt;
+	}
+
+	if (const auto scroll = Input::scrollDelta(); scroll != 0.0f) {
+		const auto cursorPosBeforeScroll = Input::cursorPosClipSpace() * camera.clipSpaceToWorldSpace();
+		const auto scrollSpeed = 15.0f * abs(scroll);
+		const auto scrollIncrement = pow(scrollSpeed, 1.0f / 60.0f);
+		if (scroll > 0.0f) camera.zoom *= scrollIncrement;
+		else camera.zoom /= scrollIncrement;
+	
+		camera.pos -= (Input::cursorPosClipSpace() * camera.clipSpaceToWorldSpace() - cursorPosBeforeScroll);
+	}
+
+	renderer2d.fullscreenQuad2dPtVerticesVao.bind();
+	const auto bounds = camera.aabb();
+	shaderProgram->set("viewMin", bounds.min);
+	shaderProgram->set("viewMax", bounds.max);
+	for (int i = 0; i < state.plotCompiler.parameters.size(); i++) {
+		const auto index = state.plotCompiler.parameterIndexToLoopFunctionVariableIndex(i);
+		shaderProgram->set("v" + std::to_string(index), state.plotCompiler.loopFunctionVariablesBlock[index]);
+	}
+	shaderProgram->use();
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+	glUseProgram(0);
+}
+
+void SecondOrderSystemGraph::BasinOfAttractionWindow::recompileShader(
+	SecondOrderSystemGraph& state,
+	Renderer2d& renderer2d) {
+
+	StringStream s;
+	s << "#version 430 core\n";
+	s << "in vec2 fragmentTexturePosition;\n";
+	s << "out vec4 fragColor;\n";
+	for (int i = 0; i < state.plotCompiler.parameters.size(); i++) {
+		const auto index = state.plotCompiler.parameterIndexToLoopFunctionVariableIndex(i);
+		s << "uniform float v" << index << ";\n";
+	}
+	s << "uniform vec2 viewMin;\n";
+	s << "uniform vec2 viewMax;\n";
+
+	s << "void main() {\n";
+	{
+		s << "vec2 worldPos = mix(viewMin, viewMax, fragmentTexturePosition);\n";
+		s << "float v" << X_VARIABLE_INDEX_IN_BLOCK << " = worldPos.x;\n";
+		s << "float v" << Y_VARIABLE_INDEX_IN_BLOCK << " = worldPos.y;\n";
+		s << "for (int i = 0; i < 50; i++) {\n";
+		s << "float dxdt;\n";
+		{
+			s << "{\n";
+			if (!state.plotCompiler.tryCompileGlsl(s, state.xFormulaInput)) {
+				shaderProgram = std::nullopt;
+				return;
+			}
+			s << "dxdt = result;\n";
+			s << "}\n";
+		}
+		s << "float dydt;\n";
+		{
+			s << "{\n";
+			if (!state.plotCompiler.tryCompileGlsl(s, state.yFormulaInput)) {
+				shaderProgram = std::nullopt;
+				return;
+			}
+			s << "dydt = result;\n";
+			s << "}\n";
+		}
+		s << "v" << X_VARIABLE_INDEX_IN_BLOCK << " += dxdt * 0.001;\n";
+		s << "v" << Y_VARIABLE_INDEX_IN_BLOCK << " += dydt * 0.001;\n";
+		s << "}\n";
+		//s << "vec2 outPos = vec2(v" << X_VARIABLE_INDEX_IN_BLOCK << ", v" << Y_VARIABLE_INDEX_IN_BLOCK << ");\n";
+		//s << "outPos = mod(outPos, 1.0);\n";
+		//s << "fragColor = vec4(outPos.x, outPos.y, 0, 1);" << "\n";
+		////s << "fragColor = vec4(fragmentTexturePosition.x, fragmentTexturePosition.y, 0, 1);\n";
+		//s << "}\n";
+	}
+	s << "vec2 outPos = vec2(v" << X_VARIABLE_INDEX_IN_BLOCK << ", v" << Y_VARIABLE_INDEX_IN_BLOCK << ");\n";
+	s << "outPos = mod(outPos, 1.0);\n";
+	s << "fragColor = vec4(outPos.x, outPos.y, 0, 1);" << "\n";
+	//s << "fragColor = vec4(fragmentTexturePosition.x, fragmentTexturePosition.y, 0, 1);\n";
+
+	s << "}\n";
+	std::cout << s.string() << '\n';
+	auto result = ShaderProgram::fromSource(renderer2d.fullscreenQuadVertSource, s.string());
+	if (!result.has_value()) {
+		shaderProgram = std::nullopt;
+		std::cout << result.error();
+		ASSERT_NOT_REACHED();
+		return;
+	}
+	shaderProgram = std::move(result.value());
+
+	/*
+	Shadertoy basin of attraction of lotka volterra model of competition.
+
+	void mainImage( out vec4 fragColor, in vec2 fragCoord )
+	{
+		// Normalized pixel coordinates (from 0 to 1)
+		vec2 uv = fragCoord/iResolution.xy;
+    
+		vec2 viewMin = vec2(-10);
+		vec2 viewMax = vec2(10);
+		vec2 worldPos = mix(viewMin, viewMax, uv);
+		float x = worldPos.x;
+		float y = worldPos.y;
+		for (int i = 0; i < 10000; i++) {
+			//float dxdt = 2.0 * x * y;
+			//float dydt = y * y - x * x;
+			float dxdt = x * (3.0 - x - 2.0 * iMouse.x / iResolution.x * y);
+			float dydt = y * (2.0 - x - y);
+			x += dxdt * 0.001;
+			y += dydt * 0.001;
+		}
+		vec2 outPos = vec2(x, y);
+		outPos = mod(outPos, 1.0);
+		fragColor = vec4(outPos.x, outPos.y, 0, 1);
+	}
+	*/
 }

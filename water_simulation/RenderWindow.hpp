@@ -3,6 +3,7 @@
 #include <engine/Graphics/Fbo.hpp>
 #include <engine/Graphics/Texture.hpp>
 
+// TODO: allow scaling the resolution or just setting it to be constant.
 struct RenderWindow {
 	RenderWindow();
 

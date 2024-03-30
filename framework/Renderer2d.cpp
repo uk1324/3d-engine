@@ -3,8 +3,10 @@
 #include <framework/FullscrenQuadPt.hpp>
 #include <framework/Dbg.hpp>
 #include <StructUtils.hpp>
+#include <FileIo.hpp>
 #include <glad/glad.h>
 #include <engine/Window.hpp>
+#include <framework/Shaders/fullscreenQuadData.hpp>
 
 ImageRenderer ImageRenderer::make(Vbo& fullscreenQuad2dPtVerticesVbo, Ibo& fullscreenQuad2dPtVerticesIbo, Vbo& instancesVbo) {
 	auto texturedQuadVao = Vao::generate();
@@ -103,12 +105,31 @@ Renderer2d Renderer2d::make() {
 	auto imageRenderer = ImageRenderer::make(fullscreenQuad2dPtVerticesVbo, fullscreenQuad2dPtVerticesIbo, instancesVbo);
 	auto shapeRenderer = ShapeRenderer2d::make(fullscreenQuad2dPtVerticesVbo, fullscreenQuad2dPtVerticesIbo, instancesVbo);
 
+	Vao fullscreenQuad2dPtVerticesVao = Vao::generate();
+	FullscreenQuadShader::addAttributesToVao(
+		fullscreenQuad2dPtVerticesVao,
+		fullscreenQuad2dPtVerticesVbo,
+		instancesVbo);
+	fullscreenQuad2dPtVerticesVao.bind();
+	fullscreenQuad2dPtVerticesIbo.bind();
+	Vao::unbind();
+
+	auto source = tryLoadStringFromFile("framework/Shaders/fullscreenQuad.vert");
+	std::string fullscreenQuadVertSource;
+	if (source.has_value()) {
+		fullscreenQuadVertSource = std::move(*source);
+	} else {
+		ASSERT_NOT_REACHED();
+	}
+
 	return Renderer2d{
 		MOVE(imageRenderer),
 		MOVE(shapeRenderer),
 		MOVE(fullscreenQuad2dPtVerticesVbo),
 		MOVE(fullscreenQuad2dPtVerticesIbo),
-		MOVE(instancesVbo)
+		MOVE(fullscreenQuad2dPtVerticesVao),
+		MOVE(instancesVbo),
+		MOVE(fullscreenQuadVertSource),
 	};
 }
 

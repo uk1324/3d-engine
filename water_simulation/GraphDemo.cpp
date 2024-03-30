@@ -16,7 +16,8 @@
 
 GraphDemo::GraphDemo() 
 	: plotter(FunctionPlotter2d::make())
-	, texture(Texture::generate()) {
+	, texture(Texture::generate())
+	, renderer2d(Renderer2d::make()) {
 	texture.bind();
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 100, 100, 0, GL_RGBA, GL_FLOAT, nullptr);
 	glBindTexture(GL_TEXTURE_2D, 0);
@@ -63,7 +64,7 @@ void GraphDemo::update() {
 		break;
 
 	case SECOND_ORDER_SYSTEM:
-		secondOrderSystem.update();
+		secondOrderSystem.update(renderer2d);
 		break;
 	}
 	profilingTimes.mainUpdate = mainUpdateTimer.elapsedMilliseconds();

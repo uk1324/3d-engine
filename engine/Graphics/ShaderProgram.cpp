@@ -158,6 +158,10 @@ ShaderProgram::ShaderProgram(u32 handle)
 	: handle_(handle) {
 }
 
+ShaderProgram ShaderProgram::null() {
+	return ShaderProgram(0);
+}
+
 int ShaderProgram::getUniformLocation(std::string_view name) {
 	// Can't assume that the string_view data won't get destroyed.
 	std::string uniformName(name);

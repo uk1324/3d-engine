@@ -1,0 +1,9 @@
+import "../Vertex2dPt.data";
+
+shader FullscreenQuad {
+	vertexStruct = Vertex2dPt;
+	vertOut = {
+		vec2 fragmentTexturePosition;
+	};
+	generateFrag = false;
+}

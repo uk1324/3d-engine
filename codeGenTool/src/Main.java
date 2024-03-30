@@ -220,7 +220,7 @@ public class Main {
                     createIfNotExistsElseMerge(st, shader.vertPath);
                 }
 
-                {
+                if (shader.generateFrag) {
                     ST st = group.getInstanceOf("frag");
                     st.add("shader", shader);
                     System.out.format("generating %s\n", relativeToThisProgramWorkingDirectory(shader.fragPath));
