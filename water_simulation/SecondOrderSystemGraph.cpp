@@ -595,6 +595,11 @@ bool SecondOrderSystemGraph::examplesMenu() {
 		plotCompiler.setFormulaInput(yFormulaInput, "(cx-d)y");
 		return true;
 	}
+	if (ImGui::MenuItem("competitive Lotka-Volterra")) {
+		plotCompiler.setFormulaInput(xFormulaInput, "x(3-x-2y)");
+		plotCompiler.setFormulaInput(yFormulaInput, "y(2-x-y)");
+		return true;
+	}
 
 	// x' = sin(x)
 	// y' = sin(xy)
@@ -779,6 +784,7 @@ void SecondOrderSystemGraph::linearizationToolUpdate() {
 }
 
 #include <glad/glad.h>
+#include <engine/Math/Random.hpp>
 
 void SecondOrderSystemGraph::BasinOfAttractionWindow::update(
 	const SecondOrderSystemGraph& state,
@@ -814,6 +820,29 @@ void SecondOrderSystemGraph::BasinOfAttractionWindow::update(
 	const auto bounds = camera.aabb();
 	shaderProgram->set("viewMin", bounds.min);
 	shaderProgram->set("viewMax", bounds.max);
+	static int iterations = 0;
+	ImGui::Begin("settings");
+	ImGui::SliderInt("iterations", &iterations, 0, 10000);
+	ImGui::End(); 
+	shaderProgram->set("iterations", iterations);
+	
+	//if (state.fixedPoints.size())
+	const auto count = std::min(state.fixedPoints.size(), size_t(4));
+	for (int i = 0; i < count; i++) {
+		const auto index = "[" + std::to_string(i) + "]";
+		shaderProgram->set("fixedPoints" + index, state.fixedPoints[i]);
+		//const auto color = Vec3(state.fixedPoints[i].x, state.fixedPoints[i].y, 0.0f);
+		const auto color = Color3::fromHsv(float(i) / 4, 1.0f, 1.0f);
+		shaderProgram->set("fixedPointsColors" + index, color);
+		renderer2d.shapeRenderer.circleInstances.push_back(CircleInstance{
+			.transform = camera.makeTransform(state.fixedPoints[i], 0.0f, Vec2(1.0f)),
+			.color = color,
+			.smoothing = 0.05f,
+			.width = 0.1f,
+		});
+	}
+	shaderProgram->set("fixedPointsCount", i32(count));
+
 	for (int i = 0; i < state.plotCompiler.parameters.size(); i++) {
 		const auto index = state.plotCompiler.parameterIndexToLoopFunctionVariableIndex(i);
 		shaderProgram->set("v" + std::to_string(index), state.plotCompiler.loopFunctionVariablesBlock[index]);
@@ -821,12 +850,15 @@ void SecondOrderSystemGraph::BasinOfAttractionWindow::update(
 	shaderProgram->use();
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 	glUseProgram(0);
+
+	//renderer2d.update();
 }
 
 void SecondOrderSystemGraph::BasinOfAttractionWindow::recompileShader(
 	SecondOrderSystemGraph& state,
 	Renderer2d& renderer2d) {
 
+	// This doesn't work well, because many interation are required to converge to the fixed point. It looks like a fractal, but after many iteration it coverges into simple shapes. Look at the shadertoy below.
 	StringStream s;
 	s << "#version 430 core\n";
 	s << "in vec2 fragmentTexturePosition;\n";
@@ -837,13 +869,17 @@ void SecondOrderSystemGraph::BasinOfAttractionWindow::recompileShader(
 	}
 	s << "uniform vec2 viewMin;\n";
 	s << "uniform vec2 viewMax;\n";
+	s << "uniform int iterations;\n";
+	s << "uniform vec2 fixedPoints[4];\n";
+	s << "uniform vec3 fixedPointsColors[4];\n";
+	s << "uniform int fixedPointsCount;\n";
 
 	s << "void main() {\n";
 	{
 		s << "vec2 worldPos = mix(viewMin, viewMax, fragmentTexturePosition);\n";
 		s << "float v" << X_VARIABLE_INDEX_IN_BLOCK << " = worldPos.x;\n";
 		s << "float v" << Y_VARIABLE_INDEX_IN_BLOCK << " = worldPos.y;\n";
-		s << "for (int i = 0; i < 50; i++) {\n";
+		s << "for (int i = 0; i < iterations; i++) {\n";
 		s << "float dxdt;\n";
 		{
 			s << "{\n";
@@ -864,18 +900,29 @@ void SecondOrderSystemGraph::BasinOfAttractionWindow::recompileShader(
 			s << "dydt = result;\n";
 			s << "}\n";
 		}
-		s << "v" << X_VARIABLE_INDEX_IN_BLOCK << " += dxdt * 0.001;\n";
-		s << "v" << Y_VARIABLE_INDEX_IN_BLOCK << " += dydt * 0.001;\n";
+		s << "v" << X_VARIABLE_INDEX_IN_BLOCK << " += dxdt * 0.01;\n";
+		s << "v" << Y_VARIABLE_INDEX_IN_BLOCK << " += dydt * 0.01;\n";
 		s << "}\n";
-		//s << "vec2 outPos = vec2(v" << X_VARIABLE_INDEX_IN_BLOCK << ", v" << Y_VARIABLE_INDEX_IN_BLOCK << ");\n";
+		s << "vec2 outPos = vec2(v" << X_VARIABLE_INDEX_IN_BLOCK << ", v" << Y_VARIABLE_INDEX_IN_BLOCK << ");\n";
 		//s << "outPos = mod(outPos, 1.0);\n";
 		//s << "fragColor = vec4(outPos.x, outPos.y, 0, 1);" << "\n";
 		////s << "fragColor = vec4(fragmentTexturePosition.x, fragmentTexturePosition.y, 0, 1);\n";
 		//s << "}\n";
 	}
-	s << "vec2 outPos = vec2(v" << X_VARIABLE_INDEX_IN_BLOCK << ", v" << Y_VARIABLE_INDEX_IN_BLOCK << ");\n";
-	s << "outPos = mod(outPos, 1.0);\n";
-	s << "fragColor = vec4(outPos.x, outPos.y, 0, 1);" << "\n";
+	s << R"(
+	vec3 color = vec3(0.0);
+	for (int i = 0; i < fixedPointsCount; i++) {
+		if (distance(fixedPoints[i], outPos) < 0.05) {
+			color = fixedPointsColors[i];
+			break;
+		}
+	}
+	fragColor = vec4(color, 1.0);
+	)";
+
+	//s << "vec2 outPos = vec2(v" << X_VARIABLE_INDEX_IN_BLOCK << ", v" << Y_VARIABLE_INDEX_IN_BLOCK << ");\n";
+	//s << "outPos = mod(outPos, 1.0);\n";
+	//s << "fragColor = vec4(outPos.x, outPos.y, 0, 1);" << "\n";
 	//s << "fragColor = vec4(fragmentTexturePosition.x, fragmentTexturePosition.y, 0, 1);\n";
 
 	s << "}\n";
@@ -888,7 +935,9 @@ void SecondOrderSystemGraph::BasinOfAttractionWindow::recompileShader(
 		return;
 	}
 	shaderProgram = std::move(result.value());
-
+	/*renderer2d.shapeRenderer.circleInstances.push_back(CircleInstance{
+		.color = Vec2()
+	})*/
 	/*
 	Shadertoy basin of attraction of lotka volterra model of competition.
 
