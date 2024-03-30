@@ -23,7 +23,16 @@ GraphDemo::GraphDemo()
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 }
 #include <engine/Math/Aabb.hpp>
+#include <Timer.hpp>
+#include <Gui.hpp>
+struct ProfilingTimes {
+	float mainUpdate;
+};
+
 void GraphDemo::update() {
+	ProfilingTimes profilingTimes;
+	//ImGui::ShowDemoWindow();
+	//ImPlot::ShowDemoWindow();
 	//ImGui::Begin("editor");
 	//Aabb sceneWindowWindowSpace = Aabb::fromCorners(
 	//	Vec2(ImGui::GetWindowPos()) + ImGui::GetWindowContentRegionMin(),
@@ -45,6 +54,7 @@ void GraphDemo::update() {
 
 	glClear(GL_COLOR_BUFFER_BIT);
 
+	Timer mainUpdateTimer;
 	switch (SettingsManager::settings.activePlotType) {
 		using enum SettingsPlotType;
 
@@ -56,6 +66,7 @@ void GraphDemo::update() {
 		secondOrderSystem.update();
 		break;
 	}
+	profilingTimes.mainUpdate = mainUpdateTimer.elapsedMilliseconds();
 	bool plotTypeModified = false;
 
 	// OpenPopup doesn't work inside MainMenuBar.
@@ -100,6 +111,11 @@ void GraphDemo::update() {
 	}
 	helpWindow();
 
+	{
+		/*ImGui::Begin("profiling");
+		Gui::put("main update: %", profilingTimes.mainUpdate);
+		ImGui::End();*/
+	}
 }
 
 static constexpr const char* helpWindowName = "help";

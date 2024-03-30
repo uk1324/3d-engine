@@ -30,7 +30,6 @@ struct PlotCompiler {
 
 	void recompileAllFormulas();
 
-
 	void settingsWindowContent();
 
 	const char* parameterSettingsWindowName = "parameter settings";

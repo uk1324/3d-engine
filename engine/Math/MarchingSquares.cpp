@@ -523,6 +523,31 @@ void marchingSquares3(
 	}
 }
 
+void rescaleMarchingSquaresLines(std::vector<MarchingSquares3Line>& lines, Vec2 gridSize, Vec2 min, Vec2 max) {
+	for (auto& segment : lines) {
+		auto scale = [&](Vec2 pos) -> Vec2 {
+			pos /= gridSize;
+			pos.x = lerp(min.x, max.x, pos.x);
+			pos.y = lerp(min.y, max.y, pos.y);
+			return pos;
+		};
+		segment.a = scale(segment.a);
+		segment.b = scale(segment.b);
+	}
+}
+
+void marchingSquresLinesToVectorOfEndpoints(const std::vector<MarchingSquares3Line>& lines, std::vector<Vec2>& endpoints) {
+	for (const auto segment : lines) {
+		endpoints.push_back(segment.a);
+		endpoints.push_back(segment.b);
+	}
+}
+
+void rescaleMarchingSquaresLinesAndConvertToVectorOfEndpoints(std::vector<MarchingSquares3Line>& lines, std::vector<Vec2>& endpointsOut, Vec2 gridSize, Vec2 min, Vec2 max) {
+	rescaleMarchingSquaresLines(lines, gridSize, min, max);
+	marchingSquresLinesToVectorOfEndpoints(lines, endpointsOut);
+}
+
 Vec2T<i32> MarchingSquaresLine::topLeftIndex() const {
 	return Vec2T<i32>(bottomLeftIndex.x, bottomLeftIndex.y + 1);
 }

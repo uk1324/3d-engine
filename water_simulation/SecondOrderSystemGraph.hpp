@@ -12,9 +12,17 @@ struct SecondOrderSystemGraph {
 
 	void update();
 	void derivativePlot();
+	std::vector<Vec2> fixedPoints;
 	void plotStreamlines();
 	void plotTestPoints();
 	void plotFixedPoints();
+	
+	struct SampleVectorFieldState {
+		std::vector<float> inputBlock;
+		std::vector<__m256> input;
+	} sampleVectorFieldState;
+	Vec2 sampleVectorField(Vec2 v);
+
 	void settings();
 	bool examplesMenu();
 	
@@ -39,6 +47,10 @@ struct SecondOrderSystemGraph {
 		const PlotCompiler::FormulaInput& formula);
 	void calculateImplicitFunctionGraph(const Runtime::LoopFunction& function, std::vector<Vec2>& out);
 
+	static void drawEigenvectors(Vec2 origin, const std::array<Eigenvector, 2>& eigenvectors, float scale, float complexPartTolerance);
+
+	Mat2 calculateJacobian(Vec2 p);
+
 	bool spawnPointsOnBoundaryNextFrame = false;
 	bool spawnGridOfPointsNextFrame = false;
 
@@ -60,6 +72,21 @@ struct SecondOrderSystemGraph {
 	};
 	FormulaType formulaType = FormulaType::GENERAL;
 	static constexpr const char* formulaTypeNames = "linear\0general\0";
+
+	enum class ToolType {
+		SPAWN_TEST_POINTS,
+	};
+	ToolType selectedToolType = ToolType::SPAWN_TEST_POINTS;
+	const char* toolTypeNames = "spawn test points\0";
+
+	struct LinearizationToolState {
+		bool show = false;
+		Vec2 pointToLinearlizeAbout = Vec2(0.0f);
+		Mat2 jacobian = Mat2(Vec2(0.0f), Vec2(0.0f));
+
+	} linearizationToolState;
+	void linearizationToolSettings();
+	void linearizationToolUpdate();
 
 	Mat2 linearFormulaMatrix = Mat2(Vec2(0.0f), Vec2(0.0f));
 	std::array<Eigenvector, 2> linearFormulaMatrixEigenvectors;

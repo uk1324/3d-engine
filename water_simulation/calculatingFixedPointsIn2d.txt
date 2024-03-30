@@ -1,0 +1,29 @@
+/*
+	Finding zeros of a system of continous functions is hard, because for example a triangle mapped into any other closed curve (not sure if it has to be non self intersecting). Also it doesn't have to be bijective so it isn't a homeomorphism. For example you can map the triangle to a line.
+	When you map a triangle then the map of the triangle doesn't have to be a subset or superset of the triangle created by the set of mapped points.
+
+	I think an example of a map that create self intersection is the complex x^2 function. You can probably come up with weird cases by thing about the as vector fields and when the vectors change signs.
+
+	The condition that there are vertices with sign ++, --, +-, -+ in a polygon doesn't ensure that there is a zero inside it. Also a if there is a zero inside a region it doesn't mean that the sign's have to match this pattern.
+	Example
+	Draw 2 straight lines intersecting at a point. Then draw a box such that the lines intersect 2 opposite lines of a box, but don't intersect the other 2. Then there is a zero inside, but the signs don't match.
+	A counterexample for there other thing: https://youtu.be/rMg61nfkZ3M?feature=shared&t=420.
+
+	If a quadrilateral that contains a solution and has the sign at vertices with the pattern specified above. The the algorithm in the video can be used to find the root to arbitrary precision.
+
+	Not sure if this is the same algorithm as described in the video.
+	https://en.wikipedia.org/wiki/Bisection_method#Generalization_to_higher_dimensions
+
+	I wonder if the function maps convex sets (for example triangles) to other convex sets then can be algorithm be simplified, because a triangle is the smallest set convex set containing 3 points (this was said in the book by Pavel Alexandrov i think). So the map of the triangle will be a superset of the triangle made from the map of the vertices. This is wrong I think. Wouldn't it need to map the to concave sets for this to work.
+	I guess if the set is convex then something like GJK can be used.
+
+	Using interval arithmetic you can get a bounding box for the values that a rectangular region gets mapped to, but if the output region contains zero it doesn't mean the the a point from the input region gets mapped to zero, because it is just a bounding box. You would need to somehow compute the inverse to get the region. You could try using a iterative method that would try to converge the region into a region containing the root.
+
+	One options could be to consider all the possible sign cases and based on that conservatively choose if it is possible for the root to be there. Then check all the possible spots and if they converge add then return them as roots.
+
+	The probablem with just intersecting the graphs is that it breaks at singular points like double points or infinite points. Convervatively at saddle points a cross could be added. That is 4 lines 2 corresponding 2 each possible direction around the point could be added.
+
+	"Generalization of the Bolzano theorem for simplices"
+	Bolzano–Poincaré–Miranda theorem is closely related to important theorems in analysis and topology as well as it is an invaluable tool for verified solutions of numerical problems by means of interval arithmetic [list of references]
+	*/
+	// https://en.wikipedia.org/wiki/Bentley%E2%80%93Ottmann_algorithm
