@@ -17,3 +17,4 @@ for (auto& formula : formulasUpdatedThisFrame) {
 		updateTexture();
 	}
 }
+Events can also be impelmeted by creating entites in an ECS systems.

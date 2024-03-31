@@ -12,6 +12,8 @@
 #include <Array2d.hpp>
 #include <iomanip>
 
+// TODO add an input option for x''= as a function of x and x'. just replace the fields. Add a button to show the energy graph. The graph the function the force has to be integrated. For it to be conservative it can't depend on x'
+
 // TODO: Could graph the potentials of conservative/irrotational fields.
 
 // TODO: Could allow intersecting a sufrace with a plane. The result would just be the sum of the intersection with each triangle.
@@ -35,12 +37,12 @@ void plotLine(const char* label, const std::vector<Vec2>& vs) {
 }
 
 void SecondOrderSystemGraph::update(Renderer2d& renderer2d) {
-	//auto id = ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+	auto id = ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 
 	const auto derivativePlotWindowName = "derivative plot";
 	const auto settingsWindowName = "settings";
 
-	/*static bool firstFrame = true;
+	static bool firstFrame = true;
 	if (firstFrame) {
 		ImGui::DockBuilderRemoveNode(id);
 		ImGui::DockBuilderAddNode(id);
@@ -53,7 +55,7 @@ void SecondOrderSystemGraph::update(Renderer2d& renderer2d) {
 
 		ImGui::DockBuilderFinish(id);
 		firstFrame = false;
-	}*/
+	}
 
 	ImGui::Begin(derivativePlotWindowName);
 	derivativePlot();
@@ -65,12 +67,12 @@ void SecondOrderSystemGraph::update(Renderer2d& renderer2d) {
 
 	const auto& modifiedFormulaInputs = plotCompiler.updateEndOfFrame();
 
-	for (const auto& input : modifiedFormulaInputs) {
+	/*for (const auto& input : modifiedFormulaInputs) {
 		if (input == &xFormulaInput || input == &yFormulaInput) {
 			basinOfAttractionWindow.recompileShader(*this, renderer2d);
 		}
 	}
-	basinOfAttractionWindow.update(*this, renderer2d);
+	basinOfAttractionWindow.update(*this, renderer2d);*/
 }
 
 void SecondOrderSystemGraph::derivativePlot() {
@@ -424,11 +426,11 @@ void SecondOrderSystemGraph::settings() {
 		StringStream formula;
 		formula << std::setprecision(1000);
 
-		formula << linearFormulaMatrix[0][0] << "x + " << linearFormulaMatrix[0][1] << "y";
+		formula << linearFormulaMatrix(0, 0) << "x + " << linearFormulaMatrix(1, 0) << "y";
 		plotCompiler.setFormulaInput(xFormulaInput, formula.string());
 
 		formula.string().clear();
-		formula << linearFormulaMatrix[1][0] << "x + " << linearFormulaMatrix[1][1] << "y";
+		formula << linearFormulaMatrix(0, 1) << "x + " << linearFormulaMatrix(1, 1) << "y";
 		plotCompiler.setFormulaInput(yFormulaInput, formula.string());
 
 		linearFormulaMatrixEigenvectors = computeEigenvectors(linearFormulaMatrix);
@@ -464,12 +466,12 @@ void SecondOrderSystemGraph::settings() {
 	switch (formulaType) {
 		using enum FormulaType;
 	case LINEAR: {
-		auto row0 = Vec2(linearFormulaMatrix[0][0], linearFormulaMatrix[1][0]);
-		auto row1 = Vec2(linearFormulaMatrix[0][1], linearFormulaMatrix[1][1]);
+		auto row0 = linearFormulaMatrix.row0();
+		auto row1 = linearFormulaMatrix.row1();
 		bool modified = false;
 		modified |= ImGui::InputFloat2("##row0", row0.data());
 		modified |= ImGui::InputFloat2("##row1", row1.data());
-		linearFormulaMatrix = Mat2(Vec2(row0.x, row1.x), Vec2(row0.y, row1.y));
+		linearFormulaMatrix = Mat2::fromRows(row0, row1);
 		if (modified) {
 			updateLinearFormula();
 		}
@@ -747,8 +749,8 @@ void SecondOrderSystemGraph::linearizationToolSettings() {
 	}
 	ImGui::Text("jacobian");
 	if (ImGui::BeginTable("jacobian", 2, ImGuiTableFlags_BordersOuterV)) {
-		tableVec2Row(Vec2(s.jacobian[0][0], s.jacobian[0][1]));
-		tableVec2Row(Vec2(s.jacobian[1][0], s.jacobian[1][1]));
+		tableVec2Row(Vec2(s.jacobian.row0()));
+		tableVec2Row(Vec2(s.jacobian.row1()));
 		ImGui::EndTable();
 	}
 	ImGui::Text("%s", linearSystemTypeToString(linearSystemType(s.jacobian)));

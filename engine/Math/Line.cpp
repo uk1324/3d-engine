@@ -32,7 +32,7 @@ auto Line::intersection(const Line& other) const -> std::optional<Vec2> {
 	}
 
 	const Vec2 b{ d, other.d };
-	return b * A.inversed();
+	return A.inversed() * b;
 }
 
 auto signedDistance(const Line& l, Vec2 p) -> float {
