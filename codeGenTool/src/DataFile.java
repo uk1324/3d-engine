@@ -210,6 +210,7 @@ class Shader extends Declaration {
     public String vertPathRelativeToWorkingDirectory;
     public String fragPathRelativeToWorkingDirectory;
     public boolean generateVert;
+    public boolean generateFrag;
 
     public boolean getVertUniformsIsEmpty() {
         return vertUniforms.fields.isEmpty();
@@ -225,7 +226,8 @@ class Shader extends Declaration {
             List<Field> instanceFragFields,
             List<Field> vertOut,
             GeneratedFilesPaths paths,
-            boolean generateVert) {
+            boolean generateVert,
+            boolean generateFrag) {
 
         int layout = 0;
 

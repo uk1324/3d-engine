@@ -1,24 +1,5 @@
 #include "LineSegment.hpp"
 
-LineSegment::LineSegment(Line line, float minDistanceAlongLine, float maxDistanceAlongLine) 
-	: line{ line }
-	, minDistanceAlongLine{ minDistanceAlongLine }
-	, maxDistanceAlongLine{ maxDistanceAlongLine }
-{}
-
-LineSegment::LineSegment(Vec2 start, Vec2 end)
-	: line{ start, end } {
-	float a = line.distanceAlong(start);
-	float b = line.distanceAlong(end);
-	if (a < b) {
-		minDistanceAlongLine = a;
-		maxDistanceAlongLine = b;
-	} else {
-		minDistanceAlongLine = b;
-		maxDistanceAlongLine = a;
-	}
-}
-
 auto LineSegment::closestPointTo(Vec2 p) const -> Vec2 {
 	const auto along = line.distanceAlong(p);
 	const auto alongClamped = std::clamp(along, minDistanceAlongLine, maxDistanceAlongLine);
@@ -61,22 +42,6 @@ auto LineSegment::getCorners() const -> std::array<Vec2, 2> {
 auto LineSegment::raycastHit(Vec2 rayBegin, Vec2 rayEnd) const -> std::optional<Vec2> {
 	const LineSegment rayLineSegment{ rayBegin, rayEnd };
 	return intersection(rayLineSegment);
-}
-
-auto LineSegment::intersection(const LineSegment& other) const -> std::optional<Vec2> {
-	const auto intersection = line.intersection(other.line);
-	if (!intersection.has_value())
-		return std::nullopt;
-
-	const auto distanceAlong = line.distanceAlong(*intersection);
-	if (distanceAlong < minDistanceAlongLine || distanceAlong > maxDistanceAlongLine)
-		return std::nullopt;
-
-	const auto otherDistanceAlong = other.line.distanceAlong(*intersection);
-	if (otherDistanceAlong < other.minDistanceAlongLine || otherDistanceAlong > other.maxDistanceAlongLine)
-		return std::nullopt;
-
-	return intersection;
 }
 
 std::optional<Vec2> intersectLineSegments(Vec2 s0, Vec2 e0, Vec2 s1, Vec2 e1) {

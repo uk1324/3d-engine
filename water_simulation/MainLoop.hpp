@@ -6,16 +6,18 @@
 #include <water_simulation/GraphDemo.hpp>
 #include <water_simulation/SpecialFunctionsDemo.hpp>
 #include <water_simulation/IntegrationDemo.hpp>
+#include <water_simulation/MatrixDemo.hpp>
 
 struct MainLoop {
 	MainLoop();
 
 	void update();
 
-	EulerianFluidDemo eulerianFluidDemo;
+	MatrixDemo matrixDemo;
+	/*EulerianFluidDemo eulerianFluidDemo;
 	FlipPicFluidDemo flipPicFluidDemo;
-	PolynomialInterpolationDemo polynomialInterpolationDemo;
+	PolynomialInterpolationDemo polynomialInterpolationDemo;*/
 	GraphDemo graphDemo;
-	SpecialFunctionsDemo specialFunctionsDemo;
-	IntegrationDemo integrationDemo;
+	/*SpecialFunctionsDemo specialFunctionsDemo;
+	IntegrationDemo integrationDemo;*/
 };

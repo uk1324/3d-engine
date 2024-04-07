@@ -20,6 +20,20 @@ PlotCompiler::PlotCompiler()
 	io.Fonts->AddFontFromFileTTF("water_simulation/assets/" FONT_ICON_FILE_NAME_FAS, iconFontSize, &icons_config, icons_ranges);
 }
 
+const std::vector<PlotCompiler::FormulaInput*>& PlotCompiler::updateEndOfFrame() {
+	modifiedFormulaInputs.clear();
+	for (auto& formulaInput : allocatedFormulaInputs) {
+		if (formulaInput.modifiedThisFrame) {
+			modifiedFormulaInputs.push_back(&formulaInput);
+		}
+		formulaInput.modifiedThisFrame = false;
+	}
+	for (auto& formulaInput : modifiedFormulaInputs) {
+		compileFormula(*formulaInput);
+	}
+	return modifiedFormulaInputs;
+}
+
 PlotCompiler::FormulaInput* PlotCompiler::allocateFormulaInput() {
 	FormulaInput& formula = allocatedFormulaInputs.emplace_back();
 	return &formula;
@@ -33,7 +47,7 @@ void PlotCompiler::freeFormulaInput(FormulaInput* formula) {
 
 void PlotCompiler::recompileAllFormulas() {
 	for (auto& formula : allocatedFormulaInputs) {
-		compileFormula(formula);
+		formula.modifiedThisFrame = true;
 	}
 }
 
@@ -167,7 +181,7 @@ void PlotCompiler::formulaInputGui(const char* lhs, FormulaInput& formula) {
 	ImGui::PopID();
 
 	if (recompile) {
-		compileFormula(formula);
+		formula.modifiedThisFrame = true;
 	}
 
 	if (formula.errorMessage.size() != 0) {
@@ -185,7 +199,7 @@ void PlotCompiler::setFormulaInput(FormulaInput& formula, std::string_view text)
 	}
 	memcpy(formula.input, text.data(), text.size());
 	formula.input[text.size()] = '\0';
-	compileFormula(formula);
+	formula.modifiedThisFrame = true;
 }
 
 void PlotCompiler::compileFormula(FormulaInput& formula) {
@@ -223,6 +237,25 @@ void PlotCompiler::compileFormula(FormulaInput& formula) {
 	}
 }
 
+bool PlotCompiler::tryCompileGlsl(std::ostream& out, const FormulaInput& input) {
+	scannerReporter.reset();
+	parserReporter.reset();
+	irCompilerReporter.reset();
+
+	recalculateRuntimeVariables();
+	const auto irCode = runtime.compileToIr(input.input, runtimeVariables);
+
+	const auto scannerError = scannerReporter.errors.size() != 0;
+	const auto parserError = parserReporter.errors.size() != 0;
+	const auto irCompilerError = irCompilerReporter.errors.size() != 0;
+	const auto anyError = scannerError || parserError || irCompilerError || !irCode.has_value();
+	if (anyError) {
+		return false;
+	}
+	glslCodeGenerator.compile(out, *irCode, runtime.functions, runtimeVariables);
+	return true;
+}
+
 void PlotCompiler::recalculateRuntimeVariables() {
 	runtimeVariables.clear();
 
@@ -245,6 +278,7 @@ void PlotCompiler::addParameter(std::string_view name) {
 		.valueMax = 10.0f,
 		.valueMin = -10.0f
 	});
+	recalculateRuntimeVariables();
 	recompileAllFormulas();
 }
 

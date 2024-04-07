@@ -119,6 +119,8 @@ void FirstOrderSystemGraph::update() {
 	ImGui::Begin(settingsWindowName);
 	settings();
 	ImGui::End();
+
+	plotCompiler.updateEndOfFrame();
 }
 
 void FirstOrderSystemGraph::derivativePlot() {

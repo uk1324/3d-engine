@@ -13,3 +13,18 @@ struct Eigenvector {
 };
 
 std::array<Eigenvector, 2> computeEigenvectors(const Mat2& m);
+
+enum class LinearSystem2dType {
+	NON_ISOLATED_FIXED_POINTS,
+	SADDLE_POINT,
+	UNSTABLE_NODE,
+	UNSTABLE_SPIRAL,
+	UNSTABLE_DEGENERATE_NODE,
+	STABLE_NODE,
+	STABLE_SPIRAL,
+	STABLE_DEGENERATE_NODE,
+	CENTER,
+};
+
+LinearSystem2dType linearSystemType(const Mat2& m);
+const char* linearSystemTypeToString(LinearSystem2dType type);

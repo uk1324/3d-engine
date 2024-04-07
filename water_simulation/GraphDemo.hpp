@@ -9,6 +9,7 @@
 #include <water_simulation/SettingsManager.hpp>
 #include <water_simulation/FunctionPlotter2d.hpp>
 #include <water_simulation/RenderWindow.hpp>
+#include <framework/Renderer2d.hpp>
 
 struct GraphDemo {
 	GraphDemo();
@@ -17,15 +18,12 @@ struct GraphDemo {
 	void openHelpWindow();
 	void helpWindow();
 
-	/*enum class State {
-		FIRST_ORDER_SYSTEM,
-		SECOND_ORDER_SYSTEM,
-	};*/
-	//State state = State::FIRST_ORDER_SYSTEM;
 	Texture texture;
 	FirstOrderSystemGraph firstOrderSystem;
 	SecondOrderSystemGraph secondOrderSystem;
 	FunctionPlotter2d plotter;
 
 	RenderWindow window;
+
+	Renderer2d renderer2d;
 };

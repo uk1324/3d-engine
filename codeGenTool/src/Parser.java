@@ -288,6 +288,7 @@ public class Parser {
         Optional<List<Field>> optVertOut = Optional.empty();
 
         boolean generateVert = true;
+        boolean generateFrag = true;
 
         while (!isAtEnd && !match(TokenType.RIGHT_BRACE)) {
             expect(TokenType.IDENTIFIER);
@@ -347,6 +348,10 @@ public class Parser {
             } else if (previousToken.text.equals("generateVert")) {
                 expect(TokenType.EQUALS);
                 generateVert = bool();
+                expect(TokenType.SEMICOLON);
+            } else if (previousToken.text.equals("generateFrag")) {
+                expect(TokenType.EQUALS);
+                generateFrag = bool();
                 expect(TokenType.SEMICOLON);
             } else {
                 throw new ParserError(String.format("invalid field %s", previousToken.text));
@@ -420,7 +425,7 @@ public class Parser {
         output.addHppIncludePath(Config.VAO_PATH);
         output.addCppIncludePath(Config.OPENGL_PATH);
 
-        return new Shader(name, instance, fragUniforms, vertUniforms, vertexStructName, vertexFields, instanceVertFields, instanceFragFields, vertOut, paths, generateVert);
+        return new Shader(name, instance, fragUniforms, vertUniforms, vertexStructName, vertexFields, instanceVertFields, instanceFragFields, vertOut, paths, generateVert, generateFrag);
     }
 
     DataType dataType() throws LexerError, ParserError {

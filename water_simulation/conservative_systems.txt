@@ -1,0 +1,87 @@
+6.5.1
+One way to find the conserved quantity is to try to separate the variables.
+
+6.5.2
+x'' = x - x^2
+c)
+The homoclinic orbits have to contain the fixed point so to find them just calculate the conserved quantity and set plug in the fixed point to get the constant.
+
+The dynamics of a equation. Notice that f only depends on x.
+x'' = f(x) 
+Always have a jacobian of the form
+[ 0     1 ] 
+[ df/dx 0 ]
+So the only possible dynamics of fixed points are
+df/dx > 0 => Saddle point
+df/dx < 0 => Center
+df/dx == 0 => Line of fixed points. The dynamics only depend on the velocity.
+
+Moddeling an exchange of some quantity between set scould be done by doing something like this
+dx/dt = -f(x, y)
+dy/dt = f(x, y)
+
+6.5.7 
+c) To verify that a linearized center corresponds to a nonlinear center you can calculate the conserved quantity and check if the curve is closed. In the case of a conserved system by Theorem 6.5.1 then orbit has to be closed.
+d) Plug in the equalibrium point to the conserved quantity. Probably haven't checked.
+
+6.5.10
+x' = y
+y' = (h^2)/(x^3)-k/(x^2)
+0 = y^2/2+h^2/2x^2-k/x-c
+0 = h^2/2x^2-k/x-y // Potential
+Because of the uniquness you you find one solution that bounds them then that should be enough
+The solutions are symmetric around the y axis.
+Based on the potential you can find the minimum of the energy surface. It is sufficient to just look at the slice the potential (the slice with y = 0), because the energy increases with y. The lower bound of the energy is the minimum of the potential and the upper bound is the asymptote of the potential.
+If there y is in this range then there are 2 intersections and everything between them has lower energy. The trajectories are closed by by Theorem 6.5.1 because the system is conservative.
+Also r can't be negative, because it represents distance.
+
+6.5.11
+The equations are not separable. The thing that divides the basins is the stable manifold of the saddle point.
+Based on the initial velocity the system can oscilate back and forth multiple times before choosing where it ends up. So the basins for 2 intertwining spirals.
+
+TODO: 6.5.12 Could add x' = xy y'=-x^2
+
+6.5.13
+The conserved quantity is symmetric around the x and y axes and it increases when it gets further away from the fixed point.
+
+6.5.14
+a) Calculate the derivative of the quantity and everything will cancel.
+The nullclines are
+v' = 0 => theta = 0. This means that with no grag flying parallel to the ground the velocity won't change. The angle can still be changed by the other equation.
+theta' = 0 => v^2 = cos(theta)
+
+You can plot 3d system as 2d plots with color representing the other variable. You could for example have damping by transfered into heat energy.
+
+
+TODO:
+Also poincare recurrence theorem
+The Hopf decomposition states that every measure space with a non-singular transformation can be decomposed into an invariant conservative set and a wandering (dissipative) set. A commonplace informal example of Hopf decomposition is the mixing of two liquids (some textbooks mention rum and coke): The initial state, where the two liquids are not yet mixed, can never recur again after mixing; it is part of the dissipative set. Likewise any of the partially-mixed states. The result, after mixing (a cuba libre, in the canonical example), is stable, and forms the conservative set; further mixing does not alter it. I
+
+For any solution [x(t), y(t)] you have
+f(x(t), y(t)) = C
+f_x dx/dt + f_y dy/dt = 0
+f_x dx/dt = -f_y dy/dt
+f_x dx= -f_y dy
+S(f_x)dx= -S(f_y)dy
+
+What is the relation between conservative vector fields and conserved quantites.
+
+6.5.14 is an example of a non separable conservative system.
+
+separable => conservative, but I don't think the implication the other way applies.
+From this we also get, not conservative => not separable.
+If a system is conservative then you can think of it as isoheights of a surface. If you have a system like a spiral. For example x' = y; y' = -x - y. Then I don't think you can create such a surface for it to satisfy some algebraic expression.
+
+From a conserved quantity you can derive the form of the differential equations satisfying it. For example
+x^2 + y^2 = C
+d(x^2 + y^2)/dx = 0
+2x + 2y dy/dx = 0
+2x = -2y dy/dx
+2x dx = -2y dy
+2x dx/dt = -2y dy/dt
+dx/dt = -y/x dy/dt
+The if dy/dt = -x^2 then dx/dt = y/x * x^2 = xy. This is the system from exercise 6.5.12
+If dy/dt = x^3 then dx/dt = -y/x * x^3 = -yx^2
+
+EXAMPLE 6.5.1:
+Show that a conservative system cannot have any attracting fixed points

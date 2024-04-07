@@ -1,0 +1,20 @@
+When a formula is recompiled some objects need to update their state for example the jacobian of a fixed point, the texture used to draw a 3d graph.
+
+In the case when updating the state is cheap the simplest option might be to just recompute it every frame. For eaxmple computing the jacobian is fast so adding some system to check or notify is something was modified would probably be overcomplicating things.
+
+The advantage of polling is that the object that is being polled doesn't need to know anything about objects that poll it. The disadvantage is that polling the state every frame might be inefficient and if the updates are called in the wrong order the polling might not happen and the object might remain in the old state.
+
+The advantage of listeners is that they alawys get notified; the update can't be missed. The disadvantage is that both objects need to know about eachother. The observed object needs to know how to communicate to the objects it observes. Another issue is that it might make it harder to reason what is happening and in what order it happens. There is a choice between storing all the events that happened and calling the objects at the end of the frame (or in some other part of the frame) and calling immediately when the event happens. The former might be better, because the objects might is in an unknown state when immediately when the event occurs. One more thing is that the listener and the observed objects need to know when the other is destroyed, which creates another coupling and complicates the lifetimes of the objects. The reference to the listener that the observed object stores needs to remain valid throught the lifetime of observed object. One way to solve this is to allocate each listener object on the heap so that it's pointer doesn't get invalidated. Another is to pass 2 "pointers", one would be some manager and one would be and index. This could be implement by using a function pointer that takes as input some block of memory. 
+Not sure what other options are there if the code is external for example a plugin or code from some scripting language.
+
+When using events you can have one object that polls the state and when something happens calls the appropriate functions. This ensured that as long this one object is updated each frame all objects are. The advantage of this is that the control flow is more explicit than in the linstener.
+
+Example:
+std::vector<FormulaInput*> formulasUpdatedThisFrame;
+for (auto& formula : formulasUpdatedThisFrame) {
+	if (formula == xFormulaInput || formula == yFormulaInput) {
+		recompileShader();
+		updateTexture();
+	}
+}
+Events can also be impelmeted by creating entites in an ECS systems.

@@ -21,3 +21,26 @@ If the value is set to std::numericlimits<float>::quiet_NaN() or any other nan t
 Another way to handle them is to set the value to a really big or really small value to bring it closer or further from the center of the wall cell. Setting to infinity currently doesn't work. It causes isolines only to appear on one side of the wall top or bottom, left or right.
 */
 void marchingSquares2(std::vector<MarchingSquaresLine>& output, Span2d<const float> grid, float boundaryValue, bool lerp);
+
+struct MarchingSquares3Line {
+	Vec2 a, b;
+	Vec2T<i32> gridIndex;
+};
+
+struct MarchingSquaresGridCell {
+	i32 line1Index;
+	i32 line2Index;
+
+	static constexpr i32 EMPTY = -1;
+};
+
+void marchingSquares3(
+	std::vector<MarchingSquares3Line>& linesOut,
+	Span2d<MarchingSquaresGridCell> gridCellToStoredLinesOut, 
+	Span2d<const float> grid, 
+	float boundaryValue, 
+	bool lerp);
+
+void rescaleMarchingSquaresLines(std::vector<MarchingSquares3Line>& lines, Vec2 gridSize, Vec2 min, Vec2 max);
+void marchingSquresLinesToVectorOfEndpoints(const std::vector<MarchingSquares3Line>& lines, std::vector<Vec2>& endpointsOut);
+void rescaleMarchingSquaresLinesAndConvertToVectorOfEndpoints(std::vector<MarchingSquares3Line>& lines, std::vector<Vec2>& endpointsOut, Vec2 gridSize, Vec2 min, Vec2 max);

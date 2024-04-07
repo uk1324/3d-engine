@@ -1,0 +1,6 @@
+Nondimensionalize
+Find the fixed points based on parameters.
+Find the jacobian and find when the stability changes.
+Base on that find all the qualitatively different phase portraits.
+
+Between these steps also condier what the nondimensionalized terms and transitions from states physically represent.

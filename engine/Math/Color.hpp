@@ -14,6 +14,11 @@ namespace Color3 {
 	static constexpr Vec3 RED(1.0f, 0.0f, 0.0f);
 	static constexpr Vec3 GREEN(0.0f, 1.0f, 0.0f);
 	static constexpr Vec3 BLUE(0.0f, 0.0f, 1.0f);
+
+	static constexpr Vec3 YELLOW(1.0f, 1.0f, 0.0f);
+	static constexpr Vec3 CYAN(0.0f, 1.0f, 1.0f);
+	static constexpr Vec3 MAGENTA(1.0f, 0.0f, 1.0f);
+
 	static constexpr Vec3 WHITE(1.0f);
 	static constexpr Vec3 BLACK(0.0f);
 }

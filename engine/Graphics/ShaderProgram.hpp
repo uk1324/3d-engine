@@ -36,6 +36,8 @@ public:
 	ShaderProgram(ShaderProgram&&) noexcept;
 	ShaderProgram& operator= (ShaderProgram&& other) noexcept;
 
+	static ShaderProgram null();
+
 	// Wanted to use the constructor to pass a vector of shaders but Shader is non copyable and you can't have a pointer to a reference.
 	void addShader(const Shader& shader);
 	std::optional<std::string> link();

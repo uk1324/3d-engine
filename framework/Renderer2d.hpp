@@ -19,7 +19,6 @@ struct ImageRenderer {
 	ShaderProgram& texturedQuadShader;
 	Vao texturedQuadVao;
 
-
 	struct TextureData {
 		Texture texture;
 		Vec2T<i64> size;
@@ -43,10 +42,13 @@ struct Renderer2d {
 
 	Vbo fullscreenQuad2dPtVerticesVbo;
 	Ibo fullscreenQuad2dPtVerticesIbo;
+	Vao fullscreenQuad2dPtVerticesVao;
 
 	Vbo instancesVbo;
 
 	Camera camera;
+
+	std::string fullscreenQuadVertSource;
 
 	Vec2 getQuadPixelSize(Vec2 scale) const;
 	float getQuadPixelSizeX(float scale) const;

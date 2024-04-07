@@ -3,6 +3,7 @@
 #include <imgui/implot.h>
 #include <engine/Math/Vec2.hpp>
 #include <engine/Math/Vec3.hpp>
+#include <engine/Math/Aabb.hpp>
 #include <span>
 
 template<typename Function>
@@ -47,12 +48,18 @@ void graph(const char* name, Function f, double minX = -1.0, double maxX = -1.0,
 //	}
 //}
 
+void plotVec2Scatter(const char* label, std::span<const Vec2> points);
+
 void plotVec2LineSegments(const char* label, std::span<const Vec2> segmentEndpoints);
 void plotAddLine(Vec2 start, Vec2 end, Vec3 color);
 void plotAddLine(Vec2 start, Vec2 end, u32 color);
 ImU32 plotColorToColorInt(Vec3 color);
 
-void plotAddArrow(Vec2 start, Vec2 end, u32 color, float arrowheadLength);
-void plotAddArrow(Vec2 start, Vec2 end, Vec3 color, float arrowheadLength);
+void plotAddArrowFromTo(Vec2 start, Vec2 end, u32 color, float arrowheadLength);
+void plotAddArrowFromTo(Vec2 start, Vec2 end, Vec3 color, float arrowheadLength);
+void plotAddArrowOriginDirection(Vec2 start, Vec2 direction, Vec3 color, float arrowheadLength);
+
+Aabb plotLimits();
+
 //u32 intColor(Vec2 start, Vec2 end, Vec3 color);
 //u32 intColor(Vec2 start, Vec2 end, Vec3 color);

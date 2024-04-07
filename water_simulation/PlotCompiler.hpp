@@ -5,9 +5,11 @@
 #include <dependencies/math-compiler/src/listParserMessageReporter.hpp>
 #include <dependencies/math-compiler/src/listScannerMessageReporter.hpp>
 #include <dependencies/math-compiler/src/utils/stringStream.hpp>
+#include <dependencies/math-compiler/src/glslCodeGenerator.hpp>
 #include <StringRefStream.hpp>
 #include <StringStream.hpp>
 #include <list>
+#include <ostream>
 
 struct PlotCompiler {
 	PlotCompiler();
@@ -18,10 +20,17 @@ struct PlotCompiler {
 		char input[INPUT_MAX_SIZE] = "";
 		std::string errorMessage;
 		std::optional<Runtime::LoopFunction> loopFunction;
+		bool modifiedThisFrame = false;
 	};
 	void formulaInputGui(const char* lhs, FormulaInput& formula);
 	void setFormulaInput(FormulaInput& formula, std::string_view text);
+private:
 	void compileFormula(FormulaInput& formula);
+public:
+	bool tryCompileGlsl(std::ostream& out, const FormulaInput& input);
+
+	std::vector<FormulaInput*> modifiedFormulaInputs;
+	const std::vector<FormulaInput*>& updateEndOfFrame();
 
 	// TODO: Make a container that can store items linearly without invalidating pointers. Simplest option would probably be an array with a bitset (they could be allocated together) that would track which slots are free.
 	std::list<FormulaInput> allocatedFormulaInputs;
@@ -29,7 +38,6 @@ struct PlotCompiler {
 	void freeFormulaInput(FormulaInput* formula);
 
 	void recompileAllFormulas();
-
 
 	void settingsWindowContent();
 
@@ -72,4 +80,5 @@ struct PlotCompiler {
 	ListIrCompilerMessageReporter irCompilerReporter;
 	std::vector<Variable> runtimeVariables; // Can change. Should be recalculated before calling compile.
 	Runtime runtime;
+	GlslCodeGenerator glslCodeGenerator;
 };

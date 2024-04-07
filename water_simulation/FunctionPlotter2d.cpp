@@ -181,7 +181,8 @@ void FunctionPlotter2d::update(Vec2 windowSize) {
 			float x = lerp(graphMin.x, graphMax.x, xt);
 			float y = lerp(graphMin.y, graphMax.y, yt);
 			//float z = 1.5f * sin(x + 0.2f) + cos(y);
-			float z = x*y;
+			/*float z = x*y;*/
+			float z = 1.0f / 2.0f * y * y - 0.5f * x * x + 0.25f * x * x * x * x;
 			//float z = x * x * x + x * y;
 			//float z = x * x - y * y * y;
 			//float z = y * y - x * x * (x + 1.0f);
