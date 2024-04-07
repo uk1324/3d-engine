@@ -7,6 +7,7 @@
 #include <engine/Input/Input.hpp>
 #include <engine/Math/MarchingSquares.hpp>
 #include <engine/Math/Utils.hpp>
+#include <engine/Math/Angles.hpp>
 #include <Gui.hpp>
 #include <Array2d.hpp>
 #include <iomanip>
@@ -230,6 +231,132 @@ void SecondOrderSystemGraph::plotStreamlines() {
 		}
 	}
 	runIntegration();
+
+	static float circleRadius = 1.0f;
+	ImGui::Begin("area particles settings");
+	ImGui::SliderFloat("radius", &circleRadius, 0.01f, 10.0f);
+	ImGui::End();
+	auto spawnParticlesCircle = [&] {
+		areaParticles.clear();
+		i32 count = 1000;
+		for (i32 i = 0; i < count; i++) {
+			float angle = (i / static_cast<float>(count)) * TAU<float>;
+			areaParticles.push_back(Vec2(0.0f) + Vec2::oriented(angle) * circleRadius);
+		}
+	};
+
+	auto spawnParticlesSquare = [&](float size) {
+		//areaParticles.clear();
+		i32 perSide = 100;
+
+		Vec2 gridCenter = Vec2(0.0f);
+		for (i32 xi = 0; xi < perSide; xi++) {
+			float t = xi / static_cast<float>(perSide);
+			const auto x = lerp(-size / 2.0f, size / 2.0f, t);
+			areaParticles.push_back(gridCenter + Vec2(x, size / 2.0f));
+		}
+
+		for (i32 yi = 1; yi < perSide - 1; yi++) {
+			float t = yi / static_cast<float>(perSide);
+			const auto y = lerp(size / 2.0f, -size / 2.0f, t);
+			areaParticles.push_back(gridCenter + Vec2(size / 2.0f, y));
+		}
+
+		for (i32 xi = 0; xi < perSide; xi++) {
+			float t = xi / static_cast<float>(perSide);
+			const auto x = lerp(size / 2.0f, -size / 2.0f, t);
+			areaParticles.push_back(gridCenter + Vec2(x, -size / 2.0f));
+		}
+
+		for (i32 yi = 1; yi < perSide - 1; yi++) {
+			float t = yi / static_cast<float>(perSide);
+			const auto y = lerp(-size / 2.0f, size / 2.0f, t);
+			areaParticles.push_back(gridCenter + Vec2(-size / 2.0f, y));
+		}
+	};
+
+	if (Input::isKeyDown(KeyCode::J)) {
+		spawnParticlesSquare(0.5f);
+		spawnParticlesSquare(1.0f);
+		spawnParticlesSquare(1.5f);
+		spawnParticlesSquare(2.0f);
+		spawnParticlesSquare(2.5f);
+		spawnParticlesSquare(3.0f);
+		spawnParticlesSquare(3.5f);
+		spawnParticlesSquare(4.0f);
+		spawnParticlesSquare(4.5f);
+	}
+
+	auto updateParticles = [&] {
+		std::vector<float> inputBlock = plotCompiler.loopFunctionVariablesBlock;
+		std::vector<__m256> calculateDerivativeInput;
+		for (i32 i = 0; i < inputBlock.size(); i++) {
+			__m256 v;
+			v.m256_f32[0] = inputBlock[i];
+			calculateDerivativeInput.push_back(v);
+		}
+		auto calculateDerivative = [&](Vec2 pos, float t) -> Vec2 {
+			calculateDerivativeInput[X_VARIABLE_INDEX_IN_BLOCK].m256_f32[0] = pos.x;
+			calculateDerivativeInput[Y_VARIABLE_INDEX_IN_BLOCK].m256_f32[0] = pos.y;
+			__m256 output;
+			(*xFormulaInput.loopFunction)(calculateDerivativeInput.data(), &output, 1);
+			const auto x = output.m256_f32[0];
+			(*yFormulaInput.loopFunction)(calculateDerivativeInput.data(), &output, 1);
+			const auto y = output.m256_f32[0];
+			return Vec2(x, y);
+		};
+
+		const auto dt = 1.0f / 60.0f;
+		for (auto& particle : areaParticles) {
+			particle += calculateDerivative(particle, 0.0) * dt;
+		}
+
+		std::vector<i64> particlesToRemoveIndices;
+
+		if (areaParticles.size() > 0) {
+			Vec2 lastNotRemovedParticlePos = areaParticles[0];
+
+			for (i64 i = 1; i < static_cast<i64>(areaParticles.size()) - 1; i++) {
+				const auto dist = lastNotRemovedParticlePos.distanceTo(areaParticles[i]);
+				if (dist < 0.01f) {
+					particlesToRemoveIndices.push_back(i);
+				} else {
+					lastNotRemovedParticlePos = areaParticles[i];
+				}
+			}
+			// It would probably be most efficient to just rebuild the vector without the ereased elements.
+			for (auto it = particlesToRemoveIndices.crbegin(); it != particlesToRemoveIndices.crend(); ++it) {
+				areaParticles.erase(areaParticles.begin() + *it);
+			}
+		}
+
+		if (areaParticles.size() > 0) {
+			std::vector<Vec2> newParticles;
+			for (i64 i = 0; i < static_cast<i64>(areaParticles.size()) - 1; i++) {
+				const auto dist = areaParticles[i].distanceTo(areaParticles[i + 1]);
+				newParticles.push_back(areaParticles[i]);
+				if (dist > 0.01f) {
+					newParticles.push_back((areaParticles[i] + areaParticles[i + 1]) / 2.0f);
+				}
+			}
+			newParticles.push_back(areaParticles[areaParticles .size() - 1]);
+			areaParticles = newParticles;
+		}
+	};
+
+	updateParticles();
+
+	std::vector<Vec2> lines;
+
+	if (areaParticles.size() > 0) {
+		i32 previous = areaParticles.size() - 1;
+		for (i32 i = 0; i < areaParticles.size() - 1; i++) {
+			lines.push_back(areaParticles[i]);
+			lines.push_back(areaParticles[previous]);
+			previous = i;
+		}
+	}
+	plotLine("area", lines);
 }
 
 void SecondOrderSystemGraph::plotTestPoints() {
@@ -253,7 +380,7 @@ void SecondOrderSystemGraph::plotTestPoints() {
 		(*yFormulaInput.loopFunction)(calculateDerivativeInput.data(), &output, 1);
 		const auto y = output.m256_f32[0];
 		return Vec2(x, y);
-		};
+	};
 
 	if (!paused) {
 		float dt = 1.0f / 60.0f;

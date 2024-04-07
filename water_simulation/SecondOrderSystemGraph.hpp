@@ -59,4 +59,6 @@ struct SecondOrderSystemGraph {
 	PlotCompiler plotCompiler; // Has to be above FormulaInputs for thing to be initialized in the right order.
 	PlotCompiler::FormulaInput& xFormulaInput;
 	PlotCompiler::FormulaInput& yFormulaInput;
+
+	std::vector<Vec2> areaParticles;
 };
