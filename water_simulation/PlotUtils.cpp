@@ -18,9 +18,13 @@ void plotVec2LineSegments(const char* label, std::span<const Vec2> segmentEndpoi
 	);
 }
 
-//void plotAddLine(Vec2 start, Vec2 end, Vec3 color) {
-//
-//}
+void plotAddLine(Vec2 start, Vec2 end, Vec3 color) {
+	ImPlot::GetPlotDrawList()->AddLine(
+		ImPlot::PlotToPixels(ImPlotPoint(start.x, start.y)),
+		ImPlot::PlotToPixels(ImPlotPoint(end.x, end.y)),
+		plotColorToColorInt(color)
+	);
+}
 
 void plotAddLine(Vec2 start, Vec2 end, u32 color) {
 	ImPlot::GetPlotDrawList()->AddLine(

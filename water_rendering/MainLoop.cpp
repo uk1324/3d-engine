@@ -275,14 +275,16 @@ void MainLoop::update() {
 
 	const auto view = movementController.viewMatrix();
 	const auto projection = Mat4::perspective(90.0f, Window::aspectRatio(), 0.1f, 1000.0f);
-	const auto viewProjection = view * projection;
+	/*const auto viewProjection = view * projection;*/
+	/*const auto viewProjection = view * projection;*/
+	const auto viewProjection = projection * view;
 	const auto directionalLightDirection = Vec3(1, -1, 0).normalized();
 	const auto frustum = Frustum::fromMatrix(viewProjection);
 
 	std::vector<DebugPointShaderInstance> points;
 	auto addPoint = [&](Vec3 p) {
 		points.push_back(DebugPointShaderInstance{
-			.transform = Mat4::translation(p) * viewProjection,
+			.transform = viewProjection * Mat4::translation(p),
 			.color = Color3::RED,
 		});
 	};
@@ -306,7 +308,8 @@ void MainLoop::update() {
 		shaderSetUbo(cubemapShader, "SkyboxSettings", 0, ubo);
 
 		shaderSetUniforms(cubemapShader, CubemapShaderVertUniforms{
-			.transform = view.removedTranslation() * projection,
+			/*.transform = view.removedTranslation() * projection,*/
+			.transform = projection * view.removedTranslation(),
 		});
 		cubemapShaderFragUniforms.directionalLightDirection = directionalLightDirection;
 		cubemapShaderFragUniforms.time = elapsed;
@@ -505,7 +508,8 @@ void MainLoop::update() {
 		frustumPoints.clear();
 
 		//const auto corners = Frustum::corners(viewProjection);
-		const auto corners = Frustum::corners(view * Mat4::perspective(90.0f, Window::aspectRatio(), 0.1f, 20.0f));
+		/*const auto corners = Frustum::corners(view * Mat4::perspective(90.0f, Window::aspectRatio(), 0.1f, 20.0f));*/
+		const auto corners = Frustum::corners(Mat4::perspective(90.0f, Window::aspectRatio(), 0.1f, 20.0f) * view);
 		for (auto& corner : corners) {
 			frustumPoints.push_back(corner);
 		}

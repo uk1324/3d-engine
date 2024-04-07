@@ -235,3 +235,6 @@ template<typename T>
 Mat2T<T> Mat2T<T>::operator*(const Mat2T& other) const {
 	return Mat2T<T>(other * columns[0], other * columns[1]);
 }
+
+template<typename T>
+const Mat2T<T> Mat2T<T>::identity = Mat2T<T>(Vec2T<T>(1, 0), Vec2T<T>(0, 1));

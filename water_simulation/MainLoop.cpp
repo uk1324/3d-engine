@@ -9,7 +9,7 @@ using namespace RootFinding;
 #include <imgui/implot.h>
 
 MainLoop::MainLoop() 
-	: eulerianFluidDemo(EulerianFluidDemo::make()) {
+	/*: eulerianFluidDemo(EulerianFluidDemo::make())*/ {
 }
 
 
@@ -20,4 +20,5 @@ void MainLoop::update() {
 	//eulerianFluidDemo.update();
 	//integrationDemo.update();
 	graphDemo.update();
+	//matrixDemo.update();
 }

@@ -12,13 +12,16 @@
 #include <Array2d.hpp>
 #include <iomanip>
 
-// TODO add an input option for x''= as a function of x and x'. just replace the fields. Add a button to show the energy graph. The graph the function the force has to be integrated. For it to be conservative it can't depend on x'
+// TODO add an input option for x''= as a function of x and x'. just replace the fields. Add a button to show the energy graph. The graph the function the force has to be integrated. For it to be conservative it can't depend on x'. Could also just graph the potential (could draw the fixed points on the graph).
 
 // TODO: Could graph the potentials of conservative/irrotational fields.
 
 // TODO: Could allow intersecting a sufrace with a plane. The result would just be the sum of the intersection with each triangle.
 
 // TODO: To find the fixed points could compute the abs() of all the values then find the local minima. If the minima are near zero then I could run root finding
+ 
+// Could add functions to plot compiler. aliasVariable(i64 index, std::string name) this would rename the variable and if needed remove all the parameters that have the same name (could open a window asking if this should happen). And disableVariable(i64 index), which would rename it to "". Could have a flag in Variable that the parser checks.
+// A second order system can always be interpreted as some system with energy and forcing. Allow drawing the energy surface for any system x'' = f(x, x').
 
 static constexpr auto X_VARIABLE_INDEX_IN_BLOCK = 0;
 static constexpr auto Y_VARIABLE_INDEX_IN_BLOCK = 1;
@@ -37,14 +40,14 @@ void plotLine(const char* label, const std::vector<Vec2>& vs) {
 }
 
 void SecondOrderSystemGraph::update(Renderer2d& renderer2d) {
-	auto id = ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+	//auto id = ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 
 	const auto derivativePlotWindowName = "derivative plot";
 	const auto settingsWindowName = "settings";
 
 	static bool firstFrame = true;
 	if (firstFrame) {
-		ImGui::DockBuilderRemoveNode(id);
+		/*ImGui::DockBuilderRemoveNode(id);
 		ImGui::DockBuilderAddNode(id);
 
 		const auto leftId = ImGui::DockBuilderSplitNode(id, ImGuiDir_Left, 0.2f, nullptr, &id);
@@ -54,7 +57,7 @@ void SecondOrderSystemGraph::update(Renderer2d& renderer2d) {
 		ImGui::DockBuilderDockWindow(settingsWindowName, leftId);
 
 		ImGui::DockBuilderFinish(id);
-		firstFrame = false;
+		firstFrame = false;*/
 	}
 
 	ImGui::Begin(derivativePlotWindowName);
@@ -67,12 +70,12 @@ void SecondOrderSystemGraph::update(Renderer2d& renderer2d) {
 
 	const auto& modifiedFormulaInputs = plotCompiler.updateEndOfFrame();
 
-	/*for (const auto& input : modifiedFormulaInputs) {
+	for (const auto& input : modifiedFormulaInputs) {
 		if (input == &xFormulaInput || input == &yFormulaInput) {
 			basinOfAttractionWindow.recompileShader(*this, renderer2d);
 		}
 	}
-	basinOfAttractionWindow.update(*this, renderer2d);*/
+	basinOfAttractionWindow.update(*this, renderer2d);
 }
 
 void SecondOrderSystemGraph::derivativePlot() {
@@ -876,6 +879,14 @@ void SecondOrderSystemGraph::BasinOfAttractionWindow::recompileShader(
 	s << "uniform vec3 fixedPointsColors[4];\n";
 	s << "uniform int fixedPointsCount;\n";
 
+	s << R"(
+	vec3 hsv2rgb(vec3 c) {
+		vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+		vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+		return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+	}
+	)";
+
 	s << "void main() {\n";
 	{
 		s << "vec2 worldPos = mix(viewMin, viewMax, fragmentTexturePosition);\n";
@@ -904,23 +915,79 @@ void SecondOrderSystemGraph::BasinOfAttractionWindow::recompileShader(
 		}
 		s << "v" << X_VARIABLE_INDEX_IN_BLOCK << " += dxdt * 0.01;\n";
 		s << "v" << Y_VARIABLE_INDEX_IN_BLOCK << " += dydt * 0.01;\n";
-		s << "}\n";
+
 		s << "vec2 outPos = vec2(v" << X_VARIABLE_INDEX_IN_BLOCK << ", v" << Y_VARIABLE_INDEX_IN_BLOCK << ");\n";
+
+		s << R"(
+		bool found = false;
+		vec3 color = vec3(0.0);
+		for (int i = 0; i < fixedPointsCount; i++) {
+			if (distance(fixedPoints[i], outPos) < 0.05) {
+				color = fixedPointsColors[i];
+				found = true;
+				break;
+			}
+		}
+		if (found) {
+			fragColor = vec4(hsv2rgb(vec3(float(i) * 0.2, 1.0, 1.0)), 1.0);
+			break;
+		}
+
+		)";
+
+		s << "}\n";
+
 		//s << "outPos = mod(outPos, 1.0);\n";
 		//s << "fragColor = vec4(outPos.x, outPos.y, 0, 1);" << "\n";
 		////s << "fragColor = vec4(fragmentTexturePosition.x, fragmentTexturePosition.y, 0, 1);\n";
 		//s << "}\n";
 	}
-	s << R"(
-	vec3 color = vec3(0.0);
-	for (int i = 0; i < fixedPointsCount; i++) {
-		if (distance(fixedPoints[i], outPos) < 0.05) {
-			color = fixedPointsColors[i];
-			break;
-		}
-	}
-	fragColor = vec4(color, 1.0);
-	)";
+
+	//s << "void main() {\n";
+	//{
+	//	s << "vec2 worldPos = mix(viewMin, viewMax, fragmentTexturePosition);\n";
+	//	s << "float v" << X_VARIABLE_INDEX_IN_BLOCK << " = worldPos.x;\n";
+	//	s << "float v" << Y_VARIABLE_INDEX_IN_BLOCK << " = worldPos.y;\n";
+	//	s << "for (int i = 0; i < iterations; i++) {\n";
+	//	s << "float dxdt;\n";
+	//	{
+	//		s << "{\n";
+	//		if (!state.plotCompiler.tryCompileGlsl(s, state.xFormulaInput)) {
+	//			shaderProgram = std::nullopt;
+	//			return;
+	//		}
+	//		s << "dxdt = result;\n";
+	//		s << "}\n";
+	//	}
+	//	s << "float dydt;\n";
+	//	{
+	//		s << "{\n";
+	//		if (!state.plotCompiler.tryCompileGlsl(s, state.yFormulaInput)) {
+	//			shaderProgram = std::nullopt;
+	//			return;
+	//		}
+	//		s << "dydt = result;\n";
+	//		s << "}\n";
+	//	}
+	//	s << "v" << X_VARIABLE_INDEX_IN_BLOCK << " += dxdt * 0.01;\n";
+	//	s << "v" << Y_VARIABLE_INDEX_IN_BLOCK << " += dydt * 0.01;\n";
+	//	s << "}\n";
+	//	s << "vec2 outPos = vec2(v" << X_VARIABLE_INDEX_IN_BLOCK << ", v" << Y_VARIABLE_INDEX_IN_BLOCK << ");\n";
+	//	//s << "outPos = mod(outPos, 1.0);\n";
+	//	//s << "fragColor = vec4(outPos.x, outPos.y, 0, 1);" << "\n";
+	//	////s << "fragColor = vec4(fragmentTexturePosition.x, fragmentTexturePosition.y, 0, 1);\n";
+	//	//s << "}\n";
+	//}
+	//s << R"(
+	//vec3 color = vec3(0.0);
+	//for (int i = 0; i < fixedPointsCount; i++) {
+	//	if (distance(fixedPoints[i], outPos) < 0.05) {
+	//		color = fixedPointsColors[i];
+	//		break;
+	//	}
+	//}
+	//fragColor = vec4(color, 1.0);
+	//)";
 
 	//s << "vec2 outPos = vec2(v" << X_VARIABLE_INDEX_IN_BLOCK << ", v" << Y_VARIABLE_INDEX_IN_BLOCK << ");\n";
 	//s << "outPos = mod(outPos, 1.0);\n";
