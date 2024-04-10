@@ -32,6 +32,7 @@ struct ProfilingTimes {
 
 void GraphDemo::update() {
 	ProfilingTimes profilingTimes;
+
 	//ImGui::ShowDemoWindow();
 	//ImPlot::ShowDemoWindow();
 	//ImGui::Begin("editor");

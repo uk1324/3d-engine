@@ -80,7 +80,7 @@ void Continous2dSystemVisualization::update(Renderer2d& renderer2d) {
 	}
 
 	ImGui::Begin(derivativePlotWindowName);
-	derivativePlot();
+	derivativePlot(renderer2d);
 	ImGui::End();
 
 	ImGui::Begin(settingsWindowName);
@@ -89,15 +89,14 @@ void Continous2dSystemVisualization::update(Renderer2d& renderer2d) {
 
 	const auto& modifiedFormulaInputs = plotCompiler.updateEndOfFrame();
 
-	//for (const auto& input : modifiedFormulaInputs) {
-	//	if (input == &xFormulaInput || input == &yFormulaInput) {
-	//		basinOfAttractionWindow.recompileShader(*this, renderer2d);
-	//	}
-	//}
-	//basinOfAttractionWindow.update(*this, renderer2d);
+	for (const auto& input : modifiedFormulaInputs) {
+		if (input == &formulaInput0 || input == &formulaInput1) {
+			basinOfAttractionState.recompileShader(*this, renderer2d);
+		}
+	}
 }
 
-void Continous2dSystemVisualization::derivativePlot() {
+void Continous2dSystemVisualization::derivativePlot(Renderer2d& renderer2d) {
 	if (!ImPlot::BeginPlot("##main plot", ImVec2(-1.0f, -1.0f), ImPlotFlags_Equal)) {
 		return;
 	}
@@ -112,9 +111,7 @@ void Continous2dSystemVisualization::derivativePlot() {
 		plotStreamlines(plotCompiler, *formulaInput0.loopFunction, *formulaInput1.loopFunction, formulaType, streamlineSettings);
 	}
 
-	const auto isFormulaCartesian = formulaType == FormulaType::CARTESIAN || formulaType == FormulaType::CARTESIAN_LINEAR;
-
-	if (isFormulaCartesian) {
+	if (formulaTypeIsCartesian()) {
 		plotFixedPoints();
 	}
 
@@ -128,6 +125,9 @@ void Continous2dSystemVisualization::derivativePlot() {
 	}
 
 	linearizationToolUpdate(linearizationToolState, fixedPoints);
+
+	const auto view = ImPlot::GetPlotLimits();
+	basinOfAttractionState.render(*this, Aabb(Vec2(view.X.Min, view.Y.Min), Vec2(view.X.Max, view.Y.Max)), renderer2d);
 
 	ImPlot::PopStyleColor();
 
@@ -606,6 +606,9 @@ void Continous2dSystemVisualization::settings() {
 
 	ImGui::SeparatorText("linearized point");
 	linearizationToolSettings();
+
+	ImGui::SeparatorText("basins of attraction");
+	basinOfAttractionState.settings();
 }
 
 bool Continous2dSystemVisualization::examplesMenu() {
@@ -713,15 +716,12 @@ bool Continous2dSystemVisualization::examplesMenu() {
 	// or
 	// r' = r(1-r^2) a' = 1 - cos(a)
 
-	//if (ImGui::MenuItem("competitive Lotka-Volterra")) {
 	//	// Interpolating polynomial {1, 0, 1, 0, 1, 0, 1} for the potential
 	//	// 64 - (2144 x)/15 + (5348 x^2)/45 - 48 x^3 + (91 x^4)/9 - (16 x^5)/15 + (2 x^6)/45
 	//	// derivative 4/45 (-1608 + 2674 x - 1620 x^2 + 455 x^3 - 60 x^4 + 3 x^5)
 	//	// potential with 3 holes
 	//	plotCompiler.setFormulaInput(xFormulaInput, "y");
 	//	plotCompiler.setFormulaInput(yFormulaInput, "-(4/45 * (-1608 + 2674 x - 1620 x^2 + 455 x^3 - 60 x^4 + 3 x^5))");
-	//	return true;
-	//}
 
 	// x' = sin(x)
 	// y' = sin(xy)
@@ -950,82 +950,15 @@ void Continous2dSystemVisualization::updateLinearFormula() {
 	linearFormulaMatrixEigenvectors = computeEigenvectors(linearFormulaMatrix);
 }
 
-#include <glad/glad.h>
-#include <engine/Math/Random.hpp>
-
-void Continous2dSystemVisualization::BasinOfAttractionWindow::update(
-	const Continous2dSystemVisualization& state,
-	Renderer2d& renderer2d) {
-	if (!shaderProgram.has_value()) {
-		return;
-	}
-
-	if (Input::isMouseButtonHeld(MouseButton::LEFT)) {
-		const auto cursorPos = Input::cursorPosClipSpace() * camera.clipSpaceToWorldSpace();
-		if (grabStartPosWorldSpace.has_value()) {
-			const auto differece = *grabStartPosWorldSpace - cursorPos;
-			camera.pos += differece;
-		} else {
-			grabStartPosWorldSpace = cursorPos;
-		}
-	}
-	if (Input::isMouseButtonUp(MouseButton::LEFT)) {
-		grabStartPosWorldSpace = std::nullopt;
-	}
-
-	if (const auto scroll = Input::scrollDelta(); scroll != 0.0f) {
-		const auto cursorPosBeforeScroll = Input::cursorPosClipSpace() * camera.clipSpaceToWorldSpace();
-		const auto scrollSpeed = 15.0f * abs(scroll);
-		const auto scrollIncrement = pow(scrollSpeed, 1.0f / 60.0f);
-		if (scroll > 0.0f) camera.zoom *= scrollIncrement;
-		else camera.zoom /= scrollIncrement;
-	
-		camera.pos -= (Input::cursorPosClipSpace() * camera.clipSpaceToWorldSpace() - cursorPosBeforeScroll);
-	}
-
-	renderer2d.fullscreenQuad2dPtVerticesVao.bind();
-	const auto bounds = camera.aabb();
-	shaderProgram->set("viewMin", bounds.min);
-	shaderProgram->set("viewMax", bounds.max);
-	static int iterations = 0;
-	ImGui::Begin("settings");
-	ImGui::SliderInt("iterations", &iterations, 0, 10000);
-	ImGui::End(); 
-	shaderProgram->set("iterations", iterations);
-	
-	//if (state.fixedPoints.size())
-	const auto count = std::min(state.fixedPoints.size(), size_t(4));
-	for (int i = 0; i < count; i++) {
-		const auto index = "[" + std::to_string(i) + "]";
-		shaderProgram->set("fixedPoints" + index, state.fixedPoints[i]);
-		//const auto color = Vec3(state.fixedPoints[i].x, state.fixedPoints[i].y, 0.0f);
-		const auto color = Color3::fromHsv(float(i) / 4, 1.0f, 1.0f);
-		shaderProgram->set("fixedPointsColors" + index, color);
-		renderer2d.shapeRenderer.circleInstances.push_back(CircleInstance{
-			.transform = camera.makeTransform(state.fixedPoints[i], 0.0f, Vec2(1.0f)),
-			.color = color,
-			.smoothing = 0.05f,
-			.width = 0.1f,
-		});
-	}
-	shaderProgram->set("fixedPointsCount", i32(count));
-
-	for (int i = 0; i < state.plotCompiler.parameters.size(); i++) {
-		const auto index = state.plotCompiler.parameterIndexToLoopFunctionVariableIndex(i);
-		shaderProgram->set("v" + std::to_string(index), state.plotCompiler.loopFunctionVariablesBlock[index]);
-	}
-	shaderProgram->use();
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
-	glUseProgram(0);
-
-	//renderer2d.update();
+bool Continous2dSystemVisualization::formulaTypeIsCartesian() const {
+	return formulaType == FormulaType::CARTESIAN || formulaType == FormulaType::CARTESIAN_LINEAR;
 }
 
-void Continous2dSystemVisualization::BasinOfAttractionWindow::recompileShader(
+void Continous2dSystemVisualization::BasinOfAttractionState::recompileShader(
 	Continous2dSystemVisualization& state,
 	Renderer2d& renderer2d) {
 
-	// This doesn't work well, because many interation are required to converge to the fixed point. It looks like a fractal, but after many iteration it coverges into simple shapes. Look at the shadertoy below.
+	// This doesn't work well, because many interation are required to converge to the fixed point. It looks like a fractal, but after many iterations it coverges into simple shapes. Look at the shadertoy below (in the previous commits).
 	StringStream s;
 	s << "#version 430 core\n";
 	s << "in vec2 fragmentTexturePosition;\n";
@@ -1037,73 +970,9 @@ void Continous2dSystemVisualization::BasinOfAttractionWindow::recompileShader(
 	s << "uniform vec2 viewMin;\n";
 	s << "uniform vec2 viewMax;\n";
 	s << "uniform int iterations;\n";
-	s << "uniform vec2 fixedPoints[4];\n";
-	s << "uniform vec3 fixedPointsColors[4];\n";
+	s << "uniform vec2 fixedPoints[15];\n";
+	s << "uniform vec3 fixedPointsColors[15];\n";
 	s << "uniform int fixedPointsCount;\n";
-
-	//s << R"(
-	//vec3 hsv2rgb(vec3 c) {
-	//	vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-	//	vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-	//	return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
-	//}
-	//)";
-
-	//s << "void main() {\n";
-	//{
-	//	s << "vec2 worldPos = mix(viewMin, viewMax, fragmentTexturePosition);\n";
-	//	s << "float v" << X_VARIABLE_INDEX_IN_BLOCK << " = worldPos.x;\n";
-	//	s << "float v" << Y_VARIABLE_INDEX_IN_BLOCK << " = worldPos.y;\n";
-	//	s << "for (int i = 0; i < iterations; i++) {\n";
-	//	s << "float dxdt;\n";
-	//	{
-	//		s << "{\n";
-	//		if (!state.plotCompiler.tryCompileGlsl(s, state.xFormulaInput)) {
-	//			shaderProgram = std::nullopt;
-	//			return;
-	//		}
-	//		s << "dxdt = result;\n";
-	//		s << "}\n";
-	//	}
-	//	s << "float dydt;\n";
-	//	{
-	//		s << "{\n";
-	//		if (!state.plotCompiler.tryCompileGlsl(s, state.yFormulaInput)) {
-	//			shaderProgram = std::nullopt;
-	//			return;
-	//		}
-	//		s << "dydt = result;\n";
-	//		s << "}\n";
-	//	}
-	//	s << "v" << X_VARIABLE_INDEX_IN_BLOCK << " += dxdt * 0.01;\n";
-	//	s << "v" << Y_VARIABLE_INDEX_IN_BLOCK << " += dydt * 0.01;\n";
-
-	//	s << "vec2 outPos = vec2(v" << X_VARIABLE_INDEX_IN_BLOCK << ", v" << Y_VARIABLE_INDEX_IN_BLOCK << ");\n";
-
-	//	s << R"(
-	//	bool found = false;
-	//	vec3 color = vec3(0.0);
-	//	for (int i = 0; i < fixedPointsCount; i++) {
-	//		if (distance(fixedPoints[i], outPos) < 0.05) {
-	//			color = fixedPointsColors[i];
-	//			found = true;
-	//			break;
-	//		}
-	//	}
-	//	if (found) {
-	//		fragColor = vec4(hsv2rgb(vec3(float(i) * 0.2, 1.0, 1.0)), 1.0);
-	//		break;
-	//	}
-
-	//	)";
-
-	//	s << "}\n";
-
-	//	//s << "outPos = mod(outPos, 1.0);\n";
-	//	//s << "fragColor = vec4(outPos.x, outPos.y, 0, 1);" << "\n";
-	//	////s << "fragColor = vec4(fragmentTexturePosition.x, fragmentTexturePosition.y, 0, 1);\n";
-	//	//s << "}\n";
-	//}
 
 	s << "void main() {\n";
 	{
@@ -1135,10 +1004,6 @@ void Continous2dSystemVisualization::BasinOfAttractionWindow::recompileShader(
 		s << "v" << VARIABLE_Y_INDEX_IN_BLOCK << " += dydt * 0.01;\n";
 		s << "}\n";
 		s << "vec2 outPos = vec2(v" << VARIABLE_X_INDEX_IN_BLOCK << ", v" << VARIABLE_Y_INDEX_IN_BLOCK << ");\n";
-		//s << "outPos = mod(outPos, 1.0);\n";
-		//s << "fragColor = vec4(outPos.x, outPos.y, 0, 1);" << "\n";
-		////s << "fragColor = vec4(fragmentTexturePosition.x, fragmentTexturePosition.y, 0, 1);\n";
-		//s << "}\n";
 	}
 	s << R"(
 	vec3 color = vec3(0.0);
@@ -1151,11 +1016,6 @@ void Continous2dSystemVisualization::BasinOfAttractionWindow::recompileShader(
 	fragColor = vec4(color, 1.0);
 	)";
 
-	//s << "vec2 outPos = vec2(v" << X_VARIABLE_INDEX_IN_BLOCK << ", v" << Y_VARIABLE_INDEX_IN_BLOCK << ");\n";
-	//s << "outPos = mod(outPos, 1.0);\n";
-	//s << "fragColor = vec4(outPos.x, outPos.y, 0, 1);" << "\n";
-	//s << "fragColor = vec4(fragmentTexturePosition.x, fragmentTexturePosition.y, 0, 1);\n";
-
 	s << "}\n";
 	std::cout << s.string() << '\n';
 	auto result = ShaderProgram::fromSource(renderer2d.fullscreenQuadVertSource, s.string());
@@ -1166,33 +1026,75 @@ void Continous2dSystemVisualization::BasinOfAttractionWindow::recompileShader(
 		return;
 	}
 	shaderProgram = std::move(result.value());
-	/*renderer2d.shapeRenderer.circleInstances.push_back(CircleInstance{
-		.color = Vec2()
-	})*/
-	/*
-	Shadertoy basin of attraction of lotka volterra model of competition.
+}
 
-	void mainImage( out vec4 fragColor, in vec2 fragCoord )
-	{
-		// Normalized pixel coordinates (from 0 to 1)
-		vec2 uv = fragCoord/iResolution.xy;
-    
-		vec2 viewMin = vec2(-10);
-		vec2 viewMax = vec2(10);
-		vec2 worldPos = mix(viewMin, viewMax, uv);
-		float x = worldPos.x;
-		float y = worldPos.y;
-		for (int i = 0; i < 10000; i++) {
-			//float dxdt = 2.0 * x * y;
-			//float dydt = y * y - x * x;
-			float dxdt = x * (3.0 - x - 2.0 * iMouse.x / iResolution.x * y);
-			float dydt = y * (2.0 - x - y);
-			x += dxdt * 0.001;
-			y += dydt * 0.001;
-		}
-		vec2 outPos = vec2(x, y);
-		outPos = mod(outPos, 1.0);
-		fragColor = vec4(outPos.x, outPos.y, 0, 1);
+// You can input the value directly the value by control clicking the input. This allows inputting values outside the range.
+void sliderFloatWithClamp(const char* label, float* value, float min, float max) {
+	ImGui::SliderFloat(label, value, min, max);
+	*value = std::clamp(*value, min, max);
+}
+
+void Continous2dSystemVisualization::BasinOfAttractionState::settings() {
+	ImGui::PushID(this);
+	ImGui::Checkbox("show", &show);
+	const auto opacityMin = 0.0f, opacityMax = 1.0f;
+	sliderFloatWithClamp("opacity", &opacity, opacityMin, opacityMax);
+	// No point of allowing precision above 1 sample per pixel.
+	sliderFloatWithClamp("resolution scale", &resolutionScale, 0.1f, 1.0f);
+	ImGui::SliderInt("iterations", &iterations, 0, 10000);
+	ImGui::PopID();
+}
+
+#include <glad/glad.h>
+
+void Continous2dSystemVisualization::BasinOfAttractionState::render(
+	const Continous2dSystemVisualization& state, 
+	const Aabb& view,
+	Renderer2d& renderer2d) {
+	if (!shaderProgram.has_value() || !show) {
+		return;
 	}
-	*/
+	
+	renderWindow.fbo.bind();
+
+	const auto aabbPixels = Aabb::fromCorners(
+		ImPlot::PlotToPixels(ImPlotPoint(view.min.x, view.min.y)), 
+		ImPlot::PlotToPixels(ImPlotPoint(view.max.x, view.max.y)));
+	const auto renderWindowSizeInPixels = aabbPixels.size() * resolutionScale;
+	renderWindow.update(renderWindowSizeInPixels);
+
+	renderer2d.fullscreenQuad2dPtVerticesVao.bind();
+	shaderProgram->set("viewMin", view.min);
+	shaderProgram->set("viewMax", view.max);
+	shaderProgram->set("iterations", iterations);
+
+	const auto count = std::min(state.fixedPoints.size(), size_t(MAX_FIXED_POINT_COUNT));
+	for (int i = 0; i < count; i++) {
+		const auto index = "[" + std::to_string(i) + "]";
+		shaderProgram->set("fixedPoints" + index, state.fixedPoints[i]);
+		const auto color = Color3::fromHsv(float(i) / 4, 1.0f, 1.0f);
+		shaderProgram->set("fixedPointsColors" + index, color);
+	}
+	shaderProgram->set("fixedPointsCount", i32(count));
+
+	for (int i = 0; i < state.plotCompiler.parameters.size(); i++) {
+		const auto index = state.plotCompiler.parameterIndexToLoopFunctionVariableIndex(i);
+		shaderProgram->set("v" + std::to_string(index), state.plotCompiler.loopFunctionVariablesBlock[index]);
+	}
+	shaderProgram->use();
+
+	glViewport(0, 0, renderWindowSizeInPixels.x, renderWindowSizeInPixels.y);
+	glDrawElements(GL_TRIANGLES, Renderer2d::fullscreenQuad2dPtVerticesIndexCount, GL_UNSIGNED_INT, nullptr);
+	glUseProgram(0);
+	Fbo::unbind();
+
+	ImPlot::PushPlotClipRect();
+	ImPlot::GetPlotDrawList()->AddImage(
+		reinterpret_cast<ImTextureID>(renderWindow.colorTexture.handle()),
+		ImPlot::PlotToPixels(ImPlotPoint(view.min.x, view.min.y)),
+		ImPlot::PlotToPixels(ImPlotPoint(view.max.x, view.max.y)),
+		Vec2(0.0f),
+		Vec2(1.0f),
+		ImGui::ColorConvertFloat4ToU32(Vec4(1.0f, 1.0f, 1.0f, opacity)));
+	ImPlot::PopPlotClipRect();
 }

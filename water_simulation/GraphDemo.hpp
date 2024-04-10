@@ -23,7 +23,5 @@ struct GraphDemo {
 	Continous2dSystemVisualization secondOrderSystem;
 	FunctionPlotter2d plotter;
 
-	RenderWindow window;
-
 	Renderer2d renderer2d;
 };

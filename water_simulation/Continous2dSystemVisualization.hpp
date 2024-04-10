@@ -6,6 +6,7 @@
 #include <water_simulation/PlotCompiler.hpp>
 #include <water_simulation/Eigenvectors.hpp>
 #include <engine/Graphics/ShaderProgram.hpp>
+#include <water_simulation/RenderWindow.hpp>
 #include <framework/Renderer2d.hpp>
 
 struct Continous2dSystemVisualization {
@@ -19,7 +20,7 @@ struct Continous2dSystemVisualization {
 	Continous2dSystemVisualization();
 
 	void update(Renderer2d& renderer2d);
-	void derivativePlot();
+	void derivativePlot(Renderer2d& renderer2d);
 	std::vector<Vec2> fixedPoints;
 
 	struct StreamlineSettings {
@@ -81,8 +82,6 @@ struct Continous2dSystemVisualization {
 
 	bool drawNullclines = false;
 
-	//float spacing = 0.2f;
-
 	enum class ToolType {
 		SPAWN_TEST_POINTS,
 	};
@@ -98,14 +97,22 @@ struct Continous2dSystemVisualization {
 	void linearizationToolSettings();
 	static void linearizationToolUpdate(LinearizationToolState& s, const std::vector<Vec2> fixedPoints);
 
-	struct BasinOfAttractionWindow {
+	struct BasinOfAttractionState {
+		bool show = false;
 		std::optional<ShaderProgram> shaderProgram;
-		Camera camera;
-		std::optional<Vec2> grabStartPosWorldSpace;
+		float resolutionScale = 0.1f;
+		float opacity = 0.5f;
+		int iterations = 100;
+		RenderWindow2d renderWindow;
+		static constexpr int MAX_FIXED_POINT_COUNT = 15;
 
-		void update(const Continous2dSystemVisualization& state, Renderer2d& renderer2d);
+		void render(
+			const Continous2dSystemVisualization& state, 
+			const Aabb& view,
+			Renderer2d& renderer2d);
 		void recompileShader(Continous2dSystemVisualization& state, Renderer2d& renderer2d);
-	} basinOfAttractionWindow;
+		void settings();
+	} basinOfAttractionState;
 
 	void changeFormulaTypeToCartesian();
 	void changeFormulaTypeToCartesianLinear();
@@ -128,6 +135,7 @@ struct Continous2dSystemVisualization {
 	*/
 
 	FormulaType formulaType = FormulaType::CARTESIAN;
+	bool formulaTypeIsCartesian() const;
 
 	std::vector<Vec2> areaParticles;
 };

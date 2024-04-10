@@ -43,6 +43,7 @@ struct Renderer2d {
 	Vbo fullscreenQuad2dPtVerticesVbo;
 	Ibo fullscreenQuad2dPtVerticesIbo;
 	Vao fullscreenQuad2dPtVerticesVao;
+	static constexpr int fullscreenQuad2dPtVerticesIndexCount = 6;
 
 	Vbo instancesVbo;
 
