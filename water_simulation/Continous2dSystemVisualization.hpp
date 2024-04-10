@@ -45,11 +45,12 @@ struct Continous2dSystemVisualization {
 	void settings();
 	bool examplesMenu();
 	
-	struct ComputeLoopFunctionOnVisibleRegionState {
+	struct ComputeLoopFunctionOnRegionState {
 		LoopFunctionArray input = LoopFunctionArray(0);
 	};
+	void computeLoopFunctionOnRegion(const Runtime::LoopFunction& function, LoopFunctionArray& output, i32 stepsX, i32 stepsY, Aabb region);
 	void computeLoopFunctionOnVisibleRegion(const Runtime::LoopFunction& function, LoopFunctionArray& output, i32 stepsX, i32 stepsY);
-	ComputeLoopFunctionOnVisibleRegionState computeLoopFunctionOnVisibleRegionState;
+	ComputeLoopFunctionOnRegionState computeLoopFunctionOnRegionState;
 
 	struct ImplicitFunctionGraph {
 		// Can't be a reference to be (copyable?) I think not sure.
@@ -76,9 +77,11 @@ struct Continous2dSystemVisualization {
 		Array2d<float> heightmap = Array2d<float>(SurfacePlotRenderer::SAMPLES_PER_SIDE, SurfacePlotRenderer::SAMPLES_PER_SIDE);
 
 		void display(SurfacePlotRenderer& plotter);
-		bool settings();
+		bool settings(PlotCompiler& plotCompiler);
+		void updateArray(Continous2dSystemVisualization& s);
 	};
 	std::vector<SurfacePlotWindow> surfacePlotWindows;
+	void createSurfacePlotWindow(const char* formula);
 
 	static void drawEigenvectors(Vec2 origin, const std::array<Eigenvector, 2>& eigenvectors, float scale, float complexPartTolerance);
 

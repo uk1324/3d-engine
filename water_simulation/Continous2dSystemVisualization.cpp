@@ -14,6 +14,8 @@
 #include <Array2d.hpp>
 #include <iomanip>
 
+// TODO: Free the formula inputs from the compiler
+
 // TODO add an input option for x''= as a function of x and x'. just replace the fields. Add a button to show the energy graph. The graph the function the force has to be integrated. For it to be conservative it can't depend on x'. Could also just graph the potential (could draw the fixed points on the graph).
 
 // TODO: Could graph the potentials of conservative/irrotational fields.
@@ -98,6 +100,20 @@ void Continous2dSystemVisualization::update(Renderer2d& renderer2d) {
 	for (const auto& input : modifiedFormulaInputs) {
 		if (input == &formulaInput0 || input == &formulaInput1) {
 			basinOfAttractionState.recompileShader(*this, renderer2d);
+		}
+	}
+
+	for (auto& window : surfacePlotWindows) {
+		if (plotCompiler.parametersModified) {
+			window.updateArray(*this);
+			continue;
+		}
+
+		for (const auto& input : modifiedFormulaInputs) {
+			if (window.formulaInput == input) {
+				window.updateArray(*this);
+				break;
+			}
 		}
 	}
 }
@@ -641,16 +657,14 @@ void Continous2dSystemVisualization::settings() {
 	}
 
 	if (ImGui::Button("add surface plot")) {
-		surfacePlotWindows.push_back(SurfacePlotWindow{
-			.index = surfacePlotWindowIndices
-		});
+		createSurfacePlotWindow("");
 		surfacePlotWindowIndices++;
 	}
 	{
 		const auto [f, l] = std::ranges::remove_if(
 			surfacePlotWindows,
 			[&](SurfacePlotWindow& plot) -> bool {
-				return plot.settings();
+				return plot.settings(plotCompiler);
 			}
 		);
 		surfacePlotWindows.erase(f, l);
@@ -776,6 +790,21 @@ bool Continous2dSystemVisualization::examplesMenu() {
 		changeFormulaTypeToCartesian();
 		return true;
 	}
+	if (ImGui::MenuItem("ball in potential")) {
+		plotCompiler.addParameterIfNotExists("a");
+		plotCompiler.setFormulaInput(formulaInput0, "y");
+		plotCompiler.setFormulaInput(formulaInput1, "x - x^3 - ay");
+		// dx/dt = y
+		// dy/dt = x - x^3
+		// dx/dy = y / x - x^3
+		// (x - x^3) dx = y dy
+		// x^2/2 - x^4/4 = y^2/2 + C
+		// x^2/2 - x^4/4 - y^2/2 = C
+		// 2y^2 - 2x^2 + x^4 = C
+		createSurfacePlotWindow("2y^2 - 2x^2 + x^4");
+		changeFormulaTypeToCartesian();
+		return true;
+	}
 	// Attractive, but not lyapunov stable r' = r(1-r) a' = r(1-cos(a)) 
 	// or
 	// r' = r(1-r^2) a' = 1 - cos(a)
@@ -806,20 +835,18 @@ bool Continous2dSystemVisualization::examplesMenu() {
 	return false;
 }
 
-void Continous2dSystemVisualization::computeLoopFunctionOnVisibleRegion(const Runtime::LoopFunction& function, LoopFunctionArray& output, i32 stepsX, i32 stepsY) {
+void Continous2dSystemVisualization::computeLoopFunctionOnRegion(const Runtime::LoopFunction& function, LoopFunctionArray& output, i32 stepsX, i32 stepsY, Aabb region) {
 
-	auto& input = computeLoopFunctionOnVisibleRegionState.input;
+	auto& input = computeLoopFunctionOnRegionState.input;
 	input.reset(plotCompiler.loopFunctionInputCount());
-
-	const auto limits = ImPlot::GetPlotLimits();
 
 	auto variablesBlock = plotCompiler.loopFunctionVariablesBlock;
 	for (i32 yi = 0; yi < stepsX; yi++) {
 		for (i32 xi = 0; xi < stepsY; xi++) {
 			const auto xt = float(xi) / float(stepsX - 1);
 			const auto yt = float(yi) / float(stepsY - 1);
-			const auto x = lerp(limits.X.Min, limits.X.Max, xt);
-			const auto y = lerp(limits.Y.Min, limits.Y.Max, yt);
+			const auto x = lerp(region.min.x, region.max.x, xt);
+			const auto y = lerp(region.min.y, region.max.y, yt);
 			variablesBlock[VARIABLE_X_INDEX_IN_BLOCK] = x;
 			variablesBlock[VARIABLE_Y_INDEX_IN_BLOCK] = y;
 			input.append(variablesBlock);
@@ -829,6 +856,13 @@ void Continous2dSystemVisualization::computeLoopFunctionOnVisibleRegion(const Ru
 	output.resizeWithoutCopy(input.blockCount());
 
 	function(input, output);
+
+}
+
+void Continous2dSystemVisualization::computeLoopFunctionOnVisibleRegion(const Runtime::LoopFunction& function, LoopFunctionArray& output, i32 stepsX, i32 stepsY) {
+	const auto limits = ImPlot::GetPlotLimits();
+	Aabb region(Vec2(limits.X.Min, limits.Y.Min), Vec2(limits.X.Max, limits.Y.Max));
+	computeLoopFunctionOnRegion(function, output, stepsX, stepsY, region);
 }
 
 bool Continous2dSystemVisualization::implicitFunctionGraphSettings(ImplicitFunctionGraph& graph) {
@@ -891,6 +925,15 @@ void Continous2dSystemVisualization::calculateImplicitFunctionGraph(const Runtim
 		out.push_back(a);
 		out.push_back(b);
 	}
+}
+
+void Continous2dSystemVisualization::createSurfacePlotWindow(const char* formula) {
+	auto input = plotCompiler.allocateFormulaInput();
+	plotCompiler.setFormulaInput(*input, formula);
+	surfacePlotWindows.push_back(SurfacePlotWindow{
+		.index = surfacePlotWindowIndices,
+		.formulaInput = input
+	});
 }
 
 void Continous2dSystemVisualization::drawEigenvectors(Vec2 origin, const std::array<Eigenvector, 2>& eigenvectors, float scale, float complexPartTolerance) {
@@ -1093,7 +1136,7 @@ void Continous2dSystemVisualization::BasinOfAttractionState::recompileShader(
 		)";
 	}
 	s << "}\n";
-	std::cout << s.string() << '\n';
+	//std::cout << s.string() << '\n';
 	auto result = ShaderProgram::fromSource(renderer2d.fullscreenQuadVertSource, s.string());
 	if (!result.has_value()) {
 		shaderProgram = std::nullopt;
@@ -1178,25 +1221,6 @@ void Continous2dSystemVisualization::BasinOfAttractionState::render(
 }
 
 void Continous2dSystemVisualization::SurfacePlotWindow::display(SurfacePlotRenderer& plotter) {
-
-	for (i32 xi = 0; xi < heightmap.size().x; xi++) {
-		for (i32 yi = 0; yi < heightmap.size().y; yi++) {
-			float xt = float(xi) / float(heightmap.size().x - 1);
-			float yt = float(yi) / float(heightmap.size().y - 1);
-			float x = lerp(plotSettings.graphMin.x, plotSettings.graphMax.x, xt);
-			float y = lerp(plotSettings.graphMin.y, plotSettings.graphMax.y, yt);
-			//float z = 1.5f * sin(x + 0.2f) + cos(y);
-			/*float z = x*y;*/
-			float z = 1.0f / 2.0f * y * y - 0.5f * x * x + 0.25f * x * x * x * x;
-			//float z = x * x * x + x * y;
-			//float z = x * x - y * y * y;
-			//float z = y * y - x * x * (x + 1.0f);
-			//float z = x * x * x * x * x - y * y;
-			//float z = y * y - x * x * x * x;
-			heightmap(xi, yi) = z;
-		}
-	}
-
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2(0.0f));
 
 	const auto& io = ImGui::GetIO();
@@ -1238,6 +1262,7 @@ void Continous2dSystemVisualization::SurfacePlotWindow::display(SurfacePlotRende
 		ImGui::GetIO().ConfigFlags |= flags;
 	}
 
+	plotSceneCamera.movementSpeed = 4.0f;
 	if (ImGui::IsWindowFocused() && !Window::isCursorEnabled()) {
 		plotSceneCamera.update(1.0f / 60.0f);
 	} else {
@@ -1255,6 +1280,43 @@ void Continous2dSystemVisualization::SurfacePlotWindow::display(SurfacePlotRende
 	ImGui::PopStyleVar();
 }
 
-bool Continous2dSystemVisualization::SurfacePlotWindow::settings() {
+bool Continous2dSystemVisualization::SurfacePlotWindow::settings(PlotCompiler& plotCompiler) {
+	plotCompiler.formulaInputGui("z=", *formulaInput);
+	plotSettings.gui();
 	return false;
+}
+
+void Continous2dSystemVisualization::SurfacePlotWindow::updateArray(Continous2dSystemVisualization& s) {
+	if (!formulaInput->loopFunction.has_value()) {
+		return;
+	}
+	LoopFunctionArray output(1);
+	s.computeLoopFunctionOnRegion(
+		*formulaInput->loopFunction,
+		output,
+		heightmap.size().x,
+		heightmap.size().y,
+		Aabb(plotSettings.graphMin, plotSettings.graphMax));
+
+	for (i32 i = 0; i < output.blockCount(); i++) {
+		heightmap.data()[i] = output(i, 0);
+	}
+
+	//for (i32 xi = 0; xi < heightmap.size().x; xi++) {
+	//	for (i32 yi = 0; yi < heightmap.size().y; yi++) {
+	//		float xt = float(xi) / float(heightmap.size().x - 1);
+	//		float yt = float(yi) / float(heightmap.size().y - 1);
+	//		float x = lerp(plotSettings.graphMin.x, plotSettings.graphMax.x, xt);
+	//		float y = lerp(plotSettings.graphMin.y, plotSettings.graphMax.y, yt);
+	//		//float z = 1.5f * sin(x + 0.2f) + cos(y);
+	//		/*float z = x*y;*/
+	//		float z = 1.0f / 2.0f * y * y - 0.5f * x * x + 0.25f * x * x * x * x;
+	//		//float z = x * x * x + x * y;
+	//		//float z = x * x - y * y * y;
+	//		//float z = y * y - x * x * (x + 1.0f);
+	//		//float z = x * x * x * x * x - y * y;
+	//		//float z = y * y - x * x * x * x;
+	//		heightmap(xi, yi) = z;
+	//	}
+	//}
 }

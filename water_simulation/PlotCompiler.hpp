@@ -30,7 +30,10 @@ public:
 	bool tryCompileGlsl(std::ostream& out, const FormulaInput& input);
 
 	std::vector<FormulaInput*> modifiedFormulaInputs;
+	bool parametersModified = false;
 	const std::vector<FormulaInput*>& updateEndOfFrame();
+
+	bool parametersModifiedFlag = false;
 
 	// TODO: Make a container that can store items linearly without invalidating pointers. Simplest option would probably be an array with a bitset (they could be allocated together) that would track which slots are free.
 	std::list<FormulaInput> allocatedFormulaInputs;

@@ -31,6 +31,10 @@ const std::vector<PlotCompiler::FormulaInput*>& PlotCompiler::updateEndOfFrame()
 	for (auto& formulaInput : modifiedFormulaInputs) {
 		compileFormula(*formulaInput);
 	}
+
+	parametersModified = parametersModifiedFlag;
+	parametersModifiedFlag = false;
+
 	return modifiedFormulaInputs;
 }
 
@@ -66,7 +70,9 @@ void PlotCompiler::settingsWindowContent() {
 		ImGui::SameLine();
 		const auto disableSlider = parameter.valueMin >= parameter.valueMax;
 		if (disableSlider) ImGui::BeginDisabled();
-		ImGui::SliderFloat("##parameterSlider", &parameter.value, parameter.valueMin, parameter.valueMax);
+		if (ImGui::SliderFloat("##parameterSlider", &parameter.value, parameter.valueMin, parameter.valueMax)) {
+			parametersModifiedFlag = true;
+		}
 		if (disableSlider) ImGui::EndDisabled();
 
 		loopFunctionVariablesBlock[parameterIndexToLoopFunctionVariableIndex(i)] = parameter.value;
