@@ -34,6 +34,11 @@ void plotAddLine(Vec2 start, Vec2 end, u32 color) {
 	);
 }
 
+void plotVec2Line(const char* label, const std::span<const Vec2>& vs) {
+	const auto pointsData = reinterpret_cast<const float*>(vs.data());
+	ImPlot::PlotLine(label, pointsData, pointsData + 1, vs.size(), 0, 0, sizeof(float) * 2);
+}
+
 ImU32 plotColorToColorInt(Vec3 color) {
 	return ImGui::ColorConvertFloat4ToU32(ImVec4(color.x, color.y, color.z, 1.0f));
 }

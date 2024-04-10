@@ -49,6 +49,7 @@ void graph(const char* name, Function f, double minX = -1.0, double maxX = -1.0,
 //}
 
 void plotVec2Scatter(const char* label, std::span<const Vec2> points);
+void plotVec2Line(const char* label, const std::span<const Vec2>& vs);
 
 void plotVec2LineSegments(const char* label, std::span<const Vec2> segmentEndpoints);
 void plotAddLine(Vec2 start, Vec2 end, Vec3 color);

@@ -9,13 +9,28 @@
 #include <framework/Renderer2d.hpp>
 
 struct Continous2dSystemVisualization {
+	enum class FormulaType {
+		CARTESIAN_LINEAR,
+		CARTESIAN,
+		POLAR
+	};
+	static constexpr const char* formulaTypeNames = "cartesian linear\0cartesian\0polar\0";
 
 	Continous2dSystemVisualization();
 
 	void update(Renderer2d& renderer2d);
 	void derivativePlot();
 	std::vector<Vec2> fixedPoints;
-	void plotStreamlines();
+
+	struct StreamlineSettings {
+		float spacing = 0.2f;
+	} streamlineSettings;
+	static void plotStreamlines(
+		const PlotCompiler& plotCompiler, 
+		const Runtime::LoopFunction& f0, 
+		const Runtime::LoopFunction& f1,
+		FormulaType formulaType,
+		const StreamlineSettings& settings);
 	void plotTestPoints();
 	void plotFixedPoints();
 	
@@ -66,15 +81,7 @@ struct Continous2dSystemVisualization {
 
 	bool drawNullclines = false;
 
-	float spacing = 0.2f;
-
-	enum class FormulaType {
-		CARTESIAN_LINEAR,
-		CARTESIAN,
-		POLAR
-	};
-	FormulaType formulaType = FormulaType::CARTESIAN;
-	static constexpr const char* formulaTypeNames = "cartesian linear\0cartesian\0ploar\0";
+	//float spacing = 0.2f;
 
 	enum class ToolType {
 		SPAWN_TEST_POINTS,
@@ -89,7 +96,7 @@ struct Continous2dSystemVisualization {
 
 	} linearizationToolState;
 	void linearizationToolSettings();
-	void linearizationToolUpdate();
+	static void linearizationToolUpdate(LinearizationToolState& s, const std::vector<Vec2> fixedPoints);
 
 	struct BasinOfAttractionWindow {
 		std::optional<ShaderProgram> shaderProgram;
@@ -100,13 +107,27 @@ struct Continous2dSystemVisualization {
 		void recompileShader(Continous2dSystemVisualization& state, Renderer2d& renderer2d);
 	} basinOfAttractionWindow;
 
+	void changeFormulaTypeToCartesian();
+	void changeFormulaTypeToCartesianLinear();
+	void changeFormulaTypeToPolar();
+
+	void updateLinearFormula();
+
 	Mat2 linearFormulaMatrix = Mat2(Vec2(0.0f), Vec2(0.0f));
 	std::array<Eigenvector, 2> linearFormulaMatrixEigenvectors;
 
 	// Could either have different inputs for different input types (cartesian/polar) or the same inputs.
 	PlotCompiler plotCompiler; // Has to be above FormulaInputs for thing to be initialized in the right order.
-	PlotCompiler::FormulaInput& xFormulaInput;
-	PlotCompiler::FormulaInput& yFormulaInput;
+	PlotCompiler::FormulaInput& formulaInput0;
+	PlotCompiler::FormulaInput& formulaInput1;
+	/*
+	Formula inputs interpreation
+	(0, 1) ->
+	CARTESIAN (x, y)
+	POLAR (a, r)
+	*/
+
+	FormulaType formulaType = FormulaType::CARTESIAN;
 
 	std::vector<Vec2> areaParticles;
 };
