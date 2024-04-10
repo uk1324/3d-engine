@@ -262,21 +262,21 @@ void Continous2dSystemVisualization::plotStreamlines(
 			const auto colorInt = plotColorToColorInt(color);
 
 			for (i64 pointIndex = 0; pointIndex < streamlinePointCount[streamlineIndex] - 1; pointIndex++) {
-				const auto start = streamlineIndexToPos(streamlineIndex, pointIndex);
-				const auto end = streamlineIndexToPos(streamlineIndex, pointIndex + 1);
+				const auto& start = streamlineIndexToPos(streamlineIndex, pointIndex);
+				const auto& end = streamlineIndexToPos(streamlineIndex, pointIndex + 1);
 				plotAddLine(start, end, colorInt);
 			}
 
-			const auto count = streamlinePointCount[streamlineIndex];
-			const auto lastPos = streamlineIndexToPos(streamlineIndex, count - 1);
-			const auto derivative = lastPos - streamlineIndexToPos(streamlineIndex, count - 2);
-			const auto angle = derivative.angle();
-			const auto a = Vec2::oriented(angle + 0.4f);
+			const auto& count = streamlinePointCount[streamlineIndex];
+			const auto& lastPos = streamlineIndexToPos(streamlineIndex, count - 1);
+			const auto& derivative = lastPos - streamlineIndexToPos(streamlineIndex, count - 2);
+			const auto& angle = derivative.angle();
+			const auto& a = Vec2::oriented(angle + 0.4f);
 			const auto b = Vec2::oriented(angle - 0.4f);
 			if (derivative.lengthSq() == 0.0f) {
 				continue;
 			}
-			const auto arrowheadLength = settings.spacing * 0.1f;
+			const auto& arrowheadLength = settings.spacing * 0.1f;
 			plotAddLine(lastPos, lastPos - a.normalized() * arrowheadLength, colorInt);
 			plotAddLine(lastPos, lastPos - b.normalized() * arrowheadLength, colorInt);
 
@@ -458,10 +458,12 @@ void Continous2dSystemVisualization::plotFixedPoints() {
 		ImPlot::PopStyleColor();
 	}
 
-	Mat2 m( Vec2(0.09844011, 0.68552547), Vec2(0.50546665, 0.02298282));
-	const auto k = m.inversed();
+	// Could use a different method like 
+	// https://en.wikipedia.org/wiki/Quasi-Newton_method
+	// https://en.wikipedia.org/wiki/Broyden%27s_method
+	// https://nickcdryan.com/2017/09/16/broydens-method-in-python/
 
-	std::vector<Vec2> testa;
+	
 	for (auto& approximateFixedPoint : fixedPoints) {
 		auto v = Vec2T<double>(approximateFixedPoint);
 
@@ -471,52 +473,31 @@ void Continous2dSystemVisualization::plotFixedPoints() {
 			auto j = Mat2T<double>(Vec2T<double>(jacobian.columns[0]), Vec2T<double>(jacobian.columns[1]));
 			auto fv = Vec2T<double>(sampleVectorField(Vec2(v)));
 			v -= j.inversed() * fv;
-
-			testa.push_back(Vec2(v));
 		}
 		float d2 = Vec2T<double>(sampleVectorField(Vec2(v))).length();
 		int x = 5;
-
-		// https://en.wikipedia.org/wiki/Quasi-Newton_method
-		// https://en.wikipedia.org/wiki/Broyden%27s_method
-		// https://nickcdryan.com/2017/09/16/broydens-method-in-python/
-		//auto v = Vec2T<double>(approximateFixedPoint);
-		//auto fv = Vec2T<double>(sampleVectorField(approximateFixedPoint));
-		//const auto jacobian = calculateJacobian(approximateFixedPoint);
-		//auto j = Mat2T<double>(Vec2T<double>(jacobian.columns[0]), Vec2T<double>(jacobian.columns[1]));
-
-		//testa.push_back(approximateFixedPoint);
-
-		//for (i32 i = 0; i < 10; i++) {
-		//	if (j.det() == 0.0f) {
-		//		break;
-		//	}
-
-		//	const auto jInv = j.inversed().transposed();
-		//	const auto deltaV = jInv * -fv;
-		//	v += deltaV;
-		//	testa.push_back(Vec2(v));
-		//	const auto newFv = Vec2T<double>(sampleVectorField(Vec2(v)));
-		//	const auto deltaFv = newFv - fv;
-
-		//	const auto temp = (deltaFv - j * deltaV) / dot(deltaV, deltaV);
-		//	/*const auto m = Mat2(Vec2(temp.x * deltaV.x, temp.y * deltaV.x), Vec2(temp.x * deltaV.y, temp.y * deltaV.y));*/
-		//	const auto m = Mat2T<double>(
-		//		Vec2T<double>(temp.x * deltaV.x, temp.y * deltaV.x), 
-		//		Vec2T<double>(temp.x * deltaV.y, temp.y * deltaV.y));
-
-		//	j += m;
-
-		//	fv = newFv;
-		//}
 		
 		approximateFixedPoint = Vec2(v);
 	}
 
-	plotVec2Scatter("fixed points", testa);
-	plotVec2Scatter("fixed points2", fixedPoints);
+	plotVec2Scatter("fixed points", fixedPoints);
 
+	auto fixedPointsCopy = fixedPoints;
+	fixedPoints.clear();
+	const auto threashold = 0.001f * std::min(ImPlot::GetPlotLimits().Size().x, ImPlot::GetPlotLimits().Size().y);
+	for (const auto& toAdd : fixedPointsCopy) {
+		bool duplicate = false;
+		for (const auto& alreadyAdded : fixedPoints) {
+			if (distance(toAdd, alreadyAdded) < threashold) {
+				duplicate = true;
+				break;
+			}
+		}
 
+		if (!duplicate) {
+			fixedPoints.push_back(toAdd);
+		}
+	}
 	//plotVec2Scatter("fixed points", fixedPoints);
 
 	for (const auto& fixedPoint : fixedPoints) {
@@ -914,11 +895,18 @@ void Continous2dSystemVisualization::calculateImplicitFunctionGraph(const Runtim
 
 void Continous2dSystemVisualization::drawEigenvectors(Vec2 origin, const std::array<Eigenvector, 2>& eigenvectors, float scale, float complexPartTolerance) {
 	ImPlot::PushPlotClipRect();
-	auto drawEigenvector = [&origin, &scale](const Vec2T<Complex32>& v) {
+	auto drawEigenvector = [&origin, &scale](const Eigenvector& v) {
+		auto start = origin;
+		auto end = origin + Vec2(v.eigenvector.x.real(), v.eigenvector.y.real()).normalized() * scale;
+		if (v.eigenvalue.real() < 0.0f) {
+			std::swap(start, end);
+		}
+
 		// Could multiple by the eigenvalue.
-		plotAddArrowOriginDirection(
-			origin,
-			Vec2(v.x.real(), v.y.real()).normalized() * scale,
+		plotAddArrowFromTo(
+			start,
+			end,
+			/*v.eigenvalue.real() < 0.0f ? Color3::BLUE : Color3::RED ,*/
 			Color3::RED,
 			0.1f
 		);
@@ -926,8 +914,8 @@ void Continous2dSystemVisualization::drawEigenvectors(Vec2 origin, const std::ar
 
 	// In 2d either both vectors are real or both complex.
 	if (std::abs(eigenvectors[0].eigenvalue.imag()) <= complexPartTolerance) {
-		drawEigenvector(eigenvectors[0].eigenvector);
-		drawEigenvector(eigenvectors[1].eigenvector);
+		drawEigenvector(eigenvectors[0]);
+		drawEigenvector(eigenvectors[1]);
 	}
 	ImPlot::PopPlotClipRect();
 }
