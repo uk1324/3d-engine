@@ -5,6 +5,7 @@
 #include <engine/Math/Color.hpp>
 #include <water_simulation/PlotUtils.hpp>
 #include <engine/Input/Input.hpp>
+#include <engine/Window.hpp>
 #include <engine/Math/MarchingSquares.hpp>
 #include <engine/Math/Utils.hpp>
 #include <engine/Math/Angles.hpp>
@@ -52,7 +53,8 @@ static constexpr auto VARIABLE_R_INDEX_IN_BLOCK = VARIABLE_1_INDEX_IN_BLOCK;
 
 Continous2dSystemVisualization::Continous2dSystemVisualization()
 	: formulaInput0(*plotCompiler.allocateFormulaInput())
-	, formulaInput1(*plotCompiler.allocateFormulaInput()) {
+	, formulaInput1(*plotCompiler.allocateFormulaInput())
+	, surfacePlotRenderer(SurfacePlotRenderer::make()) {
 
 	plotCompiler.variables.push_back(Variable{ .name = "x" });
 	plotCompiler.variables.push_back(Variable{ .name = "y" });
@@ -86,6 +88,10 @@ void Continous2dSystemVisualization::update(Renderer2d& renderer2d) {
 	ImGui::Begin(settingsWindowName);
 	settings();
 	ImGui::End();
+
+	for (auto& window : surfacePlotWindows) {
+		window.display(surfacePlotRenderer);
+	}
 
 	const auto& modifiedFormulaInputs = plotCompiler.updateEndOfFrame();
 
@@ -643,13 +649,31 @@ void Continous2dSystemVisualization::settings() {
 			.isHidden = false,
 		});
 	}
-	const auto [f, l] = std::ranges::remove_if(
-		implicitFunctionGraphs, 
-		[&](ImplicitFunctionGraph& plot) -> bool {
-			return implicitFunctionGraphSettings(plot);
-		}
-	);
-	implicitFunctionGraphs.erase(f, l);
+	{
+		const auto [f, l] = std::ranges::remove_if(
+			implicitFunctionGraphs,
+			[&](ImplicitFunctionGraph& plot) -> bool {
+				return implicitFunctionGraphSettings(plot);
+			}
+		);
+		implicitFunctionGraphs.erase(f, l);
+	}
+
+	if (ImGui::Button("add surface plot")) {
+		surfacePlotWindows.push_back(SurfacePlotWindow{
+			.index = surfacePlotWindowIndices
+		});
+		surfacePlotWindowIndices++;
+	}
+	{
+		const auto [f, l] = std::ranges::remove_if(
+			surfacePlotWindows,
+			[&](SurfacePlotWindow& plot) -> bool {
+				return plot.settings();
+			}
+		);
+		surfacePlotWindows.erase(f, l);
+	}
 
 	ImGui::SeparatorText("test points");
 	if (ImGui::Button("remove all")) {
@@ -1101,11 +1125,13 @@ void sliderFloatWithClamp(const char* label, float* value, float min, float max)
 void Continous2dSystemVisualization::BasinOfAttractionState::settings() {
 	ImGui::PushID(this);
 	ImGui::Checkbox("show", &show);
-	const auto opacityMin = 0.0f, opacityMax = 1.0f;
-	sliderFloatWithClamp("opacity", &opacity, opacityMin, opacityMax);
-	// No point of allowing precision above 1 sample per pixel.
-	sliderFloatWithClamp("resolution scale", &resolutionScale, 0.1f, 1.0f);
-	ImGui::SliderInt("iterations", &iterations, 0, 10000);
+	if (show) {
+		const auto opacityMin = 0.0f, opacityMax = 1.0f;
+		sliderFloatWithClamp("opacity", &opacity, opacityMin, opacityMax);
+		// No point of allowing precision above 1 sample per pixel.
+		sliderFloatWithClamp("resolution scale", &resolutionScale, 0.1f, 1.0f);
+		ImGui::SliderInt("iterations", &iterations, 0, 10000);
+	}
 	ImGui::PopID();
 }
 
@@ -1161,9 +1187,86 @@ void Continous2dSystemVisualization::BasinOfAttractionState::render(
 		Vec2(1.0f),
 		ImGui::ColorConvertFloat4ToU32(Vec4(1.0f, 1.0f, 1.0f, opacity)));
 	ImPlot::PopPlotClipRect();
+}
 
-	const auto l = ImPlot::GetPlotLimits();
-	float xs[] = { l.X.Min, l.X.Max };
-	float ys[] = { l.Y.Min, l.Y.Max };
-	ImPlot::PlotScatter("aasdfsdf", xs, ys, 2);
+void Continous2dSystemVisualization::SurfacePlotWindow::display(SurfacePlotRenderer& plotter) {
+
+	for (i32 xi = 0; xi < heightmap.size().x; xi++) {
+		for (i32 yi = 0; yi < heightmap.size().y; yi++) {
+			float xt = float(xi) / float(heightmap.size().x - 1);
+			float yt = float(yi) / float(heightmap.size().y - 1);
+			float x = lerp(plotSettings.graphMin.x, plotSettings.graphMax.x, xt);
+			float y = lerp(plotSettings.graphMin.y, plotSettings.graphMax.y, yt);
+			//float z = 1.5f * sin(x + 0.2f) + cos(y);
+			/*float z = x*y;*/
+			float z = 1.0f / 2.0f * y * y - 0.5f * x * x + 0.25f * x * x * x * x;
+			//float z = x * x * x + x * y;
+			//float z = x * x - y * y * y;
+			//float z = y * y - x * x * (x + 1.0f);
+			//float z = x * x * x * x * x - y * y;
+			//float z = y * y - x * x * x * x;
+			heightmap(xi, yi) = z;
+		}
+	}
+
+	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2(0.0f));
+
+	const auto& io = ImGui::GetIO();
+	ImGui::SetNextWindowPos(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+	ImGui::SetNextWindowSize(ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f), ImGuiCond_Appearing);
+
+	ImGui::Begin(("##surface plot" + std::to_string(index)).c_str());
+
+	Aabb sceneWindowWindowSpace = Aabb::fromCorners(
+		Vec2(ImGui::GetWindowPos()) + ImGui::GetWindowContentRegionMin(),
+		Vec2(ImGui::GetWindowPos()) + ImGui::GetWindowContentRegionMax()
+	);
+	const auto sceneWindowSize = sceneWindowWindowSpace.size();
+
+	renderWindow.fbo.bind();
+	renderWindow.update(sceneWindowSize);
+
+	glViewport(0, 0, sceneWindowSize.x, sceneWindowSize.y);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glEnable(GL_DEPTH_TEST);
+	plotter.render(plotSceneCamera, sceneWindowSize.xOverY(), heightmap.span2d().asConst(), plotSettings);
+	Fbo::unbind();
+
+	const auto windowClicked = ImGui::ImageButton(
+		reinterpret_cast<ImTextureID*>(renderWindow.colorTexture.handle()),
+		sceneWindowSize,
+		Vec2(0.0f, 1.0f),
+		Vec2(1.0f, 0.0f),
+		0);
+
+	const auto flags =
+		ImGuiConfigFlags_NavNoCaptureKeyboard |
+		ImGuiConfigFlags_NoMouse |
+		ImGuiConfigFlags_NoMouseCursorChange;
+
+	if (windowClicked) {
+		Window::disableCursor();
+		ImGui::GetIO().ConfigFlags |= flags;
+	}
+
+	if (ImGui::IsWindowFocused() && !Window::isCursorEnabled()) {
+		plotSceneCamera.update(1.0f / 60.0f);
+	} else {
+		plotSceneCamera.lastMousePosition = std::nullopt;
+	}
+
+	// Not sure where to put this. This doesn't have to be called for every window.
+	if (Input::isKeyDown(KeyCode::ESCAPE) && !Window::isCursorEnabled()) {
+		ImGui::GetIO().ConfigFlags &= ~flags;
+		Window::enableCursor();
+		//ImGui::SetWindowFocus(nullptr);
+	}
+
+	ImGui::End();
+	ImGui::PopStyleVar();
+}
+
+bool Continous2dSystemVisualization::SurfacePlotWindow::settings() {
+	return false;
 }

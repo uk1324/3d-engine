@@ -7,6 +7,7 @@
 #include <water_simulation/Eigenvectors.hpp>
 #include <engine/Graphics/ShaderProgram.hpp>
 #include <water_simulation/RenderWindow.hpp>
+#include <water_simulation/SurfacePlotRenderer.hpp>
 #include <framework/Renderer2d.hpp>
 
 struct Continous2dSystemVisualization {
@@ -64,6 +65,20 @@ struct Continous2dSystemVisualization {
 		Vec3 color,
 		const PlotCompiler::FormulaInput& formula);
 	void calculateImplicitFunctionGraph(const Runtime::LoopFunction& function, std::vector<Vec2>& out);
+
+	u64 surfacePlotWindowIndices = 0;
+	struct SurfacePlotWindow {
+		u64 index;
+		PlotCompiler::FormulaInput* formulaInput;
+		RenderWindow3d renderWindow;
+		Camera3d plotSceneCamera;
+		SurfacePlotSettings plotSettings;
+		Array2d<float> heightmap = Array2d<float>(SurfacePlotRenderer::SAMPLES_PER_SIDE, SurfacePlotRenderer::SAMPLES_PER_SIDE);
+
+		void display(SurfacePlotRenderer& plotter);
+		bool settings();
+	};
+	std::vector<SurfacePlotWindow> surfacePlotWindows;
 
 	static void drawEigenvectors(Vec2 origin, const std::array<Eigenvector, 2>& eigenvectors, float scale, float complexPartTolerance);
 
@@ -136,6 +151,8 @@ struct Continous2dSystemVisualization {
 
 	FormulaType formulaType = FormulaType::CARTESIAN;
 	bool formulaTypeIsCartesian() const;
+
+	SurfacePlotRenderer surfacePlotRenderer;
 
 	std::vector<Vec2> areaParticles;
 };

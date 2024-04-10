@@ -1,3 +1,4 @@
+#pragma once
 #include <engine/Math/Quat.hpp>
 #include <engine/Math/Vec2.hpp>
 #include <engine/Math/Mat4.hpp>

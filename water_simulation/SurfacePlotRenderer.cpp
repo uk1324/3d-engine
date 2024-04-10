@@ -1,4 +1,4 @@
-#include <water_simulation/FunctionPlotter2d.hpp>
+#include <water_simulation/SurfacePlotRenderer.hpp>
 #include <water_simulation/Shaders/plotShaderData.hpp>
 #include <glad/glad.h>
 #include <engine/Window.hpp>
@@ -45,7 +45,7 @@ Texture scientificColorMapTexture() {
 	return colorMapTexture(colors);
 }
 
-FunctionPlotter2d FunctionPlotter2d::make() {
+SurfacePlotRenderer SurfacePlotRenderer::make() {
 	Vbo instancesVbo(INSTANCE_BUFFER_SIZE);
 
 	auto basicShadingVao = Vao::generate();
@@ -122,20 +122,15 @@ FunctionPlotter2d FunctionPlotter2d::make() {
 	glBindTexture(GL_TEXTURE_2D, 0);
 #define MOVE(name) .name = std::move(name)
 	//Window::disableCursor();
-	return FunctionPlotter2d{
+	return SurfacePlotRenderer{
 		.instancesVbo = std::move(instancesVbo),
 		.basicShadingShader = ShaderProgram::compile(PLOT_SHADER_SHADER_VERT_PATH, PLOT_SHADER_SHADER_FRAG_PATH),
-		.movementController = {
-			.position = Vec3(0.0f),
-			.movementSpeed = 5.0f
-		},
 		.colorMap1d = scientificColorMapTexture(),
 		MOVE(graphVbo),
 		MOVE(graphIbo),
 		MOVE(graphVao),
 		MOVE(graphTexture),
 		MOVE(graphMesh),
-		.array = Array2d<float>(SAMPLES_PER_SIDE, SAMPLES_PER_SIDE),
 	};
 }
 
@@ -154,85 +149,30 @@ static void drawInstances(Vao& vao, Vbo& instancesVbo, const std::vector<Instanc
 	}
 }
 
-void FunctionPlotter2d::update(Vec2 windowSize) {
-	if (Input::isKeyDown(KeyCode::T)) {
-		Window::toggleCursor();
-		ImGui::GetIO().ConfigFlags ^= (ImGuiConfigFlags_None & ImGuiConfigFlags_NavNoCaptureKeyboard);
-	}
-	windowSize_ = windowSize;
-
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glViewport(0, 0, windowSize.x, windowSize.y);
-	glEnable(GL_DEPTH_TEST);
-
-	if (Input::isKeyDown(KeyCode::X)) {
-		Window::close();
-	}
-
-	/*static float range = 1.0f;
-	ImGui::SliderFloat("range", &range, 1.0f, 4.0f);
-	graphMin = -Vec2(range);
-	graphMax = Vec2(range);*/
-	for (i32 xi = 0; xi < SAMPLES_PER_SIDE; xi++) {
-		for (i32 yi = 0; yi < SAMPLES_PER_SIDE; yi++) {
-			float xt = float(xi) / float(SAMPLES_PER_SIDE - 1);
-			float yt = float(yi) / float(SAMPLES_PER_SIDE - 1);
-			float x = lerp(graphMin.x, graphMax.x, xt);
-			float y = lerp(graphMin.y, graphMax.y, yt);
-			//float z = 1.5f * sin(x + 0.2f) + cos(y);
-			/*float z = x*y;*/
-			float z = 1.0f / 2.0f * y * y - 0.5f * x * x + 0.25f * x * x * x * x;
-			//float z = x * x * x + x * y;
-			//float z = x * x - y * y * y;
-			//float z = y * y - x * x * (x + 1.0f);
-			//float z = x * x * x * x * x - y * y;
-			//float z = y * y - x * x * x * x;
-			array(xi, yi) = z;
-		}
-	}
+void SurfacePlotRenderer::render(const Camera3d& camera, float aspectRatio, Span2d<const float> heightmap, const SurfacePlotSettings& settings) {
 
 	graphTexture.bind();
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, SAMPLES_PER_SIDE, SAMPLES_PER_SIDE, GL_RED, GL_FLOAT, array.data());
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, SAMPLES_PER_SIDE, SAMPLES_PER_SIDE, GL_RED, GL_FLOAT, heightmap.data());
 	glBindTexture(GL_TEXTURE_2D, 0);
 
-	const auto dt = 1.0f / 60.0f;
-	elapsed += dt;
-	if (!Window::isCursorEnabled()) {
-		movementController.update(dt);
-	} else {
-		movementController.lastMousePosition = std::nullopt;
-	}
-
 	PlotShaderFragUniforms fragUniforms{
-		.cameraWorldPosition = movementController.position
+		.cameraWorldPosition = camera.position
 	};
 	shaderSetUniforms(basicShadingShader, fragUniforms);
-
-	ImGui::Begin("ss");
-	ImGui::SliderFloat3("scale", graphScale.data(), 0.1f, 3.0f);
-
-	ImGui::SliderFloat2("min", graphMin.data(), -10.0f, 10.0f);
-	ImGui::SliderFloat2("max", graphMax.data(), -10.0f, 10.0f);
-	ImGui::End();
-	//insliderfloat(test, 0.0f, -2.0f, 2.0f);
-	//basicShadingShader.set("test", test);
-	//chkbox(test1);
-	//basicShadingShader.set("test1", test1);
 
 	basicShadingShader.use();
 	basicShadingShader.setTexture("heightmap", 0, graphTexture);
 	basicShadingShader.setTexture("colormap", 1, colorMap1d, GL_TEXTURE_1D);
 	graph2dInstances.clear();
-	drawGraph(array.span2d().asConst(), graphMin, graphMax, graphScale);
+	addGraph(camera, aspectRatio, heightmap, settings);
 	drawInstances(graphVao, instancesVbo, graph2dInstances, [this](usize count) {
 		glDrawElementsInstanced(GL_TRIANGLES, graphMesh.indices.size(), GL_UNSIGNED_INT, nullptr, count);
 	});
 }
 
-void FunctionPlotter2d::drawGraph(Span2d<const float> heightValues, Vec2 rangeMin, Vec2 rangeMax, Vec3 scale) {
-	const auto view = movementController.viewMatrix();
-	const auto projection = Mat4::perspective(degToRad(90.0f), windowSize_.xOverY(), 0.1f, 1000.0f);
+void SurfacePlotRenderer::addGraph(const Camera3d& camera, float aspectRatio, Span2d<const float> heightmap, const SurfacePlotSettings& settings) {
+	const auto view = camera.viewMatrix();
+	const auto projection = Mat4::perspective(degToRad(90.0f), aspectRatio, 0.1f, 1000.0f);
 
 	const auto graphSideLength = LAYER_COUNT * BLOCK_SIZE;
 	const auto to01Scale = 1.0f / graphSideLength;
@@ -240,18 +180,18 @@ void FunctionPlotter2d::drawGraph(Span2d<const float> heightValues, Vec2 rangeMi
 
 	const auto toMinusHalfToHalf = Mat4::translation(Vec3(-0.5f, 0.0f, -0.5f)) * to01;
 
-	const auto range = rangeMax - rangeMin;
+	const auto range = settings.graphMax - settings.graphMin;
 	const auto toRange = Mat4(Mat3::scale(Vec3(range.x, 1.0f, range.y))) * toMinusHalfToHalf;
 
-	const auto toScaledRange = Mat4(Mat3::scale(scale)) * toRange;
+	const auto toScaledRange = Mat4(Mat3::scale(settings.graphScale)) * toRange;
 
 	const auto model = toScaledRange;
 
 	const auto transform = projection * view * model;
 
-	Vec3 shaderScale = Vec3(scale.x * range.x, scale.y, scale.z * range.y);
-	const auto minValue = std::ranges::min_element(heightValues.span());
-	const auto maxValue = std::ranges::max_element(heightValues.span());
+	Vec3 shaderScale = Vec3(settings.graphScale.x * range.x, settings.graphScale.y, settings.graphScale.z * range.y);
+	const auto minValue = std::ranges::min_element(heightmap.span());
+	const auto maxValue = std::ranges::max_element(heightmap.span());
 	graph2dInstances.push_back(PlotShaderInstance{ 
 		.transform = transform,
 		.model = model,
@@ -259,7 +199,14 @@ void FunctionPlotter2d::drawGraph(Span2d<const float> heightValues, Vec2 rangeMi
 		.samplingScale = Vec2(to01Scale),
 		.colormapMin = *minValue,
 		.colormapMax = *maxValue,
-		.rangeScale = scale,
-		.rangeTranslation = (rangeMin + rangeMax) / 2.0
+		.rangeScale = settings.graphScale,
+		// Translation due to centering.
+		.rangeTranslation = (settings.graphMin + settings.graphMax) / 2.0
 	});
+}
+
+void SurfacePlotSettings::gui() {
+	ImGui::SliderFloat3("scale", graphScale.data(), 0.1f, 3.0f);
+	ImGui::SliderFloat2("min", graphMin.data(), -10.0f, 10.0f);
+	ImGui::SliderFloat2("max", graphMax.data(), -10.0f, 10.0f);
 }

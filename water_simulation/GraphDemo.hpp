@@ -7,7 +7,6 @@
 #include <water_simulation/Continous2dSystemVisualization.hpp>
 #include <imgui/imgui.h>
 #include <water_simulation/SettingsManager.hpp>
-#include <water_simulation/FunctionPlotter2d.hpp>
 #include <water_simulation/RenderWindow.hpp>
 #include <framework/Renderer2d.hpp>
 
@@ -21,7 +20,6 @@ struct GraphDemo {
 	Texture texture;
 	FirstOrderSystemGraph firstOrderSystem;
 	Continous2dSystemVisualization secondOrderSystem;
-	FunctionPlotter2d plotter;
 
 	Renderer2d renderer2d;
 };
