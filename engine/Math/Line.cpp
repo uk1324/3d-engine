@@ -24,15 +24,21 @@ auto Line::projectPointOntoLine(Vec2 p) const -> Vec2 {
 }
 
 auto Line::intersection(const Line& other) const -> std::optional<Vec2> {
-	// xA = b
+	// Ax = b
 	// x = inv(A) * b
-	const Mat2 A{ n, other.n };
-	if (A.det() == 0.0f) {
+
+	/*
+	x * n1.x + y * n1.y = d
+	x * n2.x + y * n2.y = d
+	*/
+
+	const auto a = Mat2::fromRows(n, other.n);
+	if (a.det() == 0.0f) {
 		return std::nullopt;
 	}
 
 	const Vec2 b{ d, other.d };
-	return A.inversed() * b;
+	return a.inversed() * b;
 }
 
 auto signedDistance(const Line& l, Vec2 p) -> float {

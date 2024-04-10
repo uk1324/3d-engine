@@ -26,8 +26,8 @@ struct Mat2T {
 	//auto y() const -> Vec2T<T>;
 
 	Mat2T operator*(const Mat2T& other) const;
-	//auto operator+(const Mat2T& other) const -> Mat2T;
-	//auto operator+=(const Mat2T& other) -> Mat2T&;
+	Mat2T operator+(const Mat2T& other) const;
+	Mat2T& operator+=(const Mat2T& other);
 	//auto operator*(T s) const -> Mat2T;
 
 	T& operator()(i32 x, i32 y);
@@ -90,13 +90,13 @@ auto Mat2T<T>::orthonormalInv() const -> Mat2T {
 template<typename T>
 auto Mat2T<T>::inversed() const -> Mat2T {
 	const auto d = det();
-	if (d == 0.0f) {
+	/*if (d == 0.0f) {
 		ASSERT_NOT_REACHED();
-	}
+	}*/
 	const auto& m = *this;
 	return Mat2T{
-		Vec2T(m(1, 1) / d, -m(1, 0) / d),
-		Vec2T(-m(0, 1) / d, m(0, 0) / d),
+		Vec2T(m(1, 1) / d, -m(0, 1) / d),
+		Vec2T(-m(1, 0) / d, m(0, 0) / d),
 	};
 }
 
@@ -141,26 +141,26 @@ auto Mat2T<T>::trace() const -> T {
 //}
 //
 //template<typename T>
-//auto Mat2T<T>::operator*(const Mat2T& other) const -> Mat2T {
+//Mat2T<T> Mat2T<T>::operator*(const Mat2T& other) const{
 //	return Mat2{
 //		x() * other,
 //		y() * other,
 //	};
 //}
-//
-//template<typename T>
-//auto Mat2T<T>::operator+(const Mat2T& other) const -> Mat2T {
-//	return Mat2T{
-//		x() + other.x(),
-//		y() + other.y()
-//	};
-//}
-//
-//template<typename T> 
-//auto Mat2T<T>::operator+=(const Mat2T& other) -> Mat2T& {
-//	*this = *this + other;
-//	return *this;
-//}
+
+template<typename T>
+Mat2T<T> Mat2T<T>::operator+(const Mat2T<T>& other) const{
+	return Mat2T{
+		columns[0] + other.columns[0],
+		columns[1] + other.columns[1],
+	};
+}
+
+template<typename T> 
+Mat2T<T>& Mat2T<T>::operator+=(const Mat2T<T>& other) {
+	*this = *this + other;
+	return *this;
+}
 //
 //template<typename T>
 //auto Mat2T<T>::operator*(T s) const -> Mat2T {

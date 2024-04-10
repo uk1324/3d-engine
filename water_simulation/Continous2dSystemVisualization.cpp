@@ -452,7 +452,66 @@ void Continous2dSystemVisualization::plotFixedPoints() {
 		ImPlot::PopStyleColor();
 	}
 
-	plotVec2Scatter("fixed points", fixedPoints);
+	Mat2 m( Vec2(0.09844011, 0.68552547), Vec2(0.50546665, 0.02298282));
+	const auto k = m.inversed();
+
+	std::vector<Vec2> testa;
+	for (auto& approximateFixedPoint : fixedPoints) {
+		auto v = Vec2T<double>(approximateFixedPoint);
+
+		float d = Vec2T<double>(sampleVectorField(Vec2(v))).length();
+		for (int i = 0; i < 40; i++) {
+			const auto jacobian = calculateJacobian(Vec2(v));
+			auto j = Mat2T<double>(Vec2T<double>(jacobian.columns[0]), Vec2T<double>(jacobian.columns[1]));
+			auto fv = Vec2T<double>(sampleVectorField(Vec2(v)));
+			v -= j.inversed() * fv;
+
+			testa.push_back(Vec2(v));
+		}
+		float d2 = Vec2T<double>(sampleVectorField(Vec2(v))).length();
+		int x = 5;
+
+		// https://en.wikipedia.org/wiki/Quasi-Newton_method
+		// https://en.wikipedia.org/wiki/Broyden%27s_method
+		// https://nickcdryan.com/2017/09/16/broydens-method-in-python/
+		//auto v = Vec2T<double>(approximateFixedPoint);
+		//auto fv = Vec2T<double>(sampleVectorField(approximateFixedPoint));
+		//const auto jacobian = calculateJacobian(approximateFixedPoint);
+		//auto j = Mat2T<double>(Vec2T<double>(jacobian.columns[0]), Vec2T<double>(jacobian.columns[1]));
+
+		//testa.push_back(approximateFixedPoint);
+
+		//for (i32 i = 0; i < 10; i++) {
+		//	if (j.det() == 0.0f) {
+		//		break;
+		//	}
+
+		//	const auto jInv = j.inversed().transposed();
+		//	const auto deltaV = jInv * -fv;
+		//	v += deltaV;
+		//	testa.push_back(Vec2(v));
+		//	const auto newFv = Vec2T<double>(sampleVectorField(Vec2(v)));
+		//	const auto deltaFv = newFv - fv;
+
+		//	const auto temp = (deltaFv - j * deltaV) / dot(deltaV, deltaV);
+		//	/*const auto m = Mat2(Vec2(temp.x * deltaV.x, temp.y * deltaV.x), Vec2(temp.x * deltaV.y, temp.y * deltaV.y));*/
+		//	const auto m = Mat2T<double>(
+		//		Vec2T<double>(temp.x * deltaV.x, temp.y * deltaV.x), 
+		//		Vec2T<double>(temp.x * deltaV.y, temp.y * deltaV.y));
+
+		//	j += m;
+
+		//	fv = newFv;
+		//}
+		
+		approximateFixedPoint = Vec2(v);
+	}
+
+	plotVec2Scatter("fixed points", testa);
+	plotVec2Scatter("fixed points2", fixedPoints);
+
+
+	//plotVec2Scatter("fixed points", fixedPoints);
 
 	for (const auto& fixedPoint : fixedPoints) {
 		const auto jacobian = calculateJacobian(fixedPoint);
@@ -854,6 +913,8 @@ Mat2 Continous2dSystemVisualization::calculateJacobian(Vec2 p) {
 	const auto v = sampleVectorField(p);
 	const auto dvdx = (sampleVectorField(p + Vec2(d, 0.0f)) - v) / d;
 	const auto dvdy = (sampleVectorField(p + Vec2(0.0f, d)) - v) / d;
+	/*const auto dvdx = (sampleVectorField(p + Vec2(d, 0.0f)) - sampleVectorField(p + Vec2(-d, 0.0f))) / d / 2.0f;
+	const auto dvdy = (sampleVectorField(p + Vec2(0.0f, d)) - sampleVectorField(p + Vec2(0.0f, -d))) / d / 2.0f;*/
 	return Mat2(dvdx, dvdy);
 }
 
@@ -1003,19 +1064,22 @@ void Continous2dSystemVisualization::BasinOfAttractionState::recompileShader(
 		s << "v" << VARIABLE_X_INDEX_IN_BLOCK << " += dxdt * 0.01;\n";
 		s << "v" << VARIABLE_Y_INDEX_IN_BLOCK << " += dydt * 0.01;\n";
 		s << "}\n";
-		s << "vec2 outPos = vec2(v" << VARIABLE_X_INDEX_IN_BLOCK << ", v" << VARIABLE_Y_INDEX_IN_BLOCK << ");\n";
-	}
-	s << R"(
-	vec3 color = vec3(0.0);
-	for (int i = 0; i < fixedPointsCount; i++) {
-		if (distance(fixedPoints[i], outPos) < 0.05) {
-			color = fixedPointsColors[i];
-			break;
-		}
-	}
-	fragColor = vec4(color, 1.0);
-	)";
 
+		s << "vec2 outPos = vec2(v" << VARIABLE_X_INDEX_IN_BLOCK << ", v" << VARIABLE_Y_INDEX_IN_BLOCK << ");\n";
+		s << R"(
+		vec3 color = vec3(0.0);
+		for (int i = 0; i < fixedPointsCount; i++) {
+			if (distance(fixedPoints[i], outPos) < 0.05) {
+				color = fixedPointsColors[i];
+				break;
+			}
+		}
+		fragColor = vec4(color, 1.0);
+		//fragColor = vec4(vec3(outPos, 1.0), 1.0);
+		//fragColor = vec4(vec3(mod(outPos, 1.0), 1.0), 1.0);
+		//fragColor = vec4(vec3(worldPos * 100, 1.0), 1.0);
+		)";
+	}
 	s << "}\n";
 	std::cout << s.string() << '\n';
 	auto result = ShaderProgram::fromSource(renderer2d.fullscreenQuadVertSource, s.string());
@@ -1097,4 +1161,9 @@ void Continous2dSystemVisualization::BasinOfAttractionState::render(
 		Vec2(1.0f),
 		ImGui::ColorConvertFloat4ToU32(Vec4(1.0f, 1.0f, 1.0f, opacity)));
 	ImPlot::PopPlotClipRect();
+
+	const auto l = ImPlot::GetPlotLimits();
+	float xs[] = { l.X.Min, l.X.Max };
+	float ys[] = { l.Y.Min, l.Y.Max };
+	ImPlot::PlotScatter("aasdfsdf", xs, ys, 2);
 }
