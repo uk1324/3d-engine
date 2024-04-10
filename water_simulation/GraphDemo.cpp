@@ -74,22 +74,22 @@ void GraphDemo::update() {
 	// https://github.com/ocornut/imgui/issues/331
 	bool openHelpWindow = false;
 	if (ImGui::BeginMainMenuBar()) {
-		if (ImGui::BeginMenu("plot type")) {
-			if (plotTypeModified = ImGui::MenuItem("first order system")) {
+		if (ImGui::BeginMenu("visualization type")) {
+			if (plotTypeModified = ImGui::MenuItem("1d continous system")) {
 				SettingsManager::settings.activePlotType = SettingsPlotType::FIRST_ORDER_SYSTEM;
-			} else if (plotTypeModified = ImGui::MenuItem("second order system")) {
+			} else if (plotTypeModified = ImGui::MenuItem("2d continous system")) {
 				SettingsManager::settings.activePlotType = SettingsPlotType::SECOND_ORDER_SYSTEM;
 			}
 			ImGui::EndMenu();
 		}
 		if (ImGui::BeginMenu("examples")) {
-			if (ImGui::BeginMenu("first order")) {
+			if (ImGui::BeginMenu("1d continous")) {
 				if (plotTypeModified = firstOrderSystem.examplesMenu()) {
 					SettingsManager::settings.activePlotType = SettingsPlotType::FIRST_ORDER_SYSTEM;
 				}
 				ImGui::EndMenu();
 			}
-			if (ImGui::BeginMenu("second order")) {
+			if (ImGui::BeginMenu("2d continous")) {
 				if (plotTypeModified = secondOrderSystem.examplesMenu()) {
 					SettingsManager::settings.activePlotType = SettingsPlotType::SECOND_ORDER_SYSTEM;
 				}

@@ -1,4 +1,4 @@
-#include <water_simulation/SecondOrderSystemGraph.hpp>
+#include <water_simulation/Continous2dSystemVisualization.hpp>
 #include <imgui/implot.h>
 #include <imgui/imgui_internal.h>
 #include <engine/Math/OdeIntegration/RungeKutta4.hpp>
@@ -24,10 +24,29 @@
 // Could add functions to plot compiler. aliasVariable(i64 index, std::string name) this would rename the variable and if needed remove all the parameters that have the same name (could open a window asking if this should happen). And disableVariable(i64 index), which would rename it to "". Could have a flag in Variable that the parser checks.
 // A second order system can always be interpreted as some system with energy and forcing. Allow drawing the energy surface for any system x'' = f(x, x').
 
+/* 
+Polar to cartesian
+x = rcos(a)
+dx/dt = dr/dt * cos(a) - sin(a) da/dt * r =
+dx/dt = dr/dt * x / r - y da/dt
+
+y = rsin(a)
+dy/dt = dr/dt * sin(a) + cos(a) da/dt * r =
+dy/dt = dr/dt * y / r + x da/dt
+*/
+
+Vec2 polarDerivativeToCartesianDerivative(float dadt, float drdt, Vec2 cartesianPos, float r) {
+	const auto dxdt = drdt * cartesianPos.x / r - cartesianPos.y * dadt;
+	const auto dydt = drdt * cartesianPos.y / r + cartesianPos.x * dadt;
+	return Vec2(dxdt, dydt);
+}
+
 static constexpr auto X_VARIABLE_INDEX_IN_BLOCK = 0;
 static constexpr auto Y_VARIABLE_INDEX_IN_BLOCK = 1;
+static constexpr auto ANGLE_VARIABLE_INDEX_IN_BLOCK = 0;
+static constexpr auto RADIUS_VARIABLE_INDEX_IN_BLOCK = 1;
 
-SecondOrderSystemGraph::SecondOrderSystemGraph()
+Continous2dSystemVisualization::Continous2dSystemVisualization()
 	: xFormulaInput(*plotCompiler.allocateFormulaInput())
 	, yFormulaInput(*plotCompiler.allocateFormulaInput()) {
 
@@ -40,15 +59,15 @@ void plotLine(const char* label, const std::vector<Vec2>& vs) {
 	ImPlot::PlotLine(label, pointsData, pointsData + 1, vs.size(), 0, 0, sizeof(float) * 2);
 }
 
-void SecondOrderSystemGraph::update(Renderer2d& renderer2d) {
-	//auto id = ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
+void Continous2dSystemVisualization::update(Renderer2d& renderer2d) {
+	auto id = ImGui::DockSpaceOverViewport(ImGui::GetMainViewport());
 
 	const auto derivativePlotWindowName = "derivative plot";
 	const auto settingsWindowName = "settings";
 
 	static bool firstFrame = true;
 	if (firstFrame) {
-		/*ImGui::DockBuilderRemoveNode(id);
+		ImGui::DockBuilderRemoveNode(id);
 		ImGui::DockBuilderAddNode(id);
 
 		const auto leftId = ImGui::DockBuilderSplitNode(id, ImGuiDir_Left, 0.2f, nullptr, &id);
@@ -58,7 +77,7 @@ void SecondOrderSystemGraph::update(Renderer2d& renderer2d) {
 		ImGui::DockBuilderDockWindow(settingsWindowName, leftId);
 
 		ImGui::DockBuilderFinish(id);
-		firstFrame = false;*/
+		firstFrame = false;
 	}
 
 	ImGui::Begin(derivativePlotWindowName);
@@ -71,16 +90,15 @@ void SecondOrderSystemGraph::update(Renderer2d& renderer2d) {
 
 	const auto& modifiedFormulaInputs = plotCompiler.updateEndOfFrame();
 
-	for (const auto& input : modifiedFormulaInputs) {
-		if (input == &xFormulaInput || input == &yFormulaInput) {
-			basinOfAttractionWindow.recompileShader(*this, renderer2d);
-		}
-	}
-	basinOfAttractionWindow.update(*this, renderer2d);
+	//for (const auto& input : modifiedFormulaInputs) {
+	//	if (input == &xFormulaInput || input == &yFormulaInput) {
+	//		basinOfAttractionWindow.recompileShader(*this, renderer2d);
+	//	}
+	//}
+	//basinOfAttractionWindow.update(*this, renderer2d);
 }
 
-void SecondOrderSystemGraph::derivativePlot() {
-	// ImPlotFlags_CanvasOnly
+void Continous2dSystemVisualization::derivativePlot() {
 	if (!ImPlot::BeginPlot("##main plot", ImVec2(-1.0f, -1.0f), ImPlotFlags_Equal)) {
 		return;
 	}
@@ -96,7 +114,7 @@ void SecondOrderSystemGraph::derivativePlot() {
 
 	plotTestPoints();
 
-	if (formulaType == FormulaType::LINEAR) {
+	if (formulaType == FormulaType::CARTESIAN_LINEAR) {
 		drawEigenvectors(Vec2(0.0f), linearFormulaMatrixEigenvectors, 1.0f, 0.0f);
 	}
 	for (const auto& graph : implicitFunctionGraphs) {
@@ -110,15 +128,14 @@ void SecondOrderSystemGraph::derivativePlot() {
 	ImPlot::EndPlot();
 }
 
-void SecondOrderSystemGraph::plotStreamlines() {
+void Continous2dSystemVisualization::plotStreamlines() {
 	if (!xFormulaInput.loopFunction.has_value() || !yFormulaInput.loopFunction.has_value()) {
 		return;
 	}
 	const auto plotRect = ImPlot::GetPlotLimits();
 
-	std::vector<float> inputBlock = plotCompiler.loopFunctionVariablesBlock;
 	const auto capacity = 24;
-	const auto stepCount = 15;
+	const auto stepCount = 10;
 	LoopFunctionArray input(plotCompiler.runtimeVariables.size());
 	LoopFunctionArray outputX(1);
 	LoopFunctionArray outputY(1);
@@ -126,6 +143,68 @@ void SecondOrderSystemGraph::plotStreamlines() {
 	std::vector<i32> streamlinePointCount;
 	const auto posCount = stepCount + 1;
 	Array2d<Vec2> streamlineIndexToPos(capacity, posCount);
+
+	auto convertInputFromCartesianToPloar = [](LoopFunctionArray& input) {
+		for (auto dataUnitsOfBlockBegin = input.data();
+			dataUnitsOfBlockBegin < input.data() + input.dataUnitsOccupiedByBlocks();
+			dataUnitsOfBlockBegin += input.valuesPerBlock()) {
+
+			const auto x = dataUnitsOfBlockBegin[X_VARIABLE_INDEX_IN_BLOCK];
+			const auto y = dataUnitsOfBlockBegin[Y_VARIABLE_INDEX_IN_BLOCK];
+
+			dataUnitsOfBlockBegin[X_VARIABLE_INDEX_IN_BLOCK] = _mm256_atan2_ps(y, x);
+			dataUnitsOfBlockBegin[Y_VARIABLE_INDEX_IN_BLOCK] = _mm256_sqrt_ps(_mm256_add_ps(_mm256_mul_ps(x, x), _mm256_mul_ps(y, y)));
+		}
+	};
+
+	auto convertOutputFromPloarToCartesian = [](const LoopFunctionArray& cartesianInput, const LoopFunctionArray& polarInput, LoopFunctionArray& outputX, LoopFunctionArray& outputY) {
+
+		for (int i = 0; i < cartesianInput.blockCount(); i++) {
+			const auto x = cartesianInput(i, X_VARIABLE_INDEX_IN_BLOCK);
+			const auto y = cartesianInput(i, Y_VARIABLE_INDEX_IN_BLOCK);
+			const auto r = polarInput(i, Y_VARIABLE_INDEX_IN_BLOCK);
+			auto& dadt = outputX(i, 0);
+			auto& drdt = outputY(i, 0);
+
+			const auto dvdt = polarDerivativeToCartesianDerivative(dadt, drdt, Vec2(x, y), r);
+			/*const auto dxdt = drdt * x / r - y * dadt;
+			const auto dydt = drdt * y / r + x * dadt;*/
+			outputX(i, 0) = dvdt.x;
+			outputY(i, 0) = dvdt.y;
+		}
+		//ASSERT(outputX.valuesPerBlock() == 1);
+		//ASSERT(outputY.valuesPerBlock() == 1);
+		//ASSERT(outputX.blockCount() == outputY.blockCount());
+		//auto outputXData = outputX.data();
+		//auto outputYData = outputY.data();
+		//const auto dataUnitsOccupied = outputX.dataUnitsOccupiedByBlocks();
+
+		//auto dataUnitsOfCartesianInput = cartesianInput.data();
+		//auto dataUnitsOfPloarInput = polarInput.data();
+		//for (i64 i = 0; i < dataUnitsOccupied; i++) {
+		//	auto& dadt = outputX.data()[i];
+		//	auto& drdt = outputY.data()[i];
+
+		//	const auto dxdt = drdt * pos.x / r - pos.y * dadt;
+		//	const auto dydt = drdt * pos.y / r + pos.x * dadt;
+		//	/*a = _mm256_mul_ps(_mm256_cos_ps(a), r);
+		//	r = _mm256_mul_ps(_mm256_sin_ps(a), r);*/
+		//}
+	};
+
+	LoopFunctionArray polarInput;
+	auto evaluateFormula = [&](const LoopFunctionArray& cartesianInput, LoopFunctionArray& cartesianOutputX, LoopFunctionArray& cartesianOutputY) {
+		if (formulaType == FormulaType::POLAR) {
+			polarInput.copyIntoItself(cartesianInput);
+			convertInputFromCartesianToPloar(polarInput);
+			(*xFormulaInput.loopFunction)(polarInput, outputX);
+			(*yFormulaInput.loopFunction)(polarInput, outputY);
+			convertOutputFromPloarToCartesian(cartesianInput, polarInput, outputX, outputY);
+		} else {
+			(*xFormulaInput.loopFunction)(input, outputX);
+			(*yFormulaInput.loopFunction)(input, outputY);
+		}
+	};
 
 	auto runIntegration = [&]() {
 		streamlineLength.clear();
@@ -136,8 +215,7 @@ void SecondOrderSystemGraph::plotStreamlines() {
 		outputX.resizeWithoutCopy(input.blockCount());
 		outputY.resizeWithoutCopy(input.blockCount());
 		for (i32 stepIndex = 0; stepIndex < stepCount; stepIndex++) {
-			(*xFormulaInput.loopFunction)(input, outputX);
-			(*yFormulaInput.loopFunction)(input, outputY);
+			evaluateFormula(input, outputX, outputY);
 
 			const auto step = spacing / 5;
 			for (i32 streamLineIndex = 0; streamLineIndex < input.blockCount(); streamLineIndex++) {
@@ -213,6 +291,7 @@ void SecondOrderSystemGraph::plotStreamlines() {
 		input.clear();
 	};
 
+	std::vector<float> inputBlock = plotCompiler.loopFunctionVariablesBlock;
 	const auto minX = i32(floor(plotRect.X.Min / spacing));
 	const auto minY = i32(floor(plotRect.Y.Min / spacing));
 	const auto maxX = i32(ceil(plotRect.X.Max / spacing));
@@ -232,137 +311,127 @@ void SecondOrderSystemGraph::plotStreamlines() {
 	}
 	runIntegration();
 
-	static float circleRadius = 1.0f;
-	ImGui::Begin("area particles settings");
-	ImGui::SliderFloat("radius", &circleRadius, 0.01f, 10.0f);
-	ImGui::End();
-	auto spawnParticlesCircle = [&] {
-		areaParticles.clear();
-		i32 count = 1000;
-		for (i32 i = 0; i < count; i++) {
-			float angle = (i / static_cast<float>(count)) * TAU<float>;
-			areaParticles.push_back(Vec2(0.0f) + Vec2::oriented(angle) * circleRadius);
-		}
-	};
+	//static float circleRadius = 1.0f;
+	///*ImGui::Begin("area particles settings");
+	//ImGui::SliderFloat("radius", &circleRadius, 0.01f, 10.0f);
+	//ImGui::End();*/
+	//auto spawnParticlesCircle = [&] {
+	//	areaParticles.clear();
+	//	i32 count = 1000;
+	//	for (i32 i = 0; i < count; i++) {
+	//		float angle = (i / static_cast<float>(count)) * TAU<float>;
+	//		areaParticles.push_back(Vec2(0.0f) + Vec2::oriented(angle) * circleRadius);
+	//	}
+	//};
 
-	auto spawnParticlesSquare = [&](float size) {
-		//areaParticles.clear();
-		i32 perSide = 100;
+	//auto spawnParticlesSquare = [&](float size) {
+	//	//areaParticles.clear();
+	//	i32 perSide = 100;
 
-		Vec2 gridCenter = Vec2(0.0f);
-		for (i32 xi = 0; xi < perSide; xi++) {
-			float t = xi / static_cast<float>(perSide);
-			const auto x = lerp(-size / 2.0f, size / 2.0f, t);
-			areaParticles.push_back(gridCenter + Vec2(x, size / 2.0f));
-		}
+	//	Vec2 gridCenter = Vec2(0.0f);
+	//	for (i32 xi = 0; xi < perSide; xi++) {
+	//		float t = xi / static_cast<float>(perSide);
+	//		const auto x = lerp(-size / 2.0f, size / 2.0f, t);
+	//		areaParticles.push_back(gridCenter + Vec2(x, size / 2.0f));
+	//	}
 
-		for (i32 yi = 1; yi < perSide - 1; yi++) {
-			float t = yi / static_cast<float>(perSide);
-			const auto y = lerp(size / 2.0f, -size / 2.0f, t);
-			areaParticles.push_back(gridCenter + Vec2(size / 2.0f, y));
-		}
+	//	for (i32 yi = 1; yi < perSide - 1; yi++) {
+	//		float t = yi / static_cast<float>(perSide);
+	//		const auto y = lerp(size / 2.0f, -size / 2.0f, t);
+	//		areaParticles.push_back(gridCenter + Vec2(size / 2.0f, y));
+	//	}
 
-		for (i32 xi = 0; xi < perSide; xi++) {
-			float t = xi / static_cast<float>(perSide);
-			const auto x = lerp(size / 2.0f, -size / 2.0f, t);
-			areaParticles.push_back(gridCenter + Vec2(x, -size / 2.0f));
-		}
+	//	for (i32 xi = 0; xi < perSide; xi++) {
+	//		float t = xi / static_cast<float>(perSide);
+	//		const auto x = lerp(size / 2.0f, -size / 2.0f, t);
+	//		areaParticles.push_back(gridCenter + Vec2(x, -size / 2.0f));
+	//	}
 
-		for (i32 yi = 1; yi < perSide - 1; yi++) {
-			float t = yi / static_cast<float>(perSide);
-			const auto y = lerp(-size / 2.0f, size / 2.0f, t);
-			areaParticles.push_back(gridCenter + Vec2(-size / 2.0f, y));
-		}
-	};
+	//	for (i32 yi = 1; yi < perSide - 1; yi++) {
+	//		float t = yi / static_cast<float>(perSide);
+	//		const auto y = lerp(-size / 2.0f, size / 2.0f, t);
+	//		areaParticles.push_back(gridCenter + Vec2(-size / 2.0f, y));
+	//	}
+	//};
 
-	if (Input::isKeyDown(KeyCode::J)) {
-		spawnParticlesSquare(0.5f);
-		spawnParticlesSquare(1.0f);
-		spawnParticlesSquare(1.5f);
-		spawnParticlesSquare(2.0f);
-		spawnParticlesSquare(2.5f);
-		spawnParticlesSquare(3.0f);
-		spawnParticlesSquare(3.5f);
-		spawnParticlesSquare(4.0f);
-		spawnParticlesSquare(4.5f);
-	}
+	//if (Input::isKeyDown(KeyCode::J)) {
+	//	spawnParticlesSquare(0.5f);
+	//	spawnParticlesSquare(1.0f);
+	//	spawnParticlesSquare(1.5f);
+	//	spawnParticlesSquare(2.0f);
+	//	spawnParticlesSquare(2.5f);
+	//	spawnParticlesSquare(3.0f);
+	//	spawnParticlesSquare(3.5f);
+	//	spawnParticlesSquare(4.0f);
+	//	spawnParticlesSquare(4.5f);
+	//}
 
-	auto updateParticles = [&] {
-		std::vector<float> inputBlock = plotCompiler.loopFunctionVariablesBlock;
-		std::vector<__m256> calculateDerivativeInput;
-		for (i32 i = 0; i < inputBlock.size(); i++) {
-			__m256 v;
-			v.m256_f32[0] = inputBlock[i];
-			calculateDerivativeInput.push_back(v);
-		}
-		auto calculateDerivative = [&](Vec2 pos, float t) -> Vec2 {
-			calculateDerivativeInput[X_VARIABLE_INDEX_IN_BLOCK].m256_f32[0] = pos.x;
-			calculateDerivativeInput[Y_VARIABLE_INDEX_IN_BLOCK].m256_f32[0] = pos.y;
-			__m256 output;
-			(*xFormulaInput.loopFunction)(calculateDerivativeInput.data(), &output, 1);
-			const auto x = output.m256_f32[0];
-			(*yFormulaInput.loopFunction)(calculateDerivativeInput.data(), &output, 1);
-			const auto y = output.m256_f32[0];
-			return Vec2(x, y);
-		};
+	//auto updateParticles = [&] {
+	//	auto calculateDerivative = [&](Vec2 pos, float t) -> Vec2 {
+	//		return sampleVectorField(pos);
+	//	};
 
-		const auto dt = 1.0f / 60.0f;
-		for (auto& particle : areaParticles) {
-			particle += calculateDerivative(particle, 0.0) * dt;
-		}
+	//	const auto dt = 1.0f / 60.0f;
+	//	for (auto& particle : areaParticles) {
+	//		particle += calculateDerivative(particle, 0.0) * dt;
+	//	}
 
-		std::vector<i64> particlesToRemoveIndices;
+	//	std::vector<i64> particlesToRemoveIndices;
 
-		if (areaParticles.size() > 0) {
-			Vec2 lastNotRemovedParticlePos = areaParticles[0];
+	//	if (areaParticles.size() > 0) {
+	//		Vec2 lastNotRemovedParticlePos = areaParticles[0];
 
-			for (i64 i = 1; i < static_cast<i64>(areaParticles.size()) - 1; i++) {
-				const auto dist = lastNotRemovedParticlePos.distanceTo(areaParticles[i]);
-				if (dist < 0.01f) {
-					particlesToRemoveIndices.push_back(i);
-				} else {
-					lastNotRemovedParticlePos = areaParticles[i];
-				}
-			}
-			// It would probably be most efficient to just rebuild the vector without the ereased elements.
-			for (auto it = particlesToRemoveIndices.crbegin(); it != particlesToRemoveIndices.crend(); ++it) {
-				areaParticles.erase(areaParticles.begin() + *it);
-			}
-		}
+	//		for (i64 i = 1; i < static_cast<i64>(areaParticles.size()) - 1; i++) {
+	//			const auto dist = lastNotRemovedParticlePos.distanceTo(areaParticles[i]);
+	//			if (dist < 0.01f) {
+	//				particlesToRemoveIndices.push_back(i);
+	//			} else {
+	//				lastNotRemovedParticlePos = areaParticles[i];
+	//			}
+	//		}
+	//		// It would probably be most efficient to just rebuild the vector without the ereased elements.
+	//		for (auto it = particlesToRemoveIndices.crbegin(); it != particlesToRemoveIndices.crend(); ++it) {
+	//			areaParticles.erase(areaParticles.begin() + *it);
+	//		}
+	//	}
 
-		if (areaParticles.size() > 0) {
-			std::vector<Vec2> newParticles;
-			for (i64 i = 0; i < static_cast<i64>(areaParticles.size()) - 1; i++) {
-				const auto dist = areaParticles[i].distanceTo(areaParticles[i + 1]);
-				newParticles.push_back(areaParticles[i]);
-				if (dist > 0.01f) {
-					newParticles.push_back((areaParticles[i] + areaParticles[i + 1]) / 2.0f);
-				}
-			}
-			newParticles.push_back(areaParticles[areaParticles .size() - 1]);
-			areaParticles = newParticles;
-		}
-	};
+	//	if (areaParticles.size() > 0) {
+	//		std::vector<Vec2> newParticles;
+	//		for (i64 i = 0; i < static_cast<i64>(areaParticles.size()) - 1; i++) {
+	//			const auto dist = areaParticles[i].distanceTo(areaParticles[i + 1]);
+	//			newParticles.push_back(areaParticles[i]);
+	//			if (dist > 0.01f) {
+	//				newParticles.push_back((areaParticles[i] + areaParticles[i + 1]) / 2.0f);
+	//			}
+	//		}
+	//		newParticles.push_back(areaParticles[areaParticles .size() - 1]);
+	//		areaParticles = newParticles;
+	//	}
+	//};
 
-	updateParticles();
+	//updateParticles();
 
-	std::vector<Vec2> lines;
+	//std::vector<Vec2> lines;
 
-	if (areaParticles.size() > 0) {
-		i32 previous = areaParticles.size() - 1;
-		for (i32 i = 0; i < areaParticles.size() - 1; i++) {
-			lines.push_back(areaParticles[i]);
-			lines.push_back(areaParticles[previous]);
-			previous = i;
-		}
-	}
-	plotLine("area", lines);
+	//if (areaParticles.size() > 0) {
+	//	i32 previous = areaParticles.size() - 1;
+	//	for (i32 i = 0; i < areaParticles.size() - 1; i++) {
+	//		lines.push_back(areaParticles[i]);
+	//		lines.push_back(areaParticles[previous]);
+	//		previous = i;
+	//	}
+	//}
+	//plotLine("area", lines);
 }
 
-void SecondOrderSystemGraph::plotTestPoints() {
+void Continous2dSystemVisualization::plotTestPoints() {
 	if (!xFormulaInput.loopFunction.has_value() || !yFormulaInput.loopFunction.has_value()) {
 		return;
 	}
+
+	auto calculateDerivative = [&](Vec2 pos, float t) -> Vec2 {
+		return sampleVectorField(pos);
+	};
 
 	if (!paused) {
 		float dt = 1.0f / 60.0f;
@@ -447,9 +516,8 @@ void SecondOrderSystemGraph::plotTestPoints() {
 		}
 	}
 }
-#include <Dbg.hpp>
-#include <Timer.hpp>
-void SecondOrderSystemGraph::plotFixedPoints() {
+
+void Continous2dSystemVisualization::plotFixedPoints() {
 	fixedPoints.clear();
 
 	if (!xFormulaInput.loopFunction.has_value() || !yFormulaInput.loopFunction.has_value()) {
@@ -464,10 +532,8 @@ void SecondOrderSystemGraph::plotFixedPoints() {
 		Array2d<MarchingSquaresGridCell>& gridCellToLines,
 		std::vector<Vec2>& graphEndpoints) {
 
-		Timer timer;
 		LoopFunctionArray output(1);
 		computeLoopFunctionOnVisibleRegion(function, output, steps, steps);
-		timer.guiTookMiliseconds("fixed");
 
 		const auto grid = Span2d<const float>(output.data()->m256_f32, steps, steps);
 		marchingSquares3(lines, gridCellToLines.span2d(), grid, 0.0f, true);
@@ -517,13 +583,13 @@ void SecondOrderSystemGraph::plotFixedPoints() {
 
 	for (const auto& fixedPoint : fixedPoints) {
 		const auto jacobian = calculateJacobian(fixedPoint);
-		if (formulaType != FormulaType::LINEAR) {
+		if (formulaType != FormulaType::CARTESIAN_LINEAR) {
 			drawEigenvectors(fixedPoint, computeEigenvectors(jacobian.transposed()), 0.2f, 0.001f);
 		}
 	}
 }
 
-Vec2 SecondOrderSystemGraph::sampleVectorField(Vec2 v) {
+Vec2 Continous2dSystemVisualization::sampleVectorField(Vec2 input) {
 	if (!xFormulaInput.loopFunction.has_value() || !yFormulaInput.loopFunction.has_value()) {
 		return Vec2(0.0f);
 	}
@@ -536,17 +602,40 @@ Vec2 SecondOrderSystemGraph::sampleVectorField(Vec2 v) {
 		state.input.push_back(v);
 	}
 	
-	state.input[X_VARIABLE_INDEX_IN_BLOCK].m256_f32[0] = v.x;
-	state.input[Y_VARIABLE_INDEX_IN_BLOCK].m256_f32[0] = v.y;
+	const auto cartesianPos = input;
+
+	float a;
+	float r;
+	if (formulaType == FormulaType::POLAR) {
+		a = atan2(input.y, input.x);
+		r = input.length();
+		input = Vec2(a, r);
+	}
+
+	state.input[X_VARIABLE_INDEX_IN_BLOCK].m256_f32[0] = input.x;
+	state.input[Y_VARIABLE_INDEX_IN_BLOCK].m256_f32[0] = input.y;
 	__m256 output;
 	(*xFormulaInput.loopFunction)(state.input.data(), &output, 1);
-	const auto x = output.m256_f32[0];
+	const auto d0dt = output.m256_f32[0];
 	(*yFormulaInput.loopFunction)(state.input.data(), &output, 1);
-	const auto y = output.m256_f32[0];
-	return Vec2(x, y);
+	const auto d1dt = output.m256_f32[0];
+
+	if (formulaType == FormulaType::POLAR) {
+		const auto dadt = d0dt;
+		const auto drdt = d1dt;
+		//const auto dxdt = drdt * pos.x / r - pos.y * dadt;
+		//const auto dydt = drdt * pos.y / r + pos.x * dadt;
+		return polarDerivativeToCartesianDerivative(dadt, drdt, cartesianPos, r);
+		/*const auto dadt = d0dt;
+		const auto drdt = d1dt;
+		const auto dxdt = drdt * pos.x / r - pos.y * dadt;
+		const auto dydt = drdt * pos.y / r + pos.x * dadt;
+		return Vec2(dxdt, dydt);*/
+	}
+	return Vec2(d0dt, d1dt);
 }
 
-void SecondOrderSystemGraph::settings() {
+void Continous2dSystemVisualization::settings() {
 	auto updateLinearFormula = [this]() {
 		// Using a stream so this doesn't break if there is scientific notation
 		StringStream formula;
@@ -591,7 +680,7 @@ void SecondOrderSystemGraph::settings() {
 	}
 	switch (formulaType) {
 		using enum FormulaType;
-	case LINEAR: {
+	case CARTESIAN_LINEAR: {
 		auto row0 = linearFormulaMatrix.row0();
 		auto row1 = linearFormulaMatrix.row1();
 		bool modified = false;
@@ -612,11 +701,17 @@ void SecondOrderSystemGraph::settings() {
 		break;
 	}
 		
-	case GENERAL:
+	case CARTESIAN:
 		plotCompiler.formulaInputGui("x'=", xFormulaInput);
 		plotCompiler.formulaInputGui("y'=", yFormulaInput);
 		break;
+
+	case POLAR:
+		plotCompiler.formulaInputGui("a'=", xFormulaInput);
+		plotCompiler.formulaInputGui("r'=", yFormulaInput);
+		break;
 	}
+
 	// You could just click on the legent to disable the graphs.
 	// Also you can put the settings inside the legend like in the DemoWindow Tools.
 	ImGui::Checkbox("draw nullclines", &drawNullclines);
@@ -654,36 +749,59 @@ void SecondOrderSystemGraph::settings() {
 	linearizationToolSettings();
 }
 
-bool SecondOrderSystemGraph::examplesMenu() {
+bool Continous2dSystemVisualization::examplesMenu() {
 	if (ImGui::MenuItem("symmetrical saddle node")) {
 		plotCompiler.setFormulaInput(xFormulaInput, "x");
 		plotCompiler.setFormulaInput(yFormulaInput, "-y");
-		formulaType = FormulaType::GENERAL;
+		formulaType = FormulaType::CARTESIAN;
 		return true;
 	}
 	if (ImGui::MenuItem("symmetrical saddle node")) {
 		plotCompiler.setFormulaInput(xFormulaInput, "x");
 		plotCompiler.setFormulaInput(yFormulaInput, "-y");
-		formulaType = FormulaType::GENERAL;
+		formulaType = FormulaType::CARTESIAN;
 		return true;
 	}
 	if (ImGui::MenuItem("damped harmonic oscillator")) {
 		plotCompiler.addParameterIfNotExists("a");
 		plotCompiler.setFormulaInput(xFormulaInput, "y");
 		plotCompiler.setFormulaInput(yFormulaInput, "-x-ay");
-		formulaType = FormulaType::GENERAL;
+		formulaType = FormulaType::CARTESIAN;
 		return true;
 	}
-	if (ImGui::MenuItem("pendulum")) {
+	if (ImGui::MenuItem("damped pendulum")) {
+		plotCompiler.addParameterIfNotExists("b");
 		plotCompiler.setFormulaInput(xFormulaInput, "y");
-		plotCompiler.setFormulaInput(yFormulaInput, "-sin(x)");
-		formulaType = FormulaType::GENERAL;
+		plotCompiler.setFormulaInput(yFormulaInput, "-sin(x) - by");
+		/*
+		The fixed point on top (x = +-pi) is always a saddle point for all positive values of b.
+		b = 0 no damping, the bottom (x = 0) is a center, can be verified that it is a nonlinear center by finding the conserved quantity and using the appropriate theorem.
+		b in (0, 2) underdamped, the bottom is a stable spiral
+		b = 2 critically damped, the center is a degenerate stable node
+		b > 0 overdamped, the bottom is a stable node.
+		The system is not conservative, because there are attractors.
+
+		The peroid of an undamped pendulum can be approximated by:
+		Calculating the equation for velocity from conservation of energy. From this you get an equation for dx/dt so to get the period you have seperate the variables to get dt = f(x) dx and then integrate. This expression can be expressued using the eliptic integral of the first kind. K(m) = S((1-msin(x)^2, dx)^(-1/2). Which can the be expanded using the binomial series into a polynomial and integrated term by term.
+		*/
+		formulaType = FormulaType::CARTESIAN;
 		return true;
 	}
+	if (ImGui::MenuItem("pendulum driven by a constant torque")) {
+		plotCompiler.addParameterIfNotExists("b");
+		plotCompiler.setFormulaInput(xFormulaInput, "y");
+		plotCompiler.setFormulaInput(yFormulaInput, "-sin(x) + b");
+		/*
+		The fixed points satisfy y = 0 and sin(x) = b. The latter expression can be visualzed as the points of intersection of a line with a circle. Then it's clear that the solution only exist if b in [-1, 1]. For all b in (-1, 0) U (0, 1) there are 2 solutions (when vied as a flow on a cyllidner). One is arcsin(b) the other as can be seen from the drawing is pi - arcsin(b).
+		*/
+		formulaType = FormulaType::CARTESIAN;
+		return true;
+	}
+
 	if (ImGui::MenuItem("van der Pol oscillator")) {
 		plotCompiler.setFormulaInput(xFormulaInput, "y");
 		plotCompiler.setFormulaInput(yFormulaInput, "-x + y(1 - x^2)");
-		formulaType = FormulaType::GENERAL;
+		formulaType = FormulaType::CARTESIAN;
 		return true;
 	}
 	if (ImGui::MenuItem("dipole fixed point")) {
@@ -691,7 +809,7 @@ bool SecondOrderSystemGraph::examplesMenu() {
 		// TODO: https://mabotkin.github.io/complex/
 		plotCompiler.setFormulaInput(xFormulaInput, "2xy");
 		plotCompiler.setFormulaInput(yFormulaInput, "y^2-x^2");
-		formulaType = FormulaType::GENERAL;
+		formulaType = FormulaType::CARTESIAN;
 		return true;
 	} 
 	if (ImGui::MenuItem("gravitational well")) {
@@ -701,17 +819,19 @@ bool SecondOrderSystemGraph::examplesMenu() {
 		plotCompiler.addParameterIfNotExists("m2");
 		plotCompiler.addParameterIfNotExists("G");
 		plotCompiler.setFormulaInput(yFormulaInput, "Gm1/x^2 - Gm2/(d-x)^2");
-		formulaType = FormulaType::GENERAL;
+		formulaType = FormulaType::CARTESIAN;
 		return true;
 	}
 	if (ImGui::MenuItem("two-eyed monster")) {
 		plotCompiler.setFormulaInput(xFormulaInput, "y + y^2");
 		plotCompiler.setFormulaInput(yFormulaInput, "-(1/2)x + (1/5)y - xy + (6/5)y^2");
+		formulaType = FormulaType::CARTESIAN;
 		return true;
 	}
 	if (ImGui::MenuItem("parrot")) {
 		plotCompiler.setFormulaInput(xFormulaInput, "y + y^2");
 		plotCompiler.setFormulaInput(yFormulaInput, "-x + (1/5)y - xy + (6/5)y^2");
+		formulaType = FormulaType::CARTESIAN;
 		return true;
 	}
 	if (ImGui::MenuItem("Lotka-Volterra")) {
@@ -721,13 +841,28 @@ bool SecondOrderSystemGraph::examplesMenu() {
 		plotCompiler.addParameterIfNotExists("d");
 		plotCompiler.setFormulaInput(xFormulaInput, "(a-by)x");
 		plotCompiler.setFormulaInput(yFormulaInput, "(cx-d)y");
+		formulaType = FormulaType::CARTESIAN;
 		return true;
 	}
 	if (ImGui::MenuItem("competitive Lotka-Volterra")) {
 		plotCompiler.setFormulaInput(xFormulaInput, "x(3-x-2y)");
 		plotCompiler.setFormulaInput(yFormulaInput, "y(2-x-y)");
+		formulaType = FormulaType::CARTESIAN;
 		return true;
 	}
+	// Attractive, but not lyapunov stable r' = r(1-r) a' = r(1-cos(a)) 
+	// or
+	// r' = r(1-r^2) a' = 1 - cos(a)
+
+	//if (ImGui::MenuItem("competitive Lotka-Volterra")) {
+	//	// Interpolating polynomial {1, 0, 1, 0, 1, 0, 1} for the potential
+	//	// 64 - (2144 x)/15 + (5348 x^2)/45 - 48 x^3 + (91 x^4)/9 - (16 x^5)/15 + (2 x^6)/45
+	//	// derivative 4/45 (-1608 + 2674 x - 1620 x^2 + 455 x^3 - 60 x^4 + 3 x^5)
+	//	// potential with 3 holes
+	//	plotCompiler.setFormulaInput(xFormulaInput, "y");
+	//	plotCompiler.setFormulaInput(yFormulaInput, "-(4/45 * (-1608 + 2674 x - 1620 x^2 + 455 x^3 - 60 x^4 + 3 x^5))");
+	//	return true;
+	//}
 
 	// x' = sin(x)
 	// y' = sin(xy)
@@ -735,7 +870,7 @@ bool SecondOrderSystemGraph::examplesMenu() {
 	return false;
 }
 
-void SecondOrderSystemGraph::computeLoopFunctionOnVisibleRegion(const Runtime::LoopFunction& function, LoopFunctionArray& output, i32 stepsX, i32 stepsY) {
+void Continous2dSystemVisualization::computeLoopFunctionOnVisibleRegion(const Runtime::LoopFunction& function, LoopFunctionArray& output, i32 stepsX, i32 stepsY) {
 
 	auto& input = computeLoopFunctionOnVisibleRegionState.input;
 	input.reset(plotCompiler.loopFunctionInputCount());
@@ -760,7 +895,7 @@ void SecondOrderSystemGraph::computeLoopFunctionOnVisibleRegion(const Runtime::L
 	function(input, output);
 }
 
-bool SecondOrderSystemGraph::implicitFunctionGraphSettings(ImplicitFunctionGraph& graph) {
+bool Continous2dSystemVisualization::implicitFunctionGraphSettings(ImplicitFunctionGraph& graph) {
 	ImGui::PushID(&graph); // Don't think there should be any issue with the pointer being invalidated, because the invalidation wouldn't happen while using the input. Alternatively could use hash of the string name.
 
 	bool xNotPressed = true;
@@ -781,7 +916,7 @@ bool SecondOrderSystemGraph::implicitFunctionGraphSettings(ImplicitFunctionGraph
 	return remove;
 }
 
-void SecondOrderSystemGraph::drawImplicitFunctionGraph(
+void Continous2dSystemVisualization::drawImplicitFunctionGraph(
 	const char* label, 
 	Vec3 color,
 	const PlotCompiler::FormulaInput& formula) {
@@ -797,7 +932,7 @@ void SecondOrderSystemGraph::drawImplicitFunctionGraph(
 	ImPlot::PopStyleColor();
 }
 
-void SecondOrderSystemGraph::calculateImplicitFunctionGraph(const Runtime::LoopFunction& function, std::vector<Vec2>& out) {
+void Continous2dSystemVisualization::calculateImplicitFunctionGraph(const Runtime::LoopFunction& function, std::vector<Vec2>& out) {
 	const auto limits = ImPlot::GetPlotLimits();
 
 	LoopFunctionArray output(1);
@@ -822,7 +957,7 @@ void SecondOrderSystemGraph::calculateImplicitFunctionGraph(const Runtime::LoopF
 	}
 }
 
-void SecondOrderSystemGraph::drawEigenvectors(Vec2 origin, const std::array<Eigenvector, 2>& eigenvectors, float scale, float complexPartTolerance) {
+void Continous2dSystemVisualization::drawEigenvectors(Vec2 origin, const std::array<Eigenvector, 2>& eigenvectors, float scale, float complexPartTolerance) {
 	ImPlot::PushPlotClipRect();
 	auto drawEigenvector = [&origin, &scale](const Vec2T<Complex32>& v) {
 		// Could multiple by the eigenvalue.
@@ -842,7 +977,7 @@ void SecondOrderSystemGraph::drawEigenvectors(Vec2 origin, const std::array<Eige
 	ImPlot::PopPlotClipRect();
 }
 
-Mat2 SecondOrderSystemGraph::calculateJacobian(Vec2 p) {
+Mat2 Continous2dSystemVisualization::calculateJacobian(Vec2 p) {
 	const float d = 0.001f;
 	const auto v = sampleVectorField(p);
 	const auto dvdx = (sampleVectorField(p + Vec2(d, 0.0f)) - v) / d;
@@ -850,7 +985,7 @@ Mat2 SecondOrderSystemGraph::calculateJacobian(Vec2 p) {
 	return Mat2(dvdx, dvdy);
 }
 
-void SecondOrderSystemGraph::linearizationToolSettings() {
+void Continous2dSystemVisualization::linearizationToolSettings() {
 	auto& s = linearizationToolState;
 
 	ImGui::Checkbox("show", &s.show);
@@ -882,7 +1017,7 @@ void SecondOrderSystemGraph::linearizationToolSettings() {
 	ImGui::Text("%s", linearSystemTypeToString(linearSystemType(s.jacobian)));
 }
 
-void SecondOrderSystemGraph::linearizationToolUpdate() {
+void Continous2dSystemVisualization::linearizationToolUpdate() {
 	auto& s = linearizationToolState;
 	if (!s.show) {
 		return;
@@ -914,8 +1049,8 @@ void SecondOrderSystemGraph::linearizationToolUpdate() {
 #include <glad/glad.h>
 #include <engine/Math/Random.hpp>
 
-void SecondOrderSystemGraph::BasinOfAttractionWindow::update(
-	const SecondOrderSystemGraph& state,
+void Continous2dSystemVisualization::BasinOfAttractionWindow::update(
+	const Continous2dSystemVisualization& state,
 	Renderer2d& renderer2d) {
 	if (!shaderProgram.has_value()) {
 		return;
@@ -982,8 +1117,8 @@ void SecondOrderSystemGraph::BasinOfAttractionWindow::update(
 	//renderer2d.update();
 }
 
-void SecondOrderSystemGraph::BasinOfAttractionWindow::recompileShader(
-	SecondOrderSystemGraph& state,
+void Continous2dSystemVisualization::BasinOfAttractionWindow::recompileShader(
+	Continous2dSystemVisualization& state,
 	Renderer2d& renderer2d) {
 
 	// This doesn't work well, because many interation are required to converge to the fixed point. It looks like a fractal, but after many iteration it coverges into simple shapes. Look at the shadertoy below.
@@ -1002,69 +1137,13 @@ void SecondOrderSystemGraph::BasinOfAttractionWindow::recompileShader(
 	s << "uniform vec3 fixedPointsColors[4];\n";
 	s << "uniform int fixedPointsCount;\n";
 
-	s << R"(
-	vec3 hsv2rgb(vec3 c) {
-		vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-		vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
-		return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
-	}
-	)";
-
-	s << "void main() {\n";
-	{
-		s << "vec2 worldPos = mix(viewMin, viewMax, fragmentTexturePosition);\n";
-		s << "float v" << X_VARIABLE_INDEX_IN_BLOCK << " = worldPos.x;\n";
-		s << "float v" << Y_VARIABLE_INDEX_IN_BLOCK << " = worldPos.y;\n";
-		s << "for (int i = 0; i < iterations; i++) {\n";
-		s << "float dxdt;\n";
-		{
-			s << "{\n";
-			if (!state.plotCompiler.tryCompileGlsl(s, state.xFormulaInput)) {
-				shaderProgram = std::nullopt;
-				return;
-			}
-			s << "dxdt = result;\n";
-			s << "}\n";
-		}
-		s << "float dydt;\n";
-		{
-			s << "{\n";
-			if (!state.plotCompiler.tryCompileGlsl(s, state.yFormulaInput)) {
-				shaderProgram = std::nullopt;
-				return;
-			}
-			s << "dydt = result;\n";
-			s << "}\n";
-		}
-		s << "v" << X_VARIABLE_INDEX_IN_BLOCK << " += dxdt * 0.01;\n";
-		s << "v" << Y_VARIABLE_INDEX_IN_BLOCK << " += dydt * 0.01;\n";
-
-		s << "vec2 outPos = vec2(v" << X_VARIABLE_INDEX_IN_BLOCK << ", v" << Y_VARIABLE_INDEX_IN_BLOCK << ");\n";
-
-		s << R"(
-		bool found = false;
-		vec3 color = vec3(0.0);
-		for (int i = 0; i < fixedPointsCount; i++) {
-			if (distance(fixedPoints[i], outPos) < 0.05) {
-				color = fixedPointsColors[i];
-				found = true;
-				break;
-			}
-		}
-		if (found) {
-			fragColor = vec4(hsv2rgb(vec3(float(i) * 0.2, 1.0, 1.0)), 1.0);
-			break;
-		}
-
-		)";
-
-		s << "}\n";
-
-		//s << "outPos = mod(outPos, 1.0);\n";
-		//s << "fragColor = vec4(outPos.x, outPos.y, 0, 1);" << "\n";
-		////s << "fragColor = vec4(fragmentTexturePosition.x, fragmentTexturePosition.y, 0, 1);\n";
-		//s << "}\n";
-	}
+	//s << R"(
+	//vec3 hsv2rgb(vec3 c) {
+	//	vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+	//	vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+	//	return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+	//}
+	//)";
 
 	//s << "void main() {\n";
 	//{
@@ -1094,23 +1173,79 @@ void SecondOrderSystemGraph::BasinOfAttractionWindow::recompileShader(
 	//	}
 	//	s << "v" << X_VARIABLE_INDEX_IN_BLOCK << " += dxdt * 0.01;\n";
 	//	s << "v" << Y_VARIABLE_INDEX_IN_BLOCK << " += dydt * 0.01;\n";
-	//	s << "}\n";
+
 	//	s << "vec2 outPos = vec2(v" << X_VARIABLE_INDEX_IN_BLOCK << ", v" << Y_VARIABLE_INDEX_IN_BLOCK << ");\n";
+
+	//	s << R"(
+	//	bool found = false;
+	//	vec3 color = vec3(0.0);
+	//	for (int i = 0; i < fixedPointsCount; i++) {
+	//		if (distance(fixedPoints[i], outPos) < 0.05) {
+	//			color = fixedPointsColors[i];
+	//			found = true;
+	//			break;
+	//		}
+	//	}
+	//	if (found) {
+	//		fragColor = vec4(hsv2rgb(vec3(float(i) * 0.2, 1.0, 1.0)), 1.0);
+	//		break;
+	//	}
+
+	//	)";
+
+	//	s << "}\n";
+
 	//	//s << "outPos = mod(outPos, 1.0);\n";
 	//	//s << "fragColor = vec4(outPos.x, outPos.y, 0, 1);" << "\n";
 	//	////s << "fragColor = vec4(fragmentTexturePosition.x, fragmentTexturePosition.y, 0, 1);\n";
 	//	//s << "}\n";
 	//}
-	//s << R"(
-	//vec3 color = vec3(0.0);
-	//for (int i = 0; i < fixedPointsCount; i++) {
-	//	if (distance(fixedPoints[i], outPos) < 0.05) {
-	//		color = fixedPointsColors[i];
-	//		break;
-	//	}
-	//}
-	//fragColor = vec4(color, 1.0);
-	//)";
+
+	s << "void main() {\n";
+	{
+		s << "vec2 worldPos = mix(viewMin, viewMax, fragmentTexturePosition);\n";
+		s << "float v" << X_VARIABLE_INDEX_IN_BLOCK << " = worldPos.x;\n";
+		s << "float v" << Y_VARIABLE_INDEX_IN_BLOCK << " = worldPos.y;\n";
+		s << "for (int i = 0; i < iterations; i++) {\n";
+		s << "float dxdt;\n";
+		{
+			s << "{\n";
+			if (!state.plotCompiler.tryCompileGlsl(s, state.xFormulaInput)) {
+				shaderProgram = std::nullopt;
+				return;
+			}
+			s << "dxdt = result;\n";
+			s << "}\n";
+		}
+		s << "float dydt;\n";
+		{
+			s << "{\n";
+			if (!state.plotCompiler.tryCompileGlsl(s, state.yFormulaInput)) {
+				shaderProgram = std::nullopt;
+				return;
+			}
+			s << "dydt = result;\n";
+			s << "}\n";
+		}
+		s << "v" << X_VARIABLE_INDEX_IN_BLOCK << " += dxdt * 0.01;\n";
+		s << "v" << Y_VARIABLE_INDEX_IN_BLOCK << " += dydt * 0.01;\n";
+		s << "}\n";
+		s << "vec2 outPos = vec2(v" << X_VARIABLE_INDEX_IN_BLOCK << ", v" << Y_VARIABLE_INDEX_IN_BLOCK << ");\n";
+		//s << "outPos = mod(outPos, 1.0);\n";
+		//s << "fragColor = vec4(outPos.x, outPos.y, 0, 1);" << "\n";
+		////s << "fragColor = vec4(fragmentTexturePosition.x, fragmentTexturePosition.y, 0, 1);\n";
+		//s << "}\n";
+	}
+	s << R"(
+	vec3 color = vec3(0.0);
+	for (int i = 0; i < fixedPointsCount; i++) {
+		if (distance(fixedPoints[i], outPos) < 0.05) {
+			color = fixedPointsColors[i];
+			break;
+		}
+	}
+	fragColor = vec4(color, 1.0);
+	)";
 
 	//s << "vec2 outPos = vec2(v" << X_VARIABLE_INDEX_IN_BLOCK << ", v" << Y_VARIABLE_INDEX_IN_BLOCK << ");\n";
 	//s << "outPos = mod(outPos, 1.0);\n";

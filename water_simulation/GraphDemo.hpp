@@ -4,7 +4,7 @@
 #include <engine/Math/Vec3.hpp>
 #include <vector>
 #include <water_simulation/FirstOrderSystemGraph.hpp>
-#include <water_simulation/SecondOrderSystemGraph.hpp>
+#include <water_simulation/Continous2dSystemVisualization.hpp>
 #include <imgui/imgui.h>
 #include <water_simulation/SettingsManager.hpp>
 #include <water_simulation/FunctionPlotter2d.hpp>
@@ -20,7 +20,7 @@ struct GraphDemo {
 
 	Texture texture;
 	FirstOrderSystemGraph firstOrderSystem;
-	SecondOrderSystemGraph secondOrderSystem;
+	Continous2dSystemVisualization secondOrderSystem;
 	FunctionPlotter2d plotter;
 
 	RenderWindow window;

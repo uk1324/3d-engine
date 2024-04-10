@@ -8,9 +8,9 @@
 #include <engine/Graphics/ShaderProgram.hpp>
 #include <framework/Renderer2d.hpp>
 
-struct SecondOrderSystemGraph {
+struct Continous2dSystemVisualization {
 
-	SecondOrderSystemGraph();
+	Continous2dSystemVisualization();
 
 	void update(Renderer2d& renderer2d);
 	void derivativePlot();
@@ -69,11 +69,12 @@ struct SecondOrderSystemGraph {
 	float spacing = 0.2f;
 
 	enum class FormulaType {
-		LINEAR,
-		GENERAL
+		CARTESIAN_LINEAR,
+		CARTESIAN,
+		POLAR
 	};
-	FormulaType formulaType = FormulaType::GENERAL;
-	static constexpr const char* formulaTypeNames = "linear\0general\0";
+	FormulaType formulaType = FormulaType::CARTESIAN;
+	static constexpr const char* formulaTypeNames = "cartesian linear\0cartesian\0ploar\0";
 
 	enum class ToolType {
 		SPAWN_TEST_POINTS,
@@ -95,13 +96,14 @@ struct SecondOrderSystemGraph {
 		Camera camera;
 		std::optional<Vec2> grabStartPosWorldSpace;
 
-		void update(const SecondOrderSystemGraph& state, Renderer2d& renderer2d);
-		void recompileShader(SecondOrderSystemGraph& state, Renderer2d& renderer2d);
+		void update(const Continous2dSystemVisualization& state, Renderer2d& renderer2d);
+		void recompileShader(Continous2dSystemVisualization& state, Renderer2d& renderer2d);
 	} basinOfAttractionWindow;
 
 	Mat2 linearFormulaMatrix = Mat2(Vec2(0.0f), Vec2(0.0f));
 	std::array<Eigenvector, 2> linearFormulaMatrixEigenvectors;
 
+	// Could either have different inputs for different input types (cartesian/polar) or the same inputs.
 	PlotCompiler plotCompiler; // Has to be above FormulaInputs for thing to be initialized in the right order.
 	PlotCompiler::FormulaInput& xFormulaInput;
 	PlotCompiler::FormulaInput& yFormulaInput;

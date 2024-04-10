@@ -85,3 +85,26 @@ If dy/dt = x^3 then dx/dt = -y/x * x^3 = -yx^2
 
 EXAMPLE 6.5.1:
 Show that a conservative system cannot have any attracting fixed points
+
+If you have a system like 
+dx/dt = 1
+dy/dt = x
+Then 
+dx/dy = 1/x
+dy/dx = x
+dy = x dx
+y = x^2/2 + C
+The solution to the system is 
+x(t) = t
+y(t) = t^2/2
+The conserved quantity only depends on time so for all trajectories it will be constant.
+In polar coordinates this system is
+da/dt = a
+dr/dt = x
+
+This means that separable =/> conservative, because the conserved quantity can be constant.
+
+What about the harmonic oscillator. Doesn't it have a conserved quantity that only depends on time?
+
+It always depends on time in the first case the equations are independent which is not the case in the harmnoic oscillator.
+

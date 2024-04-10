@@ -4,3 +4,20 @@ Find the jacobian and find when the stability changes.
 Base on that find all the qualitatively different phase portraits.
 
 Between these steps also condier what the nondimensionalized terms and transitions from states physically represent.
+
+Converting to polar coordinates
+https://youtu.be/9yh9DmNqdk4?feature=shared&t=1394
+
+Negative det => saddle point
+
+Finding invariant lines for example https://youtu.be/9yh9DmNqdk4?feature=shared&t=3399
+or stable unstable manifolds.
+In these cases invariant lines are solutions for special cases.
+
+Example analysis after the fixed points have been determined.
+https://youtu.be/9yh9DmNqdk4?feature=shared&t=3500
+
+The topological properites can be used to drawing the basis of attraction.
+https://youtu.be/9yh9DmNqdk4?feature=shared&t=3683
+
+Power series can be used to approximate the solution for example the stable and unstable manifolds or other invariant curves.

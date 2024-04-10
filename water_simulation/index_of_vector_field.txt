@@ -1,0 +1,60 @@
+Fixed point with index zero
+x' = x^2, y' = y
+The linearization would be x' = 0 y' = y. So it would predict that there is a line of fixed points y = 0.
+x' = y-x, y' = x^2
+
+If there is no fixed points then the index is zero. So if the index is not zero then there are fixed points, but there can be cases like above where there are fixed points, but the index is zero.
+If interpreted as a map then the this map folds the space. It takes the x axis folds it into a parabola then projects it. The zero always lies on the boundary. Is there any relation to parabolic points of a surface? The parabolic points can be curves into lines. Saddle points of a surface are points the reverse the orientation of curves. 
+
+Interpreting the vector fields as maps. Saddle points flip one direction while preserving the other so they also flip the orientations of curves. All the other curves flip both directions so everything gets oriented correctly.
+
+In 1d a fixed point with index zero would for example whould happen in x' = x^2.
+
+6.8.3
+A closed orbit always has index 1 so N + F + C - S = 1.
+
+6.8.8 
+If you have a situation like in this example then I_c3 = I_c1 + Ic2 + A. Because cs are closed orbits their indices are equal to 1 so 2 = 1 + A. So A has to be negative. If a fixed point is a saddle then it has a negative index, but is the converse true?
+
+https://math.mit.edu/classes/18.385/PSetAnswers/AnswerPSet_2020_04.pdf
+
+6.8.10
+On the cyllinder the field x' = 1, y' = 0  Has no fixed points and it goes around the cyllidner so there are closed orbits.
+On the torus does it even make sense to say a curve has to bound anything.
+On the sphere you could look for a mapping from itself to itself the has no fixed points. On the disk there is a hole which allows a mapping the has no fixed point. The sphere also has a hole inside, but I can't think of an example of a map without fixed points.
+
+6.8.11
+k = 1
+normal
+(a, r) -> (a, r)
+[x, y] -> [x, y]
+conjugate
+(a, r) -> (-a, r)
+[x, y] -> [x, -y]
+
+k = 2
+normal
+(a, r) -> (2a, r^2)
+[x, y] -> (x^2 - b^2, 2xy)
+conjugate
+(a, r) -> (-2a, r^2)
+[x, y] -> (x^2 - b^2, -2xy)
+
+k = 3
+normal
+(a, r) -> (3a, r^3)
+[x, y] -> (x^3 - 3xy^2, 3yx^2 - y^3)
+conjugate 
+(a, r) -> (-3a, r^3)
+[x, y] -> (x^3 - 3xy^2, -3yx^2 + y^3)
+
+
+During a single rotation the vector field rotates k times.
+
+6.8.12
+Linearization
+a > 0: no fixed points, index = 0
+a = 0: non isolated fixed points, nonlinear index = 0
+a < 0: one saddle and one stable node, index = -1 + 1 = 0
+
+Parameter varies continously then the index should probably vary continously accept for the cases where the fixed points cross the curve I guess. The index is an integer so for it to vary continously it has to be constant.
