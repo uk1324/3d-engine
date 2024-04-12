@@ -27,6 +27,8 @@ add_subdirectory(water_simulation)
 
 add_subdirectory(electromagnetism)
 
+add_subdirectory(platformer)
+
 set(gtest_force_shared_crt True)
 add_subdirectory("./dependencies/googletest")
 add_subdirectory(test)

@@ -256,6 +256,7 @@ class Shader extends Declaration {
         this.vertPathRelativeToWorkingDirectory = Paths.get(paths.cppExecutableWorkingDirectory).relativize(Paths.get(vertPath)).toString().replace('\\', '/');
         this.fragPathRelativeToWorkingDirectory = Paths.get(paths.cppExecutableWorkingDirectory).relativize(Paths.get(fragPath)).toString().replace('\\', '/');
         this.generateVert = generateVert;
+        this.generateFrag = generateFrag;
     }
 
     private int dataTypeLayoutSize(DataType type) {

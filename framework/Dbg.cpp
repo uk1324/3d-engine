@@ -35,6 +35,13 @@ void Dbg::drawPolyline(Span<const Vec2> vertices, Vec3 color, std::optional<floa
 	}
 }
 
+void Dbg::drawAabb(Vec2 min, Vec2 max, Vec3 color, std::optional<float> lineWidth) {
+	Vec2 vertices[] = {
+		min, Vec2(min.x, max.y), max, Vec2(max.x, min.y)
+	};
+	drawPolygon(vertices, color, lineWidth);
+}
+
 void Dbg::update() {
 	disks.clear();
 	circles.clear();

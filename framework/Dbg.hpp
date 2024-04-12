@@ -14,6 +14,7 @@ namespace Dbg {
 	void drawLine(Vec2 pos, Vec2 end, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
 	void drawPolygon(Span<const Vec2> vertices, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
 	void drawPolyline(Span<const Vec2> vertices, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
+	void drawAabb(Vec2 min, Vec2 max, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
 
 	void update();
 
