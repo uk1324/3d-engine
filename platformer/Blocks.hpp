@@ -25,6 +25,10 @@ struct Spike {
 	Aabb hitbox;
 };
 
+struct Platform {
+	Vec2 position;
+};
+
 enum class BlockType : u8 {
 	EMPTY,
 	NORMAL,
@@ -32,6 +36,7 @@ enum class BlockType : u8 {
 	SPIKE_RIGHT,
 	SPIKE_TOP,
 	SPIKE_BOTTOM,
+	PLATFORM,
 };
 
 BlockCollsionDirectionsBitfield getBlockCollisionDirections(const Array2d<BlockType>& blockGrid, i32 x, i32 y);
@@ -39,3 +44,5 @@ Spike makeSpikeBottom(i64 x, i64 y, f32 cellSize);
 Spike makeSpikeTop(i64 x, i64 y, f32 cellSize);
 Spike makeSpikeRight(i64 x, i64 y, f32 cellSize);
 Spike makeSpikeLeft(i64 x, i64 y, f32 cellSize);
+
+Platform makePlatform(i64 x, i64 y, f32 cellSize);

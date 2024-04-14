@@ -32,6 +32,7 @@ struct Game {
 
 	std::vector<Block> blocks;
 	std::vector<Spike> spikes;
+	std::vector<Platform> platforms;
 
 	Mode mode = Mode::GAME; 
 

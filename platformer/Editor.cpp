@@ -76,6 +76,7 @@ void Editor::update(f32 dt, f32 cellSize) {
 			case SPIKE_BOTTOM: return BlockType::SPIKE_BOTTOM;
 			case SPIKE_LEFT: return BlockType::SPIKE_LEFT;
 			case SPIKE_RIGHT: return BlockType::SPIKE_RIGHT;
+			case PLATFORM: return BlockType::PLATFORM;
 
 			case LEVEL_TRANSITON:
 				break;
@@ -153,6 +154,8 @@ void Editor::update(f32 dt, f32 cellSize) {
 		selectedPlacableItem = PlacableItem::SPIKE_LEFT;
 	} else if (ImGui::Button("spike right")) {
 		selectedPlacableItem = PlacableItem::SPIKE_RIGHT;
+	} else if (ImGui::Button("platform")) {
+		selectedPlacableItem = PlacableItem::PLATFORM;
 	}
 
 	if (ImGui::CollapsingHeader("level transitions")) {
@@ -245,6 +248,10 @@ void Editor::render(GameRenderer& renderer, f32 cellSize, const PlayerSettings& 
 				renderer.renderSpike(makeSpikeBottom(xi, yi, cellSize));
 				break;
 				
+			case PLATFORM:
+				renderer.renderPlatform(makePlatform(xi, yi, cellSize), cellSize);
+				break;
+
 			case EMPTY:
 				break;
 

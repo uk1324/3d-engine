@@ -48,6 +48,30 @@ void Game::update() {
 			loadLevel(this->level);
 		}
 
+		for (const auto& platform : platforms) {
+			const auto hitbox = Aabb(platform.position, platform.position + Vec2(cellSize, 0.0f));
+			auto playerHitbox = playerAabb;
+			const auto padding = player.velocity.applied(abs);
+			playerHitbox.min -= padding;
+			playerHitbox.max += padding;
+
+			if (!hitbox.collides(playerHitbox)) {
+				continue;
+			}
+
+			if (player.velocity.y > 0) {
+				continue;
+			}
+			
+			const auto playerBottomY = player.position.y - playerSettings.size.y / 2.0f;
+			const auto platformY = platform.position.y;
+			if (playerBottomY >= platformY && playerBottomY + player.velocity.y <= platformY) {
+				player.velocity.y = 0.0f;
+				player.position.y = platformY + playerSettings.size.y / 2.0f;
+				player.grounded = true;
+			}
+		}
+
 		glClear(GL_COLOR_BUFFER_BIT);
 		updateCamera();
 		renderer.renderer.camera = camera;
@@ -55,6 +79,9 @@ void Game::update() {
 		renderer.renderPlayer(player, playerSettings);
 		for (const auto& spike : spikes) {
 			renderer.renderSpike(spike);
+		}
+		for (const auto& platform : platforms) {
+			renderer.renderPlatform(platform, cellSize);
 		}
 		renderer.update();
 	} else if (mode == Mode::EDITOR) {
@@ -104,6 +131,7 @@ void Game::onSwitchFromEditor() {
 void Game::loadLevel(const Level& level) {
 	blocks.clear();
 	spikes.clear();
+	platforms.clear();
 	for (i32 y = 0; y < level.blockGrid.size().y; y++) {
 		for (i32 x = 0; x < level.blockGrid.size().x; x++) {
 			using enum BlockType;
@@ -128,6 +156,10 @@ void Game::loadLevel(const Level& level) {
 				break;
 			case SPIKE_TOP: 
 				spikes.push_back(makeSpikeTop(x, y, cellSize));
+				break;
+
+			case PLATFORM:
+				platforms.push_back(makePlatform(x, y, cellSize));
 				break;
 
 			case EMPTY: break;

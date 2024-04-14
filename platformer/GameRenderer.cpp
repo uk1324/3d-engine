@@ -74,6 +74,10 @@ void GameRenderer::renderSpike(const Spike& spike) {
 		1.0f);
 }
 
+void GameRenderer::renderPlatform(const Platform& platform, f32 cellSize) {
+	Dbg::drawLine(platform.position, platform.position + Vec2(cellSize, 0.0f), Color3::WHITE / 2.0f, 2.0f);
+}
+
 void GameRenderer::renderPlayer(const Player& player, const PlayerSettings& settings) {
 	Dbg::drawAabb(
 		player.position - settings.size / 2.0f,

@@ -60,9 +60,13 @@ Spike makeSpikeRight(i64 x, i64 y, f32 cellSize) {
 
 Spike makeSpikeLeft(i64 x, i64 y, f32 cellSize) {
 	return Spike{ .hitbox = Aabb(
-		Vec2(x + 1.0f - SPIKE_SIZE_TO_BLOCK_SIZE_RATIO, y - SPIKE_SIZE_TO_BLOCK_SIZE_RATIO) * cellSize,
+		Vec2(x + 1.0f - SPIKE_SIZE_TO_BLOCK_SIZE_RATIO, y) * cellSize,
 		Vec2(x + 1.0f, y + 1.0f) * cellSize
 	)};
+}
+
+Platform makePlatform(i64 x, i64 y, f32 cellSize) {
+	return Platform{ .position = Vec2(x, y + 1) * cellSize };
 }
 
 

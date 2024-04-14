@@ -26,6 +26,7 @@ struct Editor {
 		SPIKE_BOTTOM,
 		SPIKE_LEFT,
 		SPIKE_RIGHT,
+		PLATFORM
 	};
 
 	struct LevelTransitionPlaceState {
