@@ -15,6 +15,8 @@ namespace Dbg {
 	void drawPolygon(Span<const Vec2> vertices, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
 	void drawPolyline(Span<const Vec2> vertices, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
 	void drawAabb(Vec2 min, Vec2 max, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
+	void drawFilledAabb(Vec2 min, Vec2 max, Vec3 color = DEFAULT_COLOR);
+	void drawFilledTriangle(Vec2 v0, Vec2 v1, Vec2 v3, Vec3 color = DEFAULT_COLOR);
 
 	void update();
 
@@ -38,6 +40,12 @@ namespace Dbg {
 		Vec3 color;
 	};
 
+	struct FilledTriangle {
+		// counterclockwise
+		Vec2 v[3];
+		Vec3 color;
+	};
+
 	//enum class EntityType {
 	//	LINE,
 	//	DISK
@@ -52,4 +60,5 @@ namespace Dbg {
 	extern std::vector<Disk> disks;
 	extern std::vector<Circle> circles;
 	extern std::vector<Line> lines;
+	extern std::vector<FilledTriangle> filledTriangles;
 }

@@ -17,53 +17,52 @@ void GameRenderer::update() {
 	renderer.update();
 }
 
+void GameRenderer::renderBlock(const Block& block, f32 cellSize) {
+	using namespace BlockCollisionDirections;
+
+	const auto color = Color3::GREEN;
+
+	f32 width = 2.0f;
+
+	Dbg::drawFilledAabb(block.position, block.position + Vec2(cellSize), Color3::WHITE / 20.0f);
+
+	if (block.collisionDirections & D) {
+		Dbg::drawLine(
+			Vec2(block.position),
+			Vec2(block.position) + Vec2(cellSize, 0.0f),
+			color,
+			width);
+	}
+
+	if (block.collisionDirections & U) {
+		Dbg::drawLine(
+			Vec2(block.position) + Vec2(0.0f, cellSize),
+			Vec2(block.position) + Vec2(cellSize, cellSize),
+			color,
+			width);
+	}
+
+	if (block.collisionDirections & L) {
+		Dbg::drawLine(
+			Vec2(block.position),
+			Vec2(block.position) + Vec2(0.0f, cellSize),
+			color,
+			width);
+	}
+
+	if (block.collisionDirections & R) {
+		Dbg::drawLine(
+			Vec2(block.position) + Vec2(cellSize, 0.0f),
+			Vec2(block.position) + Vec2(cellSize, cellSize),
+			color,
+			width);
+	}
+}
+
 void GameRenderer::renderBlocks(const std::vector<Block>& blocks, f32 cellSize) {
 
 	for (const auto& block : blocks) {
-		using enum BlockCollision::Direction;
-		auto color = [&](u8 direction) {
-			if (block.collisionDirections & direction) {
-				return Color3::RED;
-			}
-			return Color3::GREEN;
-		};
-
-		f32 width = 2.0f;
-
-		Dbg::drawDisk(block.position + Vec2(cellSize / 2.0f), 0.01f);
-
-		if (block.collisionDirections & D) {
-			Dbg::drawLine(
-				Vec2(block.position),
-				Vec2(block.position) + Vec2(cellSize, 0.0f),
-				color(D),
-				width);
-		}
-
-		if (block.collisionDirections & U) {
-			Dbg::drawLine(
-				Vec2(block.position) + Vec2(0.0f, cellSize),
-				Vec2(block.position) + Vec2(cellSize, cellSize),
-				color(U),
-				width);
-		}
-
-		if (block.collisionDirections & L) {
-			Dbg::drawLine(
-				Vec2(block.position),
-				Vec2(block.position) + Vec2(0.0f, cellSize),
-				color(L),
-				width);
-		}
-
-		if (block.collisionDirections & R) {
-			Dbg::drawLine(
-				Vec2(block.position) + Vec2(cellSize, 0.0f),
-				Vec2(block.position) + Vec2(cellSize, cellSize),
-				color(R),
-				width);
-		}
-
+		renderBlock(block, cellSize);
 	}
 }
 

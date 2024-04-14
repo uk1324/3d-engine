@@ -13,6 +13,7 @@ add_library(
 	"../dependencies/imgui/implot.cpp"
 	"../dependencies/imgui/implot_demo.cpp"
 	"../dependencies/imgui/implot_items.cpp"
+	"../dependencies/imgui/imgui_stdlib.cpp"
 
 	"../dependencies/stb_image/stb_image.cpp"
 	"../dependencies/stb_image/stb_image_write.cpp"

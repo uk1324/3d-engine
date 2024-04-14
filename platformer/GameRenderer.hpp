@@ -10,6 +10,7 @@ struct GameRenderer {
 
 	void update();
 
+	void renderBlock(const Block& block, f32 cellSize);
 	void renderBlocks(const std::vector<Block>& blocks, f32 cellSize);
 	void renderPlayer(const Player& player, const PlayerSettings& settings);
 

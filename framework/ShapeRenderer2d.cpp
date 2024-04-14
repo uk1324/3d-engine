@@ -3,8 +3,13 @@
 #include "StructUtils.hpp"
 #include "FullscrenQuadPt.hpp"
 #include <framework/Instancing.hpp>
+#include <framework/Shaders/filledTriangleData.hpp>
 
 ShapeRenderer2d ShapeRenderer2d::make(Vbo& fullscreenQuad2dPtVerticesVbo, Ibo& fullscreenQuad2dPtVerticesIbo, Vbo& instancesVbo) {
+	Vao filledTriangleVao = Vao::generate();
+	// Store the vertices inside the instancesVbo.
+	FilledTriangleShader::addAttributesToVao(filledTriangleVao, instancesVbo, instancesVbo);
+
 	return ShapeRenderer2d{
 		.diskVao = createInstancingVao<DiskShader>(fullscreenQuad2dPtVerticesVbo, fullscreenQuad2dPtVerticesIbo, instancesVbo),
 		.diskShader = MAKE_GENERATED_SHADER(DISK),
@@ -12,6 +17,8 @@ ShapeRenderer2d ShapeRenderer2d::make(Vbo& fullscreenQuad2dPtVerticesVbo, Ibo& f
 		.circleShader = MAKE_GENERATED_SHADER(CIRCLE),
 		.lineVao = createInstancingVao<LineShader>(fullscreenQuad2dPtVerticesVbo, fullscreenQuad2dPtVerticesIbo, instancesVbo),
 		.lineShader = MAKE_GENERATED_SHADER(LINE),
+		MOVE(filledTriangleVao),
+		.filledTriangleShader = MAKE_GENERATED_SHADER(FILLED_TRIANGLE),
 	};
 }
 

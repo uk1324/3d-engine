@@ -1,4 +1,4 @@
-add_executable(platformer "main.cpp" "Game.cpp" "GameRenderer.cpp" "Player.cpp" "Editor.cpp")
+add_executable(platformer "main.cpp" "Game.cpp" "GameRenderer.cpp" "Player.cpp" "Editor.cpp" "Blocks.cpp" "Level.cpp" "JsonUtils.cpp")
 
 target_link_libraries(platformer engine)
 target_link_libraries(platformer glfw)

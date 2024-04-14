@@ -1,4 +1,5 @@
 #include "Dbg.hpp"
+#include <engine/Math/Triangle.hpp>
 
 void Dbg::drawDisk(Vec2 pos, float radius, Vec3 color) {
 	//entityDrawOrder.push_back(Entity{ EntityType::DISK, static_cast<i32>(disks.size()) });
@@ -42,6 +43,18 @@ void Dbg::drawAabb(Vec2 min, Vec2 max, Vec3 color, std::optional<float> lineWidt
 	drawPolygon(vertices, color, lineWidth);
 }
 
+void Dbg::drawFilledAabb(Vec2 min, Vec2 max, Vec3 color) {
+	Vec2 v[] = {
+		min, Vec2(max.x, min.y), max, Vec2(min.x, max.y)
+	};
+	filledTriangles.push_back(FilledTriangle{ .v = { v[0], v[1], v[2] }, .color = color });
+	filledTriangles.push_back(FilledTriangle{ .v = { v[0], v[2], v[3] }, .color = color });
+}
+
+void Dbg::drawFilledTriangle(Vec2 v0, Vec2 v1, Vec2 v3, Vec3 color) {
+	//triangle
+}
+
 void Dbg::update() {
 	disks.clear();
 	circles.clear();
@@ -52,5 +65,6 @@ void Dbg::update() {
 std::vector<Dbg::Disk> Dbg::disks;
 std::vector<Dbg::Circle> Dbg::circles;
 std::vector<Dbg::Line> Dbg::lines;
+std::vector<Dbg::FilledTriangle> Dbg::filledTriangles;
 
 //std::vector<Dbg::Entity> Dbg::entityDrawOrder;

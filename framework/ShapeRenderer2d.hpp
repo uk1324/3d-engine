@@ -23,4 +23,7 @@ struct ShapeRenderer2d {
 	Vao lineVao;
 	ShaderProgram& lineShader;
 	std::vector<LineInstance> lineInstances;
+
+	Vao filledTriangleVao;
+	ShaderProgram& filledTriangleShader;
 };

@@ -2,6 +2,10 @@
 #include <engine/Input/Input.hpp>
 #include <engine/Math/Aabb.hpp>
 
+Aabb Player::aabb(const PlayerSettings& settings) {
+    return Aabb(position - settings.size / 2.0f, position + settings.size / 2.0f);
+}
+
 void Player::updateMovement(f32 dt) {
     const bool left = Input::isKeyHeld(KeyCode::A);
     const bool right = Input::isKeyHeld(KeyCode::D);
@@ -11,7 +15,7 @@ void Player::updateMovement(f32 dt) {
         float test = 5.0f;
     }
 
-    f32 speed = 1.0f;
+    f32 speed = 1.0f / 1.5f;
 
     if (left) {
         velocity.x -= speed;
@@ -148,7 +152,7 @@ Distance getDistance(const Aabb& a, const Aabb& b, Vec2 aVel) {
 
 void Player::blockCollision(const PlayerSettings& settings, const std::vector<Block>& blocks, f32 cellSize) {
     //f32 playerRadius = 30.0f;
-    const auto playerAabb = Aabb(position - settings.size / 2.0f, position + settings.size / 2.0f);
+    const auto playerAabb = aabb(settings);
     const auto playerSize = playerAabb.size();
     for (const auto& block : blocks) {
         const auto blockAabb = Aabb(block.position, block.position + Vec2(cellSize));
@@ -160,18 +164,18 @@ void Player::blockCollision(const PlayerSettings& settings, const std::vector<Bl
 
         auto distance = getDistance(playerAabb, blockAabb, velocity);
         
-        using enum BlockCollision::Direction;
+        using namespace BlockCollisionDirections;
         if (block.collisionDirections & L && distance.left < distance.top && distance.left < distance.bottom) {
             velocity.x = 0.0f;
             position.x = block.position.x - playerSize.x + settings.size.x / 2.0f;
         }
         if (block.collisionDirections & R && distance.right < distance.top && distance.right < distance.bottom) {
             velocity.x = 0.0f;
-            position.x = block.position.x + blockSize.x - settings.size.x / 2.0f;
+            position.x = block.position.x + blockSize.x + settings.size.x / 2.0f;
         }
-        if (block.collisionDirections & L && distance.bottom < distance.bottom && distance.bottom < distance.right) {
+        if (block.collisionDirections & D && distance.bottom < distance.left && distance.bottom < distance.right) {
             velocity.y = 0.0f;
-            position.y = block.position.y - playerSize.y - settings.size.y / 2.0f;
+            position.y = block.position.y - playerSize.y + settings.size.y / 2.0f;
         }
         if (block.collisionDirections & U && distance.top < distance.left && distance.top < distance.right) {
             velocity.y = 0.0f;

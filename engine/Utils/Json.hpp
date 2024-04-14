@@ -27,6 +27,10 @@ template<>
 Vec4 fromJson<Vec4>(const Json::Value& json);
 Json::Value toJson(const Vec4& value);
 
+template<>
+std::string fromJson<std::string>(const Json::Value& json);
+Json::Value toJson(const std::string& value);
+
 
 //template<typename Key, typename Value>
 //Json::Value toJson(const std::unordered_map<Key, Value>& map) {
@@ -59,11 +63,20 @@ template<typename T>
 Json::Value toJson(const std::vector<T>& vector) {
 	auto json = Json::Value::emptyArray();
 	auto& jsonArray = json.array();
-	// Maybe serialize std::pair.
 	for (const auto& item : vector) {
 		jsonArray.push_back(toJson(item));
 	}
 	return json;
+}
+
+template<typename T>
+std::vector<T> vectorFromJson(const Json::Value& json) {
+	std::vector<T> value;
+	const auto array = json.array();
+	for (const auto& v : array) {
+		value.push_back(fromJson<T>(v));
+	}
+	return value;
 }
 
 // There is no way to specialize templates with templated types 

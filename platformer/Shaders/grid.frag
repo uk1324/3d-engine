@@ -2,6 +2,7 @@
 
 in vec2 worldPosition; 
 
+in mat3x2 clipToWorld; 
 in float cameraZoom; 
 in float smallCellSize; 
 out vec4 fragColor;

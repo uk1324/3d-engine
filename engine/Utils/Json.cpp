@@ -65,3 +65,12 @@ Json::Value toJson(const Vec4& value) {
 	json["w"] = value.w;
 	return json;
 }
+
+template<>
+std::string fromJson<std::string>(const Json::Value& json) {
+	return json.string();
+}
+
+Json::Value toJson(const std::string& value) {
+	return Json::Value(value);
+}

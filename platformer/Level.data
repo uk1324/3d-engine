@@ -1,0 +1,9 @@
+`
+#include <platformer/JsonUtils.hpp>
+`
+
+struct [[Json]] LevelTransition {
+	Vec2 respawnPoint = `Vec2(0.0f)`;
+	Aabb trigger;
+	$std::string$ level;
+}

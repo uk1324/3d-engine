@@ -4,57 +4,102 @@
 #include <engine/Math/Color.hpp>
 #include <glad/glad.h>
 
-Game::Game() 
-	: blockGrid(100, 100) {
+Game::Game() {
+	camera.zoom /= 280.0f;
+}
 
-	camera.zoom /= 500.0f;
+void Game::update() {
+	playerSettings.size = Vec2(20.0f, 30.0f);
 
-	player.position = Vec2(0.1f, 100.0f);
-	player.velocity = Vec2(0.0f);
+	if (Input::isKeyDown(KeyCode::TAB)) {
+		if (mode == Mode::EDITOR) {
+			editor.onSwitchToGame();
+			onSwitchFromEditor();
+			mode = Mode::GAME;
+		}
+		else if (mode == Mode::GAME) {
+			editor.onSwitchFromGame();
+			mode = Mode::EDITOR;
+		}
+	}
 
-	playerSettings.size = Vec2(30.0f);
+	if (mode == Mode::GAME) {
+		player.updateMovement(dt);
+		player.blockCollision(playerSettings, blocks, cellSize);
 
-	std::ranges::fill(blockGrid.span(), BlockType::EMPTY);
-
-	blockGrid(0, 0) = BlockType::NORMAL;
-	blockGrid(1, 0) = BlockType::NORMAL;
-	blockGrid(2, 0) = BlockType::NORMAL;
-	blockGrid(2, 1) = BlockType::NORMAL;
-
-	for (i32 y = 0; y < blockGrid.size().y; y++) {
-		for (i32 x = 0; x < blockGrid.size().x; x++) {
-			if (blockGrid(x, y) != BlockType::NORMAL) {
+		const auto playerAabb = player.aabb(playerSettings);
+		for (const auto& transition : level.levelTransitions) {
+			if (!transition.trigger.collides(playerAabb)) {
 				continue;
 			}
 
-			struct Entry {
-				i32 x;
-				i32 y;
-				BlockCollision::Direction direction;
-			};
-			using enum BlockCollision::Direction;
-			Entry directions[] {
-				{ .x = 1, .y = 0, .direction = R },
-				{ .x = -1, .y = 0, .direction = L },
-				{ .x = 0, .y = 1, .direction = U },
-				{ .x = 0, .y = -1, .direction = D },
-			};
-
-			u8 collisionDirections = 0b0000;
-			for (auto& direction : directions) {
-				const i32 xd = x + direction.x;
-				const i32 yd = y + direction.y;
-
-				const bool isOutOfRange =
-					xd >= blockGrid.size().x ||
-					yd >= blockGrid.size().y ||
-					xd < 0 ||
-					yd < 0;
-
-				if (isOutOfRange || blockGrid(xd, yd) == BlockType::EMPTY) {
-					collisionDirections |= direction.direction;
-				}
+			auto level = tryLoadLevelFromFile(levelsPath + transition.level);
+			if (level.has_value()) {
+				this->level = std::move(*level);
+				loadLevel(this->level);
+				break;
 			}
+		}
+
+		glClear(GL_COLOR_BUFFER_BIT);
+		updateCamera();
+		renderer.renderer.camera = camera;
+		renderer.renderBlocks(blocks, cellSize);
+		renderer.renderPlayer(player, playerSettings);
+		renderer.update();
+	} else if (mode == Mode::EDITOR) {
+		editor.update(dt, cellSize);
+		editor.render(renderer, cellSize, playerSettings);
+	}
+}
+
+void Game::updateCamera() {
+	const auto view = Aabb(Vec2(1.0f) * cellSize, Vec2(level.blockGrid.size() * cellSize));
+
+	const auto destination = player.position;
+      
+	camera.pos = destination;
+
+	const auto halfCameraSize = camera.aabb().size() / 2.0f;
+
+	if (camera.pos.x - halfCameraSize.x < view.min.x) {
+		camera.pos.x = view.min.x + halfCameraSize.x;
+	}
+	if (camera.pos.y - halfCameraSize.y < view.min.y) {
+		camera.pos.y = view.min.y + halfCameraSize.y;
+	}
+
+	if (camera.pos.x > view.max.x - halfCameraSize.x) {
+		camera.pos.x = view.max.x - halfCameraSize.x;
+	}
+
+	if (camera.pos.y > view.max.y - halfCameraSize.y) {
+		camera.pos.y = view.max.y - halfCameraSize.y;
+	}
+}
+
+void Game::onSwitchFromEditor() {
+	if (!editor.lastLoadedLevel.has_value()) {
+		return;
+	}
+	auto level = tryLoadLevelFromFile(*editor.lastLoadedLevel);
+	if (!level.has_value()) {
+		return;
+	}
+
+	this->level = std::move(*level);
+	loadLevel(this->level);
+}
+
+void Game::loadLevel(const Level& level) {
+	blocks.clear();
+	for (i32 y = 0; y < level.blockGrid.size().y; y++) {
+		for (i32 x = 0; x < level.blockGrid.size().x; x++) {
+			if (level.blockGrid(x, y) != BlockType::NORMAL) {
+				continue;
+			}
+
+			const auto collisionDirections = getBlockCollisionDirections(level.blockGrid, x, y);
 
 			blocks.push_back(Block{
 				.position = Vec2(x * cellSize, y * cellSize),
@@ -62,26 +107,28 @@ Game::Game()
 			});
 		}
 	}
-}
 
-void Game::update() {
+	// TODO: make this a reference
+	std::optional<LevelTransition> spawnPoint;
 
-	if (Input::isKeyDown(KeyCode::TAB)) {
-		if (mode == Mode::EDITOR) mode = Mode::GAME;
-		else if (mode == Mode::GAME) mode = Mode::EDITOR;
+	for (const auto& transition : level.levelTransitions) {
+		if ((enteredFromLevelName.has_value() && transition.level == *enteredFromLevelName) ||
+			transition.level == FIRST_LEVEL_NAME) {
+			spawnPoint = transition;
+		}
+		
 	}
 
-	if (mode == Mode::GAME) {
-		player.updateMovement(dt);
-		player.blockCollision(playerSettings, blocks, cellSize);
-
-		glClear(GL_COLOR_BUFFER_BIT);
-		renderer.renderer.camera = camera;
-		renderer.renderBlocks(blocks, cellSize);
-		renderer.renderPlayer(player, playerSettings);
-		renderer.update();
-	} else if (mode == Mode::EDITOR) {
-		editor.update(dt);
-		editor.render(renderer, cellSize);
+	if (!spawnPoint.has_value() && level.levelTransitions.size()) {
+		spawnPoint = level.levelTransitions[0];
 	}
+
+	if (!spawnPoint.has_value()) {
+		// TODO: Maybe default.
+		ASSERT_NOT_REACHED();
+		return;
+	}
+
+	player = Player{};
+	player.position = levelTransitionToPlayerSpawnPos(*spawnPoint, playerSettings);
 }

@@ -7,6 +7,7 @@
 #include <glad/glad.h>
 #include <engine/Window.hpp>
 #include <framework/Shaders/fullscreenQuadData.hpp>
+#include <framework/Shaders/filledTriangleData.hpp>
 
 ImageRenderer ImageRenderer::make(Vbo& fullscreenQuad2dPtVerticesVbo, Ibo& fullscreenQuad2dPtVerticesIbo, Vbo& instancesVbo) {
 	auto texturedQuadVao = Vao::generate();
@@ -158,7 +159,7 @@ float Renderer2d::getQuadPixelSizeX(float scale) const {
 float Renderer2d::getQuadPixelSizeY(float scale) const {
 	return scale * camera.zoom * Window::size().y;
 }
-
+// TODO: make functions that allow rendering the different debug shapes when wanted.
 void Renderer2d::drawDbg() {
 	// TODO: How to properly handle transparency and rendering the instances object in order. Just using the depth buffer won't work, because then the transparent parts overrite the z buffer. Would either need to sort or do addative blending and discard the depth value on non opaque pixels.
 	/*auto calculateDepth = [](i32 drawIndex) -> float {
@@ -183,6 +184,34 @@ void Renderer2d::drawDbg() {
 	- Have to pass the data to each instance. Could just pass the type of rendered object and an index to an array containing instances of that type. Another option would to to use a union type, but decoding it inside of the shader would probably be a pain.
 	- Branching in shaders is inefficient.
 	*/
+
+	std::vector<Vertex2Pc> triangleVertices;
+
+	GLint64 instanceBufferSize;
+	glGetBufferParameteri64v(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &instanceBufferSize);
+
+	auto draw = [&]() {
+		instancesVbo.setData(0, triangleVertices.data(), triangleVertices.size() * sizeof(Vertex2Pc));
+		glDrawArrays(GL_TRIANGLES, 0, triangleVertices.size());
+		triangleVertices.clear();
+	};
+	shapeRenderer.filledTriangleVao.bind();
+	shapeRenderer.filledTriangleShader.use();
+	shaderSetUniforms(shapeRenderer.filledTriangleShader, FilledTriangleVertUniforms{
+		.transform = camera.worldToCameraToNdc()
+	});
+	for (const auto& triangle : Dbg::filledTriangles) {
+		if ((triangleVertices.size() + 3) * sizeof(Vertex2Pc) > instanceBufferSize) {
+			draw();
+		}
+
+		for (const auto& v : triangle.v) {
+			triangleVertices.push_back(Vertex2Pc{ .position = v, .color = triangle.color });
+		}
+	}
+	draw();
+	Dbg::filledTriangles.clear();
+
 
 	const auto defaultWidth = 20.0f / Window::size().y;
 	// TODO: Could try adding the smoothing to the size so the actual size without the smoothing is solid.
