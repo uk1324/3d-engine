@@ -41,11 +41,21 @@ void Game::update() {
 			}
 		}
 
+		for (const auto& spike : spikes) {
+			if (!spike.hitbox.collides(playerAabb)) {
+				continue;
+			}
+			loadLevel(this->level);
+		}
+
 		glClear(GL_COLOR_BUFFER_BIT);
 		updateCamera();
 		renderer.renderer.camera = camera;
 		renderer.renderBlocks(blocks, cellSize);
 		renderer.renderPlayer(player, playerSettings);
+		for (const auto& spike : spikes) {
+			renderer.renderSpike(spike);
+		}
 		renderer.update();
 	} else if (mode == Mode::EDITOR) {
 		editor.update(dt, cellSize);
@@ -93,18 +103,35 @@ void Game::onSwitchFromEditor() {
 
 void Game::loadLevel(const Level& level) {
 	blocks.clear();
+	spikes.clear();
 	for (i32 y = 0; y < level.blockGrid.size().y; y++) {
 		for (i32 x = 0; x < level.blockGrid.size().x; x++) {
-			if (level.blockGrid(x, y) != BlockType::NORMAL) {
-				continue;
+			using enum BlockType;
+			switch (level.blockGrid(x, y)) {
+			case NORMAL: {
+				const auto collisionDirections = getBlockCollisionDirections(level.blockGrid, x, y);
+				blocks.push_back(Block{
+					.position = Vec2(x * cellSize, y * cellSize),
+					.collisionDirections = collisionDirections
+				});
+				break;
 			}
 
-			const auto collisionDirections = getBlockCollisionDirections(level.blockGrid, x, y);
+			case SPIKE_BOTTOM: 
+				spikes.push_back(makeSpikeBottom(x, y, cellSize));
+				break;
+			case SPIKE_LEFT: 
+				spikes.push_back(makeSpikeLeft(x, y, cellSize));
+				break;
+			case SPIKE_RIGHT: 
+				spikes.push_back(makeSpikeRight(x, y, cellSize));
+				break;
+			case SPIKE_TOP: 
+				spikes.push_back(makeSpikeTop(x, y, cellSize));
+				break;
 
-			blocks.push_back(Block{
-				.position = Vec2(x * cellSize, y * cellSize),
-				.collisionDirections = collisionDirections
-			});
+			case EMPTY: break;
+			}
 		}
 	}
 

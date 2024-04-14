@@ -68,9 +68,26 @@ void Editor::update(f32 dt, f32 cellSize) {
 			}
 		}
 
-		if (selectedPlacableItem == PlacableItem::NORMAL_BLOCK && inBounds) {
+		auto placableItemToBlockType = [](PlacableItem item) -> std::optional<BlockType> {
+			using enum PlacableItem;
+			switch (item) {
+			case NORMAL_BLOCK: return BlockType::NORMAL;
+			case SPIKE_TOP:	return BlockType::SPIKE_TOP;
+			case SPIKE_BOTTOM: return BlockType::SPIKE_BOTTOM;
+			case SPIKE_LEFT: return BlockType::SPIKE_LEFT;
+			case SPIKE_RIGHT: return BlockType::SPIKE_RIGHT;
+
+			case LEVEL_TRANSITON:
+				break;
+			}
+			return std::nullopt;
+		};
+
+		const auto selectedPlacableItemBlockType = placableItemToBlockType(selectedPlacableItem);
+
+		if (selectedPlacableItemBlockType.has_value() && inBounds) {
 			if (Input::isMouseButtonHeld(MouseButton::LEFT)) {
-				level.blockGrid(cursorGridPos.x, cursorGridPos.y) = BlockType::NORMAL;
+				level.blockGrid(cursorGridPos.x, cursorGridPos.y) = *selectedPlacableItemBlockType;
 			}
 			if (Input::isMouseButtonHeld(MouseButton::RIGHT)) {
 				level.blockGrid(cursorGridPos.x, cursorGridPos.y) = BlockType::EMPTY;
@@ -128,7 +145,16 @@ void Editor::update(f32 dt, f32 cellSize) {
 		selectedPlacableItem = PlacableItem::NORMAL_BLOCK;
 	} else if (ImGui::Button("level transition")) {
 		selectedPlacableItem = PlacableItem::LEVEL_TRANSITON;
+	} else if (ImGui::Button("spike bottom")) {
+		selectedPlacableItem = PlacableItem::SPIKE_BOTTOM;
+	} else if (ImGui::Button("spike top")) {
+		selectedPlacableItem = PlacableItem::SPIKE_TOP;
+	} else if (ImGui::Button("spike left")) {
+		selectedPlacableItem = PlacableItem::SPIKE_LEFT;
+	} else if (ImGui::Button("spike right")) {
+		selectedPlacableItem = PlacableItem::SPIKE_RIGHT;
 	}
+
 	if (ImGui::CollapsingHeader("level transitions")) {
 		if (lastLoadedLevel.has_value()) {
 			ImGui::PushID(lastLoadedLevel->c_str());
@@ -203,11 +229,21 @@ void Editor::render(GameRenderer& renderer, f32 cellSize, const PlayerSettings& 
 					.collisionDirections = directions,
 				};
 				renderer.renderBlock(block, cellSize);
-
-					/*Dbg::drawAabb(cellBottomLeft, cellTopRight, Color3::WHITE, 2.0f);*/
-				//Dbg::drawFilledAabb(cellBottomLeft, cellTopRight, Color3::WHITE / 4.0f);
 				break;
 			}
+
+			case SPIKE_LEFT:
+				renderer.renderSpike(makeSpikeLeft(xi, yi, cellSize));
+				break;
+			case SPIKE_RIGHT:
+				renderer.renderSpike(makeSpikeRight(xi, yi, cellSize));
+				break;
+			case SPIKE_TOP:
+				renderer.renderSpike(makeSpikeTop(xi, yi, cellSize));
+				break;
+			case SPIKE_BOTTOM:
+				renderer.renderSpike(makeSpikeBottom(xi, yi, cellSize));
+				break;
 				
 			case EMPTY:
 				break;

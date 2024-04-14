@@ -23,8 +23,6 @@ struct Game {
 
 	std::optional<std::string> enteredFromLevelName;
 
-	//Array2d<BlockType> blockGrid;
-
 	PlayerSettings playerSettings;
 
 	enum class Mode {
@@ -33,6 +31,7 @@ struct Game {
 	};
 
 	std::vector<Block> blocks;
+	std::vector<Spike> spikes;
 
 	Mode mode = Mode::GAME; 
 

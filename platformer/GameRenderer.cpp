@@ -66,6 +66,14 @@ void GameRenderer::renderBlocks(const std::vector<Block>& blocks, f32 cellSize) 
 	}
 }
 
+void GameRenderer::renderSpike(const Spike& spike) {
+	Dbg::drawAabb(
+		spike.hitbox.min,
+		spike.hitbox.max,
+		Color3::RED,
+		1.0f);
+}
+
 void GameRenderer::renderPlayer(const Player& player, const PlayerSettings& settings) {
 	Dbg::drawAabb(
 		player.position - settings.size / 2.0f,

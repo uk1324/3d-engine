@@ -22,6 +22,10 @@ struct Editor {
 	enum class PlacableItem {
 		NORMAL_BLOCK,
 		LEVEL_TRANSITON,
+		SPIKE_TOP,
+		SPIKE_BOTTOM,
+		SPIKE_LEFT,
+		SPIKE_RIGHT,
 	};
 
 	struct LevelTransitionPlaceState {
