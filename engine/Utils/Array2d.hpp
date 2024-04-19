@@ -11,6 +11,7 @@ public:
 	Array2d();
 	Array2d(i64 x, i64 y);
 	Array2d(Vec2T<i64> size);
+	explicit Array2d(const Array2d<T>& other);
 	~Array2d();
 	Array2d(Array2d&& other) noexcept;
 	auto operator=(Array2d&& other) noexcept -> Array2d&;
@@ -35,6 +36,12 @@ public:
 	i64 clampY(i64 y) const;
 
 	void fillRectSize(i64 minX, i64 minY, i64 width, i64 height, const T& value);
+	void paste(
+		i64 offsetInThisX, 
+		i64 offsetInThisY,
+		const Array2d<T>& pasted, 
+		i64 offsetInPastedX = 0, 
+		i64 offsetInPastedY = 0);
 
 	auto transpose() -> void;
 
@@ -65,6 +72,16 @@ Array2d<T>::Array2d(i64 x, i64 y)
 template<typename T>
 Array2d<T>::Array2d(Vec2T<i64> size)
 	: Array2d<T>{ size.x, size.y } {}
+
+template<typename T>
+Array2d<T>::Array2d(const Array2d<T>& other)
+	: Array2d(other.size()) {
+	for (i64 y = 0; y < size_.y; y++) {
+		for (i64 x = 0; x < size_.x; x++) {
+			operator()(x, y) = other(x, y);
+		}
+	}
+}
 
 template<typename T>
 Array2d<T>::~Array2d() {
@@ -151,6 +168,27 @@ void Array2d<T>::fillRectSize(i64 minX, i64 minY, i64 width, i64 height, const T
 	for (auto y = minY; y < minY + height; y++) {
 		for (auto x = minX; x < minX + width; x++) {
 			operator()(x, y) = value;
+		}
+	}
+}
+
+template<typename T>
+void Array2d<T>::paste(
+	i64 offsetInThisX,
+	i64 offsetInThisY,
+	const Array2d<T>& pasted,
+	i64 offsetInPastedX,
+	i64 offsetInPastedY) {
+
+	for (i32 yi = offsetInPastedY; yi < pasted.size().y; yi++) {
+		for (i32 xi = offsetInPastedX; xi < pasted.size().x; xi++) {
+			const auto thisXi = xi + offsetInThisX - offsetInPastedX;
+			const auto thisYi = yi + offsetInThisY - offsetInPastedY;
+			if (thisXi < 0 || thisXi >= size_.x || thisYi < 0 || thisYi >= size_.y) {
+				continue;
+			}
+
+			operator()(thisXi, thisYi) = pasted(xi, yi);
 		}
 	}
 }

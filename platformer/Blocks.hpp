@@ -40,9 +40,9 @@ enum class BlockType : u8 {
 };
 
 BlockCollsionDirectionsBitfield getBlockCollisionDirections(const Array2d<BlockType>& blockGrid, i32 x, i32 y);
-Spike makeSpikeBottom(i64 x, i64 y, f32 cellSize);
-Spike makeSpikeTop(i64 x, i64 y, f32 cellSize);
-Spike makeSpikeRight(i64 x, i64 y, f32 cellSize);
-Spike makeSpikeLeft(i64 x, i64 y, f32 cellSize);
+Spike makeSpikeBottom(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset);
+Spike makeSpikeTop(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset);
+Spike makeSpikeRight(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset);
+Spike makeSpikeLeft(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset);
 
-Platform makePlatform(i64 x, i64 y, f32 cellSize);
+Platform makePlatform(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset);

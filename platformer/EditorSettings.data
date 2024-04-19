@@ -1,0 +1,3 @@
+struct [[Json]] EditorSettings {
+	$std::string$ lastLoadedLevel = `""`;
+}

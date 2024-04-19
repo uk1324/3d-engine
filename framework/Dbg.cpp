@@ -43,6 +43,10 @@ void Dbg::drawAabb(Vec2 min, Vec2 max, Vec3 color, std::optional<float> lineWidt
 	drawPolygon(vertices, color, lineWidth);
 }
 
+void Dbg::drawAabb(const Aabb& aabb, Vec3 color, std::optional<float> lineWidth) {
+	drawAabb(aabb.min, aabb.max, color, lineWidth);
+}
+
 void Dbg::drawFilledAabb(Vec2 min, Vec2 max, Vec3 color) {
 	Vec2 v[] = {
 		min, Vec2(max.x, min.y), max, Vec2(min.x, max.y)

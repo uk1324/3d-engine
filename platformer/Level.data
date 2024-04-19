@@ -2,8 +2,17 @@
 #include <platformer/JsonUtils.hpp>
 `
 
-struct [[Json]] LevelTransition {
-	Vec2 respawnPoint = `Vec2(0.0f)`;
-	Aabb trigger;
-	$std::string$ level;
+struct [[Json]] LevelSpawnPoint {
+	Vec2 position;
+}
+
+struct [[Json]] LevelRoom {
+	`// positio and size in grid`
+	$Vec2T<i32>$ position = `Vec2T<i32>()`;
+	$Array2d<BlockType>$ blockGrid = `Array2d<BlockType>(0, 0)`;
+	vector<LevelSpawnPoint> spawnPoints = `std::vector<LevelSpawnPoint>()`;
+}
+
+struct [[Json]] Level {
+	vector<LevelRoom> rooms;	
 }

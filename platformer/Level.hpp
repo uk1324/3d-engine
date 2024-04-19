@@ -6,20 +6,19 @@
 #include <platformer/Player.hpp>
 #include <Json.hpp>
 
-struct Level {
-	Array2d<BlockType> blockGrid;
-	std::vector<LevelTransition> levelTransitions;
-};
-
-Json::Value toJson(const Level& level);
-template<>
-Level fromJson<Level>(const Json::Value& json);
-
 static constexpr const char* FIRST_LEVEL_NAME = "";
 
 static constexpr const char* levelsPath = "./platformer/Assets/levels/";
 
+Aabb roomAabb(const LevelRoom& room, f32 cellSize);
+
+Vec2 spawnPointToPlayerSpawnPos(
+	const LevelSpawnPoint& spawnPoint, 
+	const PlayerSettings& settings,
+	Vec2T<i32> roomPosition,
+	f32 cellSize);
+
 std::optional<Level> tryLoadLevelFromFile(std::string_view path);
 void saveLevelToFile(std::string_view path, const Level& level);
 
-Vec2 levelTransitionToPlayerSpawnPos(const LevelTransition& levelTransition, const PlayerSettings& playerSettings);
+LevelRoom levelRoomClone(const LevelRoom& levelRoom);

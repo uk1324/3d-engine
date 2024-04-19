@@ -27,7 +27,7 @@ BlockCollsionDirectionsBitfield getBlockCollisionDirections(const Array2d<BlockT
 			xd < 0 ||
 			yd < 0;
 
-		if (isOutOfRange || blockGrid(xd, yd) != BlockType::NORMAL) {
+		if (!isOutOfRange && blockGrid(xd, yd) != BlockType::NORMAL) {
 			collisionDirections |= direction.direction;
 		}
 	}
@@ -37,36 +37,36 @@ BlockCollsionDirectionsBitfield getBlockCollisionDirections(const Array2d<BlockT
 
 const auto SPIKE_SIZE_TO_BLOCK_SIZE_RATIO = 0.2f;
 
-Spike makeSpikeBottom(i64 x, i64 y, f32 cellSize) {
+Spike makeSpikeBottom(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset) {
 	return Spike{ .hitbox = Aabb(
-		Vec2(x, y + 1.0f - SPIKE_SIZE_TO_BLOCK_SIZE_RATIO) * cellSize, 
-		Vec2(x + 1.0f, y + 1.0f) * cellSize
+		Vec2(x, y + 1.0f - SPIKE_SIZE_TO_BLOCK_SIZE_RATIO) * cellSize + Vec2(roomOffset) * cellSize,
+		Vec2(x + 1.0f, y + 1.0f) * cellSize + Vec2(roomOffset) * cellSize
 	)};
 }
 
-Spike makeSpikeTop(i64 x, i64 y, f32 cellSize) {
+Spike makeSpikeTop(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset) {
 	return Spike{ .hitbox = Aabb(
-		Vec2(x, y) * cellSize, 
-		Vec2(x + 1.0f, y + SPIKE_SIZE_TO_BLOCK_SIZE_RATIO) * cellSize
+		Vec2(x, y) * cellSize + Vec2(roomOffset) * cellSize,
+		Vec2(x + 1.0f, y + SPIKE_SIZE_TO_BLOCK_SIZE_RATIO) * cellSize + Vec2(roomOffset) * cellSize
 	)};
 }
 
-Spike makeSpikeRight(i64 x, i64 y, f32 cellSize) {
+Spike makeSpikeRight(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset) {
 	return Spike{ .hitbox = Aabb(
-		Vec2(x, y) * cellSize, 
-		Vec2(x + SPIKE_SIZE_TO_BLOCK_SIZE_RATIO, y + 1.0f) * cellSize
+		Vec2(x, y) * cellSize + Vec2(roomOffset) * cellSize,
+		Vec2(x + SPIKE_SIZE_TO_BLOCK_SIZE_RATIO, y + 1.0f) * cellSize + Vec2(roomOffset) * cellSize
 	)};
 }
 
-Spike makeSpikeLeft(i64 x, i64 y, f32 cellSize) {
+Spike makeSpikeLeft(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset) {
 	return Spike{ .hitbox = Aabb(
-		Vec2(x + 1.0f - SPIKE_SIZE_TO_BLOCK_SIZE_RATIO, y) * cellSize,
-		Vec2(x + 1.0f, y + 1.0f) * cellSize
+		Vec2(x + 1.0f - SPIKE_SIZE_TO_BLOCK_SIZE_RATIO, y) * cellSize + Vec2(roomOffset) * cellSize,
+		Vec2(x + 1.0f, y + 1.0f) * cellSize + Vec2(roomOffset) * cellSize
 	)};
 }
 
-Platform makePlatform(i64 x, i64 y, f32 cellSize) {
-	return Platform{ .position = Vec2(x, y + 1) * cellSize };
+Platform makePlatform(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset) {
+	return Platform{ .position = Vec2(x, y + 1) * cellSize + Vec2(roomOffset) * cellSize };
 }
 
 

@@ -24,31 +24,53 @@ void Game::update() {
 	}
 
 	if (mode == Mode::GAME) {
-		player.updateMovement(dt);
-		player.blockCollision(playerSettings, blocks, cellSize);
+		gameUpdate();
+		gameRender();
+	} else if (mode == Mode::EDITOR) {
+		editor.update(dt, cellSize, playerSettings);
+		editor.render(renderer, cellSize, playerSettings);
+	}
+}
+
+void Game::gameUpdate() {
+	std::optional<LevelRoom&> roomWithBiggestOverlap;
+	f32 biggestOverlap = 0.0f;
+	for (auto& room : level.rooms) {
+		const auto aabbRoom = roomAabb(room, cellSize);
+		const auto aabbPlayer = player.aabb(playerSettings);
+		const auto overlap = aabbPlayer.intersection(aabbRoom);
+		const auto overlapArea = overlap.area();
+		if (overlapArea > biggestOverlap) {
+			biggestOverlap = overlapArea;
+			roomWithBiggestOverlap = room;
+		}
+	}
+
+	if (activeRoom.has_value() && roomWithBiggestOverlap.has_value()) {
+		if (&*activeRoom != &*roomWithBiggestOverlap) {
+			activeRoom = roomWithBiggestOverlap; 
+		}
+	}
+
+	player.updateMovement(dt);
+	for (const auto room : rooms) {
+		
+		player.blockCollision(playerSettings, room.blocks, cellSize);
 
 		const auto playerAabb = player.aabb(playerSettings);
-		for (const auto& transition : level.levelTransitions) {
-			if (!transition.trigger.collides(playerAabb)) {
-				continue;
-			}
 
-			auto level = tryLoadLevelFromFile(levelsPath + transition.level);
-			if (level.has_value()) {
-				this->level = std::move(*level);
-				loadLevel(this->level);
-				break;
-			}
-		}
-
-		for (const auto& spike : spikes) {
+		for (const auto& spike : room.spikes) {
 			if (!spike.hitbox.collides(playerAabb)) {
 				continue;
 			}
-			loadLevel(this->level);
+			if (!activeRoom.has_value()) {
+				ASSERT_NOT_REACHED();
+				break;
+			}
+			loadRoom(*activeRoom);
 		}
 
-		for (const auto& platform : platforms) {
+		for (const auto& platform : room.platforms) {
 			const auto hitbox = Aabb(platform.position, platform.position + Vec2(cellSize, 0.0f));
 			auto playerHitbox = playerAabb;
 			const auto padding = player.velocity.applied(abs);
@@ -62,7 +84,7 @@ void Game::update() {
 			if (player.velocity.y > 0) {
 				continue;
 			}
-			
+
 			const auto playerBottomY = player.position.y - playerSettings.size.y / 2.0f;
 			const auto platformY = platform.position.y;
 			if (playerBottomY >= platformY && playerBottomY + player.velocity.y <= platformY) {
@@ -71,27 +93,44 @@ void Game::update() {
 				player.grounded = true;
 			}
 		}
+	}
 
-		glClear(GL_COLOR_BUFFER_BIT);
-		updateCamera();
+}
+
+void Game::gameRender() {
+	glClear(GL_COLOR_BUFFER_BIT);
+ 	updateCamera();
+
+	for (const auto& room : rooms) {
+		// TODO: Culling
 		renderer.renderer.camera = camera;
-		renderer.renderBlocks(blocks, cellSize);
+		renderer.renderBlocks(room.blocks, cellSize);
 		renderer.renderPlayer(player, playerSettings);
-		for (const auto& spike : spikes) {
+		for (const auto& spike : room.spikes) {
 			renderer.renderSpike(spike);
 		}
-		for (const auto& platform : platforms) {
+		for (const auto& platform : room.platforms) {
 			renderer.renderPlatform(platform, cellSize);
 		}
 		renderer.update();
-	} else if (mode == Mode::EDITOR) {
-		editor.update(dt, cellSize);
-		editor.render(renderer, cellSize, playerSettings);
 	}
+	
 }
 
 void Game::updateCamera() {
-	const auto view = Aabb(Vec2(1.0f) * cellSize, Vec2(level.blockGrid.size() * cellSize));
+	if (!activeRoom.has_value()) {
+		return;
+	}
+
+	f32 blockWidth = 45 * cellSize;
+	f32 blockHeight = 25 * cellSize;
+	// ~ 16/9
+	camera.changeSizeToFitBox(Vec2(blockWidth, blockHeight));
+	//glViewport()
+
+	/*const auto view = Aabb(Vec2(1.0f) * cellSize, Vec2(activeRoom->blockGrid.size() * cellSize));*/
+	const auto min = Vec2(activeRoom->position) * cellSize;
+	const auto view = Aabb(min, min + Vec2(activeRoom->blockGrid.size() * cellSize));
 
 	const auto destination = player.position;
       
@@ -113,6 +152,33 @@ void Game::updateCamera() {
 	if (camera.pos.y > view.max.y - halfCameraSize.y) {
 		camera.pos.y = view.max.y - halfCameraSize.y;
 	}
+
+	const auto currentView = camera.aabb();
+	if (currentView.size().x > blockWidth) {
+		camera.pos.x = (view.max.x - view.min.x) / 2.0f;
+	}
+	if (currentView.size().y > blockHeight) {
+		camera.pos.y = (view.max.y - view.min.y) / 2.0f;
+	}
+}
+
+void Game::spawnPlayer() {
+	if (level.rooms.size() == 0) {
+		return;
+	}
+	auto& room = level.rooms[0];
+	if (room.spawnPoints.size() == 0) {
+		return;
+	}
+	auto& spawnPoint = room.spawnPoints[0];
+	const auto spawnPointPosition = spawnPointToPlayerSpawnPos(
+		room.spawnPoints[0], 
+		playerSettings, 
+		room.position, 
+		cellSize);
+	player = Player{};
+	player.position = spawnPointPosition;
+	activeRoom = room;
 }
 
 void Game::onSwitchFromEditor() {
@@ -125,41 +191,51 @@ void Game::onSwitchFromEditor() {
 	}
 
 	this->level = std::move(*level);
-	loadLevel(this->level);
+	rooms.clear();
+	for (auto& room : this->level.rooms) {
+		loadRoom(room);
+	}
+ 	spawnPlayer();
+	/*if (this->level.rooms.size() > 0) {
+		loadRoom(this->level.rooms[0]);
+	}*/
 }
 
-void Game::loadLevel(const Level& level) {
-	blocks.clear();
-	spikes.clear();
-	platforms.clear();
-	for (i32 y = 0; y < level.blockGrid.size().y; y++) {
-		for (i32 x = 0; x < level.blockGrid.size().x; x++) {
+void Game::loadRoom(LevelRoom& room) {
+	RuntimeRoom runtimeRoom;
+	//activeRoom = room;
+	runtimeRoom.blocks.clear();
+	runtimeRoom.spikes.clear();
+	runtimeRoom.platforms.clear();
+	const auto roomOffset = Vec2(room.position) * cellSize;
+	for (i32 y = 0; y < room.blockGrid.size().y; y++) {
+		for (i32 x = 0; x < room.blockGrid.size().x; x++) {
 			using enum BlockType;
-			switch (level.blockGrid(x, y)) {
+			switch (room.blockGrid(x, y)) {
 			case NORMAL: {
-				const auto collisionDirections = getBlockCollisionDirections(level.blockGrid, x, y);
-				blocks.push_back(Block{
-					.position = Vec2(x * cellSize, y * cellSize),
+				const auto collisionDirections = getBlockCollisionDirections(room.blockGrid, x, y);
+				runtimeRoom.blocks.push_back(Block{
+					.position = Vec2(x * cellSize, y * cellSize) + roomOffset,
 					.collisionDirections = collisionDirections
 				});
 				break;
 			}
 
 			case SPIKE_BOTTOM: 
-				spikes.push_back(makeSpikeBottom(x, y, cellSize));
+				runtimeRoom.spikes.push_back(makeSpikeBottom(x, y, cellSize, room.position));
 				break;
 			case SPIKE_LEFT: 
-				spikes.push_back(makeSpikeLeft(x, y, cellSize));
+				runtimeRoom.spikes.push_back(makeSpikeLeft(x, y, cellSize, room.position));
 				break;
 			case SPIKE_RIGHT: 
-				spikes.push_back(makeSpikeRight(x, y, cellSize));
+				runtimeRoom.spikes.push_back(makeSpikeRight(x, y, cellSize, room.position));
 				break;
 			case SPIKE_TOP: 
-				spikes.push_back(makeSpikeTop(x, y, cellSize));
+				runtimeRoom.spikes.push_back(makeSpikeTop(x, y, cellSize, room.position));
 				break;
 
 			case PLATFORM:
-				platforms.push_back(makePlatform(x, y, cellSize));
+				runtimeRoom.platforms.push_back(makePlatform(x, y, cellSize, room.position));
 				break;
 
 			case EMPTY: break;
@@ -168,26 +244,30 @@ void Game::loadLevel(const Level& level) {
 	}
 
 	// TODO: make this a reference
-	std::optional<LevelTransition> spawnPoint;
+	//std::optional<SpawnPoint> spawnPoint;
 
-	for (const auto& transition : level.levelTransitions) {
-		if ((enteredFromLevelName.has_value() && transition.level == *enteredFromLevelName) ||
-			transition.level == FIRST_LEVEL_NAME) {
-			spawnPoint = transition;
-		}
-		
-	}
+	//for (const auto& transition : level.levelTransitions) {
+	//	if ((enteredFromLevelName.has_value() && transition.level == *enteredFromLevelName) ||
+	//		transition.level == FIRST_LEVEL_NAME) {
+	//		spawnPoint = transition;
+	//	}
+	//	
+	//}
 
-	if (!spawnPoint.has_value() && level.levelTransitions.size()) {
-		spawnPoint = level.levelTransitions[0];
-	}
+	//if (!spawnPoint.has_value()) {
+	//	// TODO: Maybe default.
+	//	ASSERT_NOT_REACHED();
+	//	return;
+	//}
 
-	if (!spawnPoint.has_value()) {
-		// TODO: Maybe default.
-		ASSERT_NOT_REACHED();
-		return;
-	}
+	//Vec2 spawnPoint = Vec2(0.0f);
+	//if (room.spawnPoints.size() > 0) {
+	//	spawnPoint = spawnPointToPlayerSpawnPos(room.spawnPoints[0], playerSettings, room.position, cellSize);
+	//}
 
-	player = Player{};
-	player.position = levelTransitionToPlayerSpawnPos(*spawnPoint, playerSettings);
+	///*player = Player{};
+	//player.position = levelTransitionToPlayerSpawnPos(*spawnPoint, playerSettings);*/
+	//player = Player{};
+	//player.position = spawnPoint;
+	rooms.push_back(std::move(runtimeRoom));
 }

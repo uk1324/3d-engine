@@ -1,0 +1,126 @@
+7.2.4
+Flows on the circle need not be gradient systems. For example a' = 1. Then the function is continous put it's gradient int a da = x + c is not continous on the circle.
+Another example sin^2(x).
+
+7.2.5
+a) If a system if a gradient system then dv/dt = [V_x, V_y]. Then the curl of the vector field is V_yx - V_xy if V is twice continously differentiable then V_yx - V_xy - V_xy - V_xy = 0
+
+b) 
+If the curl of v' = [f(x, y), g(x, y)] is zero then by green's theorem the integral over a simple closed curve is zero. If we divide this curve into 2 parts and then reverse the order of direction of one of them we get that the integral is path independent.
+
+/*
+This means that over any curve (technically I would need to show that you can always complete the loop, which might not be the case I think there is a need for a simply connected set or something like that, not sure if the completion of the loop is the problem or something else) the line integral 
+S f(x, y) dx g(x, y) dy = S f(x, y) dx + S g(x, y) dy
+If we call this quantity V(x, y) then if we take the partial derivative with respect to x we get
+ (S f(x, y) dx)_x + (S g(x, y) dy)_x = f(x, y) + (S g(x, y) dy)_x
+if we partial differentiate with respect to y we get
+(S f(x, y) dx)_y + (S g(x, y) dy)_y = (S f(x, y) dx)_y + g(x, y)
+*/
+
+We want a function V(x, y) that satisifes
+V_x = f(x, y)
+V_y = g(x, y)
+then 
+S V_x(x, y) dx = V(x, y) + C(y) + c
+/*C doesn't depend on x, because when partial differentiated it has to disappear.
+Similarly
+S V_y(x, y) dy = V(x, y) + C(x) + c
+
+If we integrate over the same curve then the integral
+S V_x(x, y) dx + S V_y(x, y) dx = 2V(x, y) + C0(y) + c0 + C1(x) + c1
+is path independent*/
+
+S V_x(x, y) dx = V(x, y) + C(y) + c
+
+V_ (S V_x(x, y) dx)_y = V_y(x, y) + C_y(y) + c
+
+https://math.stackexchange.com/questions/4370703/irrotational-implies-conservative-without-using-the-path-connection
+
+7.2.6
+
+V_x = y^2 + ycos(x) 
+V_y = 2xy + sin(x)
+
+S V_x dx = V(x, y) = xy^2 + ysin(x) + C(y) + c
+The C only depends on y, because it disappears when the expression is partial differentiated with respect to x.
+
+If we partial differentiate this expression with respect to y we get
+V_y = 2xy + sin(x) + C'(y)
+Comparing to the other expression for V_y we see that C'(y) disappears
+So the potential is 
+V(x, y) = xy^2 + ysin(x) + c
+
+7.2.8
+Trajectories move in the direction of the gradient. The gradient is the direction of greatest increase or decrease. The equipotentials are lines of constant potential so in these directions the potential doesn't change.
+
+https://math.stackexchange.com/questions/1871481/why-is-the-gradient-always-perpendicular-to-level-curves
+If we have a continously differentiable curve v(t) in the equipotential lines then
+f(v(t)) = c 
+Differentiating both sides with respect to t we get
+grad(f) dot v'(t) = 0
+Which means that the curve is perpendicular to the gradient.
+
+7.2.11
+/*ax^2 + 2bxy + cy^2 = (sqrt(a)x + sqrt(b)y)^2 - 2sqrt(ac)xy + 2bxy
+2sqrt(ac)xy + 2bxy > 0
+if xy > 0 then
+-2sqrt(ac)xy + 2bxy > 0 <=> 2bxy(-2sqrt(ac)) + 
+*/
+Doesn't work, because i am taking the sqrt of numbers that could be negative.
+
+You can express this as a matrix equation
+[x y][a b][x] > 0
+     [b c][y]
+
+The thing that needs to be shown then is that the angle between the vectors is < pi/2, because then the cosine term is positive.
+
+ax^2 + 2bxy + cy^2
+if y > 0
+ax^2/y^2 + 2bx/y + c
+t = x/y
+at^2 + 2b + c > 0 <=> 4b^2 - 4ac >= 0
+
+if y = 0
+Then the equation simplifies to
+ax^2 
+which is bigger than zero for all x != 0 if a > 0
+so we have to require a > 0
+
+TODO: Cool looking
+y-2x(1/(x^2+y^2)-1)
+-x+y(1/(x^2+y^2)-1)
+
+If you have a system with a limit cycle then if you take the closed region containg the limit cycle without including the region bounded by the limit cycle for example the system
+x' = y
+y' = -x - y(x^2 + y^2 - 1)
+Which is just a harmonic oscillator with nonlinear damping. 
+The on the region x^2 + y^2 >= 0 the divergence has constant sign expect on the circle on which it has zero divergence so this doesn't work.
+Also tried with damping that has division by zero, but the results were similar.
+
+The problem with non simply connected regions is probably that green's theorem is proved using the fundamental theorem of calulus, which only works on simply connected regions. For example it doesn't work for 1/x
+This isn't true
+https://www.google.com/search?client=firefox-b-d&q=green%27s+theorem+non+simply+connectd
+
+The more general theorem on wikipedia says there can be a set of measure zero so a line for example that doesn't have divergence of the same sign. (Wouldn't this allows a orbit to exist?)
+https://en.wikipedia.org/wiki/Bendixson%E2%80%93Dulac_theorem
+
+In non simply connected regions the argument of contracting a loop integral to a point doesn't work.
+
+
+7.2.17
+Let's assume the field is smooth on the whole region space and that the Dulac's Criterion assumptions hold on an annulus.
+By Dulac's Criterion on any region that can be contracted to a point there can be no closed orbits so the orbits have to contain the center of the annulus.
+Then if you had 2 periodic solutions this would create 2 loops. Lets make those loops go in opposite directions (I guess there might be needed an assumption of orientability idk). Then by green's theorem on both loops we have S gx' dot n dl = 0. And using green's theorem we can calculate the area integral as the difference of the loop integrals (take the area integrals on the bigger region and the subtract the area integral of the hole) which is equal to zero. This is a contradiction with the value always having the same sign.
+
+7.2.16 solution
+
+If we choose the function g(x) = x^2 + y^2 - 1.
+This function is positive outside the circle with r = 1.
+if we assume that x' = y
+Then for the divergence to be negative
+y' = S -g(x) dy = -(yx^2+(y^3)/3-y) + C(x) + c
+if we choose C(x) = -x we get and c = 0
+x' = y
+y' = -x -(yx^2+(y^3)/3-y) = -x -y(x^2+(y^2)/3-1)
+
+From this we get that x'_x + y'_y = 1 - x^2 - y^2.

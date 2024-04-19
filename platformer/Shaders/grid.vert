@@ -24,7 +24,5 @@ void main() {
 	passToFragment();
 	worldPosition = (vertexTexturePosition - vec2(0.5)) * 2.0;
 	worldPosition = clipToWorld * vec3(worldPosition, 1.0);
-	//worldPosition = mat3x2(vec3(0, 1, 0), vec3(1, 0, 0)) * vec3(vertexTexturePosition, 0.0);
-	//worldPosition = vertexTexturePosition;
 	gl_Position = vec4(vertexPosition, 0.0, 1.0);
 }

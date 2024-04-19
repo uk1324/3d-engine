@@ -2,17 +2,32 @@
 
 #include <platformer/GameRenderer.hpp>
 #include <platformer/Level.hpp>
+#include <platformer/EntityArray.hpp>
 
 struct Editor {
 	Editor();
+	~Editor();
+	
+	/*
+	In the editor everything is dynamically changing and I think using an entity system would make things easier, becuase it doesn't things like managing ids and removal. Without it if for example I wanted to remove a room then I would also need to remember to update the references in each place or add an extra level of indirection and update that.
+	If some level are static like block in the game loop then it probably doesn't make sense to try to manage them using ids. 
+	*/
 
-	void update(f32 dt, f32 cellSize);
+	void update(f32 dt, f32 cellSize, const PlayerSettings& playerSettings);
+	void updateSelectedRoom(f32 cellSize, const PlayerSettings& playerSettings);
 	void render(GameRenderer& renderer, f32 cellSize, const PlayerSettings& playerSettings);
+	void renderRoom(const LevelRoom& room, GameRenderer& renderer, f32 cellSize, const PlayerSettings& playerSettings);
+	i32 increaseOrDecreaseSize = 1;
+	void roomSizeGui(LevelRoom& room, f32 cellSize);
+	void moveObjects(LevelRoom& room, Vec2T<i32> change, f32 cellSize);
 
 	void onSwitchToGame();
 	void onSwitchFromGame();
 
 	void loadNewLevel(Level&& level, std::string&& newLevelName);
+	void editorTryLoadLevelFromFile(std::string_view path);
+
+	void saveSettings();
 
 	std::string errorModalMessage;
 	const char* errorModalName = "error";
@@ -21,7 +36,7 @@ struct Editor {
 
 	enum class PlacableItem {
 		NORMAL_BLOCK,
-		LEVEL_TRANSITON,
+		SPAWN_POINT,
 		SPIKE_TOP,
 		SPIKE_BOTTOM,
 		SPIKE_LEFT,
@@ -29,13 +44,13 @@ struct Editor {
 		PLATFORM
 	};
 
-	struct LevelTransitionPlaceState {
-		std::optional<Vec2> triggerCorner0;
-		std::optional<Vec2> triggerCorner1;
+	//struct LevelTransitionPlaceState {
+	//	std::optional<Vec2> triggerCorner0;
+	//	std::optional<Vec2> triggerCorner1;
 
-		std::optional<LevelTransition> onLeftClick(Vec2 cursorPos, f32 cellSize);
-		void onRightClick();
-	} lavelTransitionPlaceState;
+	//	std::optional<LevelTransition> onLeftClick(Vec2 cursorPos, f32 cellSize);
+	//	void onRightClick();
+	//} lavelTransitionPlaceState;
 
 	struct CreateNewLevelInputState {
 		std::string name;
@@ -64,8 +79,18 @@ struct Editor {
 
 	PlacableItem selectedPlacableItem = PlacableItem::NORMAL_BLOCK;
 
+	struct EditorRoom {
+		LevelRoom levelRoom;
+	};
+	EntityArray<EditorRoom> rooms;
+	using RoomId = EntityArray<EditorRoom>::Id;
+
 	std::optional<Vec2> moveGrabStartWorldPos;
-	Level level;
+	//Level level;
+	std::optional<RoomId> selectedRoomId;
+
+	void loadLevel(Level&& level);
+	Level generateLevel();
 
 	Camera camera;
 };
