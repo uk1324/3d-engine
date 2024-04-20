@@ -1,6 +1,7 @@
 #pragma once
 
 #include <platformer/Blocks.hpp>
+#include <platformer/Constants.hpp>
 
 BlockCollsionDirectionsBitfield getBlockCollisionDirections(const Array2d<BlockType>& blockGrid, i32 x, i32 y) {
 	struct Entry {
@@ -37,36 +38,42 @@ BlockCollsionDirectionsBitfield getBlockCollisionDirections(const Array2d<BlockT
 
 const auto SPIKE_SIZE_TO_BLOCK_SIZE_RATIO = 0.2f;
 
-Spike makeSpikeBottom(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset) {
+Spike makeSpikeBottom(i64 x, i64 y, Vec2T<i32> roomOffset) {
 	return Spike{ .hitbox = Aabb(
-		Vec2(x, y + 1.0f - SPIKE_SIZE_TO_BLOCK_SIZE_RATIO) * cellSize + Vec2(roomOffset) * cellSize,
-		Vec2(x + 1.0f, y + 1.0f) * cellSize + Vec2(roomOffset) * cellSize
+		Vec2(x, y + 1.0f - SPIKE_SIZE_TO_BLOCK_SIZE_RATIO) * constants().cellSize + Vec2(roomOffset) * constants().cellSize,
+		Vec2(x + 1.0f, y + 1.0f) * constants().cellSize + Vec2(roomOffset) * constants().cellSize
 	)};
 }
 
-Spike makeSpikeTop(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset) {
+Spike makeSpikeTop(i64 x, i64 y, Vec2T<i32> roomOffset) {
 	return Spike{ .hitbox = Aabb(
-		Vec2(x, y) * cellSize + Vec2(roomOffset) * cellSize,
-		Vec2(x + 1.0f, y + SPIKE_SIZE_TO_BLOCK_SIZE_RATIO) * cellSize + Vec2(roomOffset) * cellSize
+		Vec2(x, y) * constants().cellSize + Vec2(roomOffset) * constants().cellSize,
+		Vec2(x + 1.0f, y + SPIKE_SIZE_TO_BLOCK_SIZE_RATIO) * constants().cellSize + Vec2(roomOffset) * constants().cellSize
 	)};
 }
 
-Spike makeSpikeRight(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset) {
+Spike makeSpikeRight(i64 x, i64 y, Vec2T<i32> roomOffset) {
 	return Spike{ .hitbox = Aabb(
-		Vec2(x, y) * cellSize + Vec2(roomOffset) * cellSize,
-		Vec2(x + SPIKE_SIZE_TO_BLOCK_SIZE_RATIO, y + 1.0f) * cellSize + Vec2(roomOffset) * cellSize
+		Vec2(x, y) * constants().cellSize + Vec2(roomOffset) * constants().cellSize,
+		Vec2(x + SPIKE_SIZE_TO_BLOCK_SIZE_RATIO, y + 1.0f) * constants().cellSize + Vec2(roomOffset) * constants().cellSize
 	)};
 }
 
-Spike makeSpikeLeft(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset) {
+Spike makeSpikeLeft(i64 x, i64 y, Vec2T<i32> roomOffset) {
 	return Spike{ .hitbox = Aabb(
-		Vec2(x + 1.0f - SPIKE_SIZE_TO_BLOCK_SIZE_RATIO, y) * cellSize + Vec2(roomOffset) * cellSize,
-		Vec2(x + 1.0f, y + 1.0f) * cellSize + Vec2(roomOffset) * cellSize
+		Vec2(x + 1.0f - SPIKE_SIZE_TO_BLOCK_SIZE_RATIO, y) * constants().cellSize + Vec2(roomOffset) * constants().cellSize,
+		Vec2(x + 1.0f, y + 1.0f) * constants().cellSize + Vec2(roomOffset) * constants().cellSize
 	)};
 }
 
-Platform makePlatform(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset) {
-	return Platform{ .position = Vec2(x, y + 1) * cellSize + Vec2(roomOffset) * cellSize };
+Platform makePlatform(i64 x, i64 y, Vec2T<i32> roomOffset) {
+	return Platform{ .position = Vec2(x, y + 1) * constants().cellSize + Vec2(roomOffset) * constants().cellSize };
 }
 
+void DoubleJumpOrb::reset() {
+	elapsedSinceUsed = std::numeric_limits<f32>::infinity();
+}
 
+bool DoubleJumpOrb::isActive() const {
+	return elapsedSinceUsed > constants().doubleJumpOrbCooldown;
+}

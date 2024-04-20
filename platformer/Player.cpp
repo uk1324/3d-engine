@@ -1,21 +1,22 @@
 #include <platformer/Player.hpp>
+#include <platformer/Constants.hpp>
 #include <engine/Input/Input.hpp>
+#include <RefOptional.hpp>
+#include <engine/Math/Circle.hpp>
 #include <engine/Math/Aabb.hpp>
 
-Aabb Player::aabb(const PlayerSettings& settings) {
-    return Aabb(position - settings.size / 2.0f, position + settings.size / 2.0f);
-}
+#include <imgui/imgui.h>
 
-void Player::updateMovement(f32 dt) {
+void Player::updateMovement(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs) {
     const bool left = Input::isKeyHeld(KeyCode::A);
     const bool right = Input::isKeyHeld(KeyCode::D);
     const bool jump = Input::isKeyHeld(KeyCode::SPACE);
 
-    if (jump) {
-        float test = 5.0f;
-    }
-
     f32 speed = 1.0f / 1.5f;
+
+    if (!grounded) {
+        speed *= 0.45f;
+    }
 
     if (left) {
         velocity.x -= speed;
@@ -49,88 +50,103 @@ void Player::updateMovement(f32 dt) {
 
     const auto jumpPressedRememberTime = 0.1f;
     const auto coyoteTime = 0.1f;
-    const auto jumpSpeed = 3.9f;
+    const auto jumpSpeed = 4.1f;
 
-    if (elapsedSinceJumpPressed < jumpPressedRememberTime 
-        && velocity.y <= 0 && jumpReleased 
-        && elapsedSinceLastGrounded < coyoteTime) {
+    std::optional<DoubleJumpOrb&> touchedDoubleJumpOrb;
+    for (auto& orb : doubleJumpOrbs) {
+        if (!orb.isActive()) {
+            continue;
+        }
 
-        velocity.y = jumpSpeed;
-        jumpReleased = false;
-        grounded = false;
-        elapsedSinceJumpPressed = 0.0f;
-        elapsedSinceLastJumped = 0.0f;
+        if (circleAabbCollision(orb.position, constants().doubleJumpOrbRadius, playerAabb(position))) {
+            touchedDoubleJumpOrb = orb;
+            break;
+        }
+    }
+
+    if (elapsedSinceJumpPressed < jumpPressedRememberTime && jumpReleased) {
+        bool jumped = false;
+
+        if (velocity.y <= 0 && elapsedSinceLastGrounded < coyoteTime) {
+            jumped = true;
+            jumpedOffGround = true;
+            velocity.y = jumpSpeed;
+        } else if (touchedDoubleJumpOrb.has_value()) {
+            touchedDoubleJumpOrb->elapsedSinceUsed = 0.0f;
+            jumped = true;
+            jumpedOffGround = false;
+            // The orb gives a bigger jump, but doesn't allow holding space to extend it, because it the holding with the orb felt like flying.
+            velocity.y = jumpSpeed * 1.3f;
+        } else if (!grounded && touchingWallOnLeft && elapsedSinceLastJumped) {
+            jumped = true;
+            velocity = Vec2(jumpSpeed * 1.3f, jumpSpeed * 1.3f);
+            jumpedOffGround = false;
+        } else if (!grounded && touchingWallOnRight) {
+            velocity = Vec2(-jumpSpeed * 1.3f, jumpSpeed * 1.3f);
+            jumped = true;
+            jumpedOffGround = false;
+        }
+
+        if (jumped) {
+            jumpReleased = false;
+            grounded = false;
+            elapsedSinceJumpPressed = 0.0f;
+            elapsedSinceLastJumped = 0.0f;
+        }
     }
     elapsedSinceLastJumped += dt;
 
-    /*if (Date.now() - this.jumpLastPressed < this.jumpPressedRememberTime && this.velY >= 0 && this.jumpReleased && Date.now() - this.lastGrounded < this.coyoteTime) {
-        this.velY = -this.jumpSpeed
-            this.jumpReleased = false
-            this.grounded = false
-            this.jumpLastPressed = null
-            this.lastJumped = Date.now()
-    }*/
-
-    /*if (this.controller.jump && Date.now() - this.lastJumped < 100 && this.velY < 0) {
-        this.velY -= (50 / 100)
-    }*/
-    // Allow jumping by holding jump when already in air.
-    if (jump && elapsedSinceLastJumped < 0.1f && velocity.y > 0.0f) {
+    if (jump && jumpedOffGround && elapsedSinceLastJumped < 0.07f && velocity.y > 0.0f) {
         velocity.y += 0.5f;
     }
 
-    /*if (!this.grounded) {
-        let gravityMultiplier = (this.controller.jump && this.velY <= 0) ? this.jumpGravityMultiplier : this.fallGravityMultiplier
-            this.velY += this.gameData.world.gravity * gravityMultiplier
-    }*/
-
     const auto gravity = 0.3f;
+
+    const auto holdingOntoLeftWall = touchingWallOnLeft && left;
+    const auto holdingOntoRightWall = touchingWallOnRight && right;
 
     if (!grounded) {
         const auto jumpGravityMultiplier = 0.8f;
         const auto fallGravityMultiplier = 1.5f;
 
-        const auto gravityMultiplier = (jump && velocity.y >= 0)
+        const auto jumping = (jump && velocity.y >= 0) && !holdingOntoLeftWall && !holdingOntoRightWall;
+
+        const auto gravityMultiplier = jumping
             ? jumpGravityMultiplier
             : fallGravityMultiplier;
+
         velocity.y -= gravity * gravityMultiplier;
+    }
+
+    if (!(jump && velocity.y >= 0) && (holdingOntoLeftWall || holdingOntoRightWall)) {
+        velocity.y *= 0.80f;
+    }
+
+    const auto frictionX = 0.85;
+    if (grounded) {
+        velocity.x *= frictionX;
+    } else {
+        velocity.x *= 0.94f;
     }
 
     //this.grounded = false
     grounded = false;
+    touchingWallOnLeft = false;
+    touchingWallOnRight = false;
 
     /*if (this.velY > 10) {
         this.velY = 10
     }*/
     velocity.y = std::max(-10.0f, velocity.y);
 
-    const auto frictionX = 0.85;
 
     //velocity.x *= this.frictionX
-    velocity.x *= frictionX;
+
 
     if (!dead) {
         position += velocity;
     }
 
-    /*this.posX = Math.floor(this.x / this.gameData.block.size)
-    this.posY = Math.floor(this.y / this.gameData.block.size)*/
-    /*this.posX = Math.floor(this.x / this.gameData.block.size)
-    this.posY = Math.floor(this.y / this.gameData.block.size)*/
-
-	/*f32 movement = 0.0f;
-	if (Input::isKeyHeld(KeyCode::D)) {
-		movement += 1.0f;
-	}
-	if (Input::isKeyHeld(KeyCode::A)) {
-		movement -= 1.0f;
-	}
-	velocity.x = movement;
-
-	f32 gravity = 1.0f;
-	velocity.y -= gravity * dt;
-
-	position += velocity * dt;*/
 }
 
 struct Distance {
@@ -150,12 +166,11 @@ Distance getDistance(const Aabb& a, const Aabb& b, Vec2 aVel) {
 }
 
 
-void Player::blockCollision(const PlayerSettings& settings, const std::vector<Block>& blocks, f32 cellSize) {
-    //f32 playerRadius = 30.0f;
-    const auto playerAabb = aabb(settings);
+void Player::blockCollision(const std::vector<Block>& blocks) {
+    const auto playerAabb = ::playerAabb(position);
     const auto playerSize = playerAabb.size();
     for (const auto& block : blocks) {
-        const auto blockAabb = Aabb(block.position, block.position + Vec2(cellSize));
+        const auto blockAabb = Aabb(block.position, block.position + Vec2(constants().cellSize));
         const auto blockSize = blockAabb.size();
         
         if (!playerAabb.collides(blockAabb)) {
@@ -167,19 +182,21 @@ void Player::blockCollision(const PlayerSettings& settings, const std::vector<Bl
         using namespace BlockCollisionDirections;
         if (block.collisionDirections & L && distance.left < distance.top && distance.left < distance.bottom) {
             velocity.x = 0.0f;
-            position.x = block.position.x - playerSize.x + settings.size.x / 2.0f;
+            position.x = block.position.x - playerSize.x + constants().playerSize.x / 2.0f;
+            touchingWallOnRight = true;
         }
         if (block.collisionDirections & R && distance.right < distance.top && distance.right < distance.bottom) {
             velocity.x = 0.0f;
-            position.x = block.position.x + blockSize.x + settings.size.x / 2.0f;
+            position.x = block.position.x + blockSize.x + constants().playerSize.x / 2.0f;
+            touchingWallOnLeft = true;
         }
         if (block.collisionDirections & D && distance.bottom < distance.left && distance.bottom < distance.right) {
             velocity.y = 0.0f;
-            position.y = block.position.y - playerSize.y + settings.size.y / 2.0f;
+            position.y = block.position.y - playerSize.y + constants().playerSize.y / 2.0f;
         }
         if (block.collisionDirections & U && distance.top < distance.left && distance.top < distance.right) {
             velocity.y = 0.0f;
-            position.y = block.position.y + blockSize.y + settings.size.y / 2.0f;
+            position.y = block.position.y + blockSize.y + constants().playerSize.y / 2.0f;
             grounded = true;
         }
 

@@ -1,4 +1,5 @@
 #include <platformer/Game.hpp>
+#include <platformer/Constants.hpp>
 #include <framework/Dbg.hpp>
 #include <engine/Input/Input.hpp>
 #include <engine/Math/Color.hpp>
@@ -9,12 +10,10 @@ Game::Game() {
 }
 
 void Game::update() {
-	playerSettings.size = Vec2(20.0f, 30.0f);
-
 	if (Input::isKeyDown(KeyCode::TAB)) {
 		if (mode == Mode::EDITOR) {
-			editor.onSwitchToGame();
-			onSwitchFromEditor();
+			const auto result = editor.onSwitchToGame();
+			onSwitchFromEditor(result.selectedRoomIndex);
 			mode = Mode::GAME;
 		}
 		else if (mode == Mode::GAME) {
@@ -27,51 +26,54 @@ void Game::update() {
 		gameUpdate();
 		gameRender();
 	} else if (mode == Mode::EDITOR) {
-		editor.update(dt, cellSize, playerSettings);
-		editor.render(renderer, cellSize, playerSettings);
+		editor.update(dt);
+		editor.render(renderer);
 	}
 }
 
 void Game::gameUpdate() {
-	std::optional<LevelRoom&> roomWithBiggestOverlap;
+	std::optional<i32> roomWithBiggestOverlapIndex;
 	f32 biggestOverlap = 0.0f;
-	for (auto& room : level.rooms) {
-		const auto aabbRoom = roomAabb(room, cellSize);
-		const auto aabbPlayer = player.aabb(playerSettings);
+	for (i32 i = 0; i < level.rooms.size(); i++) {
+		auto& room = level.rooms[i];
+		const auto aabbRoom = roomAabb(room);
+		const auto aabbPlayer = playerAabb(player.position);
 		const auto overlap = aabbPlayer.intersection(aabbRoom);
 		const auto overlapArea = overlap.area();
 		if (overlapArea > biggestOverlap) {
 			biggestOverlap = overlapArea;
-			roomWithBiggestOverlap = room;
+			roomWithBiggestOverlapIndex = i;
 		}
 	}
 
-	if (activeRoom.has_value() && roomWithBiggestOverlap.has_value()) {
-		if (&*activeRoom != &*roomWithBiggestOverlap) {
-			activeRoom = roomWithBiggestOverlap; 
+	if (activeRoomIndex.has_value() && roomWithBiggestOverlapIndex.has_value()) {
+		if (activeRoomIndex != roomWithBiggestOverlapIndex) {
+			activeRoomIndex = roomWithBiggestOverlapIndex;
 		}
 	}
 
-	player.updateMovement(dt);
+	if (auto activeRoom = activeRuntimeRoom(); activeRoom.has_value()) {
+		for (auto& orb : activeRoom->doubleJumpOrbs) {
+			orb.elapsedSinceUsed += dt;
+		}
+		player.updateMovement(dt, activeRoom->doubleJumpOrbs);
+	}
+
 	for (const auto room : rooms) {
 		
-		player.blockCollision(playerSettings, room.blocks, cellSize);
+		player.blockCollision(room.blocks);
 
-		const auto playerAabb = player.aabb(playerSettings);
+		const auto playerAabb = ::playerAabb(player.position);
 
 		for (const auto& spike : room.spikes) {
 			if (!spike.hitbox.collides(playerAabb)) {
 				continue;
 			}
-			if (!activeRoom.has_value()) {
-				ASSERT_NOT_REACHED();
-				break;
-			}
-			loadRoom(*activeRoom);
+			spawnPlayer(std::nullopt);
 		}
 
 		for (const auto& platform : room.platforms) {
-			const auto hitbox = Aabb(platform.position, platform.position + Vec2(cellSize, 0.0f));
+			const auto hitbox = Aabb(platform.position, platform.position + Vec2(constants().cellSize, 0.0f));
 			auto playerHitbox = playerAabb;
 			const auto padding = player.velocity.applied(abs);
 			playerHitbox.min -= padding;
@@ -85,11 +87,11 @@ void Game::gameUpdate() {
 				continue;
 			}
 
-			const auto playerBottomY = player.position.y - playerSettings.size.y / 2.0f;
+			const auto playerBottomY = player.position.y - constants().playerSize.y / 2.0f;
 			const auto platformY = platform.position.y;
 			if (playerBottomY >= platformY && playerBottomY + player.velocity.y <= platformY) {
 				player.velocity.y = 0.0f;
-				player.position.y = platformY + playerSettings.size.y / 2.0f;
+				player.position.y = platformY + constants().playerSize.y / 2.0f;
 				player.grounded = true;
 			}
 		}
@@ -104,33 +106,46 @@ void Game::gameRender() {
 	for (const auto& room : rooms) {
 		// TODO: Culling
 		renderer.renderer.camera = camera;
-		renderer.renderBlocks(room.blocks, cellSize);
-		renderer.renderPlayer(player, playerSettings);
+		renderer.renderBlocks(room.blocks);
+		renderer.renderPlayer(player);
 		for (const auto& spike : room.spikes) {
 			renderer.renderSpike(spike);
 		}
 		for (const auto& platform : room.platforms) {
-			renderer.renderPlatform(platform, cellSize);
+			renderer.renderPlatform(platform);
 		}
-		renderer.update();
+		for (const auto& orb : room.doubleJumpOrbs) {
+			renderer.renderDoubleJumpOrb(orb);
+		}
 	}
-	
+	renderer.update();
+
+	if (const auto activeRoom = activeLevelRoom(); activeRoom.has_value()) {
+		const auto min = Vec2(activeRoom->position) * constants().cellSize;
+		const auto roomAabb = ::roomAabb(*activeRoom);
+		const auto viewAabb = camera.aabb();
+		if (roomAabb.size().y < viewAabb.size().y) {
+			Dbg::drawFilledAabb(viewAabb.min, Vec2(viewAabb.max.x, roomAabb.min.y), Color3::BLACK);
+			Dbg::drawFilledAabb(Vec2(viewAabb.min.x, roomAabb.max.y), viewAabb.max, Color3::BLACK);
+		}
+	}
+	renderer.update();
 }
 
 void Game::updateCamera() {
+	auto activeRoom = activeLevelRoom();
 	if (!activeRoom.has_value()) {
 		return;
 	}
-
-	f32 blockWidth = 45 * cellSize;
-	f32 blockHeight = 25 * cellSize;
+	
+	f32 blockWidth = 45 * constants().cellSize;
+	f32 blockHeight = 25 * constants().cellSize;
 	// ~ 16/9
 	camera.changeSizeToFitBox(Vec2(blockWidth, blockHeight));
 	//glViewport()
 
 	/*const auto view = Aabb(Vec2(1.0f) * cellSize, Vec2(activeRoom->blockGrid.size() * cellSize));*/
-	const auto min = Vec2(activeRoom->position) * cellSize;
-	const auto view = Aabb(min, min + Vec2(activeRoom->blockGrid.size() * cellSize));
+	const auto view = ::roomAabb(*activeRoom);
 
 	const auto destination = player.position;
       
@@ -154,34 +169,53 @@ void Game::updateCamera() {
 	}
 
 	const auto currentView = camera.aabb();
-	if (currentView.size().x > blockWidth) {
-		camera.pos.x = (view.max.x - view.min.x) / 2.0f;
+	if (currentView.size().x > view.size().x) {
+		camera.pos.x = (view.max.x + view.min.x) / 2.0f;
 	}
-	if (currentView.size().y > blockHeight) {
-		camera.pos.y = (view.max.y - view.min.y) / 2.0f;
+	if (currentView.size().y > view.size().y) {
+		camera.pos.y = (view.max.y + view.min.y) / 2.0f;
 	}
 }
 
-void Game::spawnPlayer() {
+void Game::spawnPlayer(std::optional<i32> editorSelectedRoomIndex) {
 	if (level.rooms.size() == 0) {
 		return;
 	}
-	auto& room = level.rooms[0];
+	i32 roomIndex = 0;
+	if (editorSelectedRoomIndex.has_value() && *editorSelectedRoomIndex < level.rooms.size()) {
+		roomIndex = *editorSelectedRoomIndex;
+	} else if (activeRoomIndex.has_value()) {
+		roomIndex = *activeRoomIndex;
+	}
+
+	auto& room = level.rooms[roomIndex];
 	if (room.spawnPoints.size() == 0) {
 		return;
 	}
 	auto& spawnPoint = room.spawnPoints[0];
 	const auto spawnPointPosition = spawnPointToPlayerSpawnPos(
 		room.spawnPoints[0], 
-		playerSettings, 
-		room.position, 
-		cellSize);
+		room.position);
 	player = Player{};
 	player.position = spawnPointPosition;
-	activeRoom = room;
+	activeRoomIndex = roomIndex;
 }
 
-void Game::onSwitchFromEditor() {
+std::optional<LevelRoom&> Game::activeLevelRoom() {
+	if (activeRoomIndex.has_value() && *activeRoomIndex < level.rooms.size()) {
+		return level.rooms[*activeRoomIndex];
+	}
+	return std::nullopt;
+}
+
+std::optional<Game::RuntimeRoom&> Game::activeRuntimeRoom() {
+	if (activeRoomIndex.has_value() && *activeRoomIndex < rooms.size()) {
+		return rooms[*activeRoomIndex];
+	}
+	return std::nullopt;
+}
+
+void Game::onSwitchFromEditor(std::optional<i32> editorSelectedRoomIndex) {
 	if (!editor.lastLoadedLevel.has_value()) {
 		return;
 	}
@@ -195,7 +229,7 @@ void Game::onSwitchFromEditor() {
 	for (auto& room : this->level.rooms) {
 		loadRoom(room);
 	}
- 	spawnPlayer();
+ 	spawnPlayer(editorSelectedRoomIndex);
 	/*if (this->level.rooms.size() > 0) {
 		loadRoom(this->level.rooms[0]);
 	}*/
@@ -204,10 +238,12 @@ void Game::onSwitchFromEditor() {
 void Game::loadRoom(LevelRoom& room) {
 	RuntimeRoom runtimeRoom;
 	//activeRoom = room;
-	runtimeRoom.blocks.clear();
+	/*runtimeRoom.blocks.clear();
 	runtimeRoom.spikes.clear();
 	runtimeRoom.platforms.clear();
-	const auto roomOffset = Vec2(room.position) * cellSize;
+	runtimeRoom.*/
+
+	const auto roomOffset = Vec2(room.position) * constants().cellSize;
 	for (i32 y = 0; y < room.blockGrid.size().y; y++) {
 		for (i32 x = 0; x < room.blockGrid.size().x; x++) {
 			using enum BlockType;
@@ -215,32 +251,39 @@ void Game::loadRoom(LevelRoom& room) {
 			case NORMAL: {
 				const auto collisionDirections = getBlockCollisionDirections(room.blockGrid, x, y);
 				runtimeRoom.blocks.push_back(Block{
-					.position = Vec2(x * cellSize, y * cellSize) + roomOffset,
+					.position = Vec2(x, y) * constants().cellSize + roomOffset,
 					.collisionDirections = collisionDirections
 				});
 				break;
 			}
 
 			case SPIKE_BOTTOM: 
-				runtimeRoom.spikes.push_back(makeSpikeBottom(x, y, cellSize, room.position));
+				runtimeRoom.spikes.push_back(makeSpikeBottom(x, y, room.position));
 				break;
 			case SPIKE_LEFT: 
-				runtimeRoom.spikes.push_back(makeSpikeLeft(x, y, cellSize, room.position));
+				runtimeRoom.spikes.push_back(makeSpikeLeft(x, y, room.position));
 				break;
 			case SPIKE_RIGHT: 
-				runtimeRoom.spikes.push_back(makeSpikeRight(x, y, cellSize, room.position));
+				runtimeRoom.spikes.push_back(makeSpikeRight(x, y, room.position));
 				break;
 			case SPIKE_TOP: 
-				runtimeRoom.spikes.push_back(makeSpikeTop(x, y, cellSize, room.position));
+				runtimeRoom.spikes.push_back(makeSpikeTop(x, y, room.position));
 				break;
 
 			case PLATFORM:
-				runtimeRoom.platforms.push_back(makePlatform(x, y, cellSize, room.position));
+				runtimeRoom.platforms.push_back(makePlatform(x, y, room.position));
 				break;
 
 			case EMPTY: break;
 			}
 		}
+	}
+
+	for (const auto& orb : room.doubleJumpOrbs) {
+		runtimeRoom.doubleJumpOrbs.push_back(DoubleJumpOrb{
+			.position = orb.position + roomOffset,
+			.elapsedSinceUsed = std::numeric_limits<f32>::infinity(),
+		});
 	}
 
 	// TODO: make this a reference

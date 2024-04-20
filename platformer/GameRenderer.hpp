@@ -10,11 +10,13 @@ struct GameRenderer {
 
 	void update();
 
-	void renderBlock(const Block& block, f32 cellSize);
-	void renderBlocks(const std::vector<Block>& blocks, f32 cellSize);
+	void renderBlock(const Block& block);
+	void renderBlocks(const std::vector<Block>& blocks);
 	void renderSpike(const Spike& spike);
-	void renderPlatform(const Platform& platform, f32 cellSize);
-	void renderPlayer(const Player& player, const PlayerSettings& settings);
+	void renderPlatform(const Platform& platform);
+	void renderPlayer(const Player& player);
+	void renderDoubleJumpOrb(const Vec2 position);
+	void renderDoubleJumpOrb(const DoubleJumpOrb& doubleJumpOrb);
 
 	void renderGrid(f32 smallCellSize);
 

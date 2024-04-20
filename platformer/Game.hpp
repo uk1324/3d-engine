@@ -13,23 +13,19 @@ struct Game {
 	void gameRender();
 	void updateCamera();
 
-	void spawnPlayer();
+	void spawnPlayer(std::optional<i32> editorSelectedRoomIndex);
 
 	Player player;
 
 	f32 dt = 1.0f / 60.0f;
-	f32 cellSize = 20.0f;
+	//PlayerSettings playerSettings;
+	//f32 cellSize = 20.0f;
 
-	Level level;
-	std::optional<LevelRoom&> activeRoom;
-
-	void onSwitchFromEditor();
+	void onSwitchFromEditor(std::optional<i32> editorSelectedRoomIndex);
 
 	void loadRoom(LevelRoom& room);
 
 	std::optional<std::string> enteredFromLevelName;
-
-	PlayerSettings playerSettings;
 
 	enum class Mode {
 		EDITOR,
@@ -40,8 +36,14 @@ struct Game {
 		std::vector<Block> blocks;
 		std::vector<Spike> spikes;
 		std::vector<Platform> platforms;
+		std::vector<DoubleJumpOrb> doubleJumpOrbs;
 	};
 	std::vector<RuntimeRoom> rooms;
+
+	Level level;
+	std::optional<i32> activeRoomIndex;
+	std::optional<LevelRoom&> activeLevelRoom();
+	std::optional<RuntimeRoom&> activeRuntimeRoom();
 
 	Mode mode = Mode::GAME; 
 

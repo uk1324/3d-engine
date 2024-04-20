@@ -13,16 +13,18 @@ struct Player {
 	bool grounded = false;
 	f32 elapsedSinceLastGrounded = std::numeric_limits<f32>::infinity();
 
+	bool touchingWallOnLeft = false;
+	bool touchingWallOnRight = false;
+
 	bool jumpReleased = true;
 	f32 elapsedSinceJumpPressed = std::numeric_limits<f32>::infinity();
+	bool jumpedOffGround = false;
 
 	f32 elapsedSinceLastJumped = std::numeric_limits<f32>::infinity();
 
 	bool dead = false;
 
-	Aabb aabb(const PlayerSettings& settings);
-
 	void update();
-	void updateMovement(f32 dt);
-	void blockCollision(const PlayerSettings& settings, const std::vector<Block>& blocks, f32 cellSize);
+	void updateMovement(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs);
+	void blockCollision(const std::vector<Block>& blocks);
 };

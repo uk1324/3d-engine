@@ -1,3 +1,0 @@
-struct PlayerSettings {
-	Vec2 size;
-}

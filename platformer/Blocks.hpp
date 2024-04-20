@@ -29,6 +29,14 @@ struct Platform {
 	Vec2 position;
 };
 
+struct DoubleJumpOrb {
+	Vec2 position;
+	f32 elapsedSinceUsed;
+
+	void reset();
+	bool isActive() const;
+};
+
 enum class BlockType : u8 {
 	EMPTY,
 	NORMAL,
@@ -40,9 +48,9 @@ enum class BlockType : u8 {
 };
 
 BlockCollsionDirectionsBitfield getBlockCollisionDirections(const Array2d<BlockType>& blockGrid, i32 x, i32 y);
-Spike makeSpikeBottom(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset);
-Spike makeSpikeTop(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset);
-Spike makeSpikeRight(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset);
-Spike makeSpikeLeft(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset);
+Spike makeSpikeBottom(i64 x, i64 y, Vec2T<i32> roomOffset);
+Spike makeSpikeTop(i64 x, i64 y, Vec2T<i32> roomOffset);
+Spike makeSpikeRight(i64 x, i64 y, Vec2T<i32> roomOffset);
+Spike makeSpikeLeft(i64 x, i64 y, Vec2T<i32> roomOffset);
 
-Platform makePlatform(i64 x, i64 y, f32 cellSize, Vec2T<i32> roomOffset);
+Platform makePlatform(i64 x, i64 y, Vec2T<i32> roomOffset);

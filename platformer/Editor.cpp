@@ -9,17 +9,26 @@
 #include <StringRefStream.hpp>
 #include <glad/glad.h>
 #include <imgui/imgui.h>
+#include <engine/Math/Circle.hpp>
 #include <FileIo.hpp>
 #include <filesystem>
+#include <platformer/Constants.hpp>
 #include <platformer/EditorSettingsData.hpp>
 #include <engine/Json/JsonParser.hpp>
 #include <engine/Json/JsonPrinter.hpp>
 
 static constexpr auto EDITOR_SETTINGS_PATH = "generated/editorSettings.json";
 
-Editor::Editor() {
-	camera.zoom /= 500.0f;
+template<typename T, typename F>
+void removeIf(std::vector<T>& vs, F f) {
+	vs.erase(std::remove_if(
+		vs.begin(),
+		vs.end(),
+		f
+	), vs.end());
+}
 
+Editor::Editor() {
 	auto loadSettings = []() -> std::optional<EditorSettings> {
 		const auto text = tryLoadStringFromFile(EDITOR_SETTINGS_PATH);
 		if (!text.has_value()) {
@@ -40,9 +49,10 @@ Editor::Editor() {
 	const auto settings = loadSettings();
 	if (settings.has_value()) {
 		lastLoadedLevel = settings->lastLoadedLevel;
+		camera.pos = settings->lastLoadedCameraPosition;
+		camera.zoom = settings->lastLoadedCameraZoom;
 	}
-
-	
+	 
 	
 	/*level.blockGrid = Array2d<BlockType>(50, 50);
 	std::ranges::fill(level.blockGrid.span(), BlockType::EMPTY);*/
@@ -52,7 +62,7 @@ Editor::~Editor() {
 	saveSettings();
 }
 
-void Editor::update(f32 dt, f32 cellSize, const PlayerSettings& playerSettings) {
+void Editor::update(f32 dt) {
 	rooms.update();
 
 	static bool firstFrame = true;
@@ -107,14 +117,14 @@ void Editor::update(f32 dt, f32 cellSize, const PlayerSettings& playerSettings) 
 				continue;
 			}
 
-			if (roomAabb(room->levelRoom, cellSize).contains(cursorPos)) {
+			if (roomAabb(room->levelRoom).contains(cursorPos)) {
 				selectedRoomId = room.id;
 				break;
 			}
 		}
 	}
 
-	updateSelectedRoom(cellSize, playerSettings);
+	updateSelectedRoom();
 
 	bool openOpenLevelModal = false;
 	bool openCreateNewLevelModal = false;
@@ -143,7 +153,7 @@ void Editor::update(f32 dt, f32 cellSize, const PlayerSettings& playerSettings) 
 	if (ImGui::Button("add room")) {
 		rooms.create(EditorRoom{
 			.levelRoom = LevelRoom{
-				.position = Vec2T<i32>(0, 0),
+				.position = worldPositionToWorldGridPosition(camera.pos),
 				.blockGrid = Array2d<BlockType>(45, 25)
 			}
 		});
@@ -156,26 +166,31 @@ void Editor::update(f32 dt, f32 cellSize, const PlayerSettings& playerSettings) 
 			if (ImGui::Button("delete")) {
 				rooms.destroy(*selectedRoomId);
 			}
-			roomSizeGui(selectedRoom->levelRoom, cellSize);
+			roomSizeGui(selectedRoom->levelRoom);
 		}
 	} else {
-		ImGui::Text("no room selected");
+		ImGui::TextWrapped("right click on a room to select it");
 	}
 
-	if (ImGui::Button("normal block")) {
-		selectedPlacableItem = PlacableItem::NORMAL_BLOCK;
-	} else if (ImGui::Button("spawn point")) {
-		selectedPlacableItem = PlacableItem::SPAWN_POINT;
-	} else if (ImGui::Button("spike bottom")) {
-		selectedPlacableItem = PlacableItem::SPIKE_BOTTOM;
-	} else if (ImGui::Button("spike top")) {
-		selectedPlacableItem = PlacableItem::SPIKE_TOP;
-	} else if (ImGui::Button("spike left")) {
-		selectedPlacableItem = PlacableItem::SPIKE_LEFT;
-	} else if (ImGui::Button("spike right")) {
-		selectedPlacableItem = PlacableItem::SPIKE_RIGHT;
-	} else if (ImGui::Button("platform")) {
-		selectedPlacableItem = PlacableItem::PLATFORM;
+	const std::pair<PlacableItem, const char*> placableItems[]{
+		{ PlacableItem::NORMAL_BLOCK, "block" },
+		{ PlacableItem::SPAWN_POINT, "spawn point" },
+		{ PlacableItem::SPIKE_BOTTOM, "spike bottom" },
+		{ PlacableItem::SPIKE_TOP, "spike top" },
+		{ PlacableItem::SPIKE_LEFT, "spike left" },
+		{ PlacableItem::SPIKE_RIGHT, "spike right" },
+		{ PlacableItem::PLATFORM, "platform" },
+		{ PlacableItem::DOUBLE_JUMP_ORB, "double jump orb" },
+	};
+
+	ImGui::SeparatorText("block selection");
+	for (const auto item : placableItems) {
+		const auto type = item.first;
+		const auto name = item.second;
+
+		if (ImGui::Selectable(name, type == selectedPlacableItem)) {
+			selectedPlacableItem = type;
+		}
 	}
 
 	ImGui::End();
@@ -195,7 +210,7 @@ void Editor::update(f32 dt, f32 cellSize, const PlayerSettings& playerSettings) 
 	}
 }
 
-void Editor::updateSelectedRoom(f32 cellSize, const PlayerSettings& playerSettings) {
+void Editor::updateSelectedRoom() {
 	if (!selectedRoomId.has_value()) {
 		return;
 	}
@@ -223,8 +238,10 @@ void Editor::updateSelectedRoom(f32 cellSize, const PlayerSettings& playerSettin
 	}
 
 	const auto cursorPos = cursorPosWorldSpace(camera);
-	const auto globalCursorGridPos = Vec2T<i32>((cursorPos / cellSize).applied(floor));
+	const auto globalCursorGridPos = worldPositionToWorldGridPosition(cursorPos);
 	const auto cursorGridPos = globalCursorGridPos - selectedRoom.position;
+	const auto alignedCursorPos = Vec2(cursorGridPos) * constants().cellSize;
+	const auto roomCursorPos = cursorPos - Vec2(selectedRoom.position) * constants().cellSize;
 
 	const auto inBounds =
 		cursorGridPos.x >= 0 &&
@@ -267,55 +284,62 @@ void Editor::updateSelectedRoom(f32 cellSize, const PlayerSettings& playerSettin
 	} else if (selectedPlacableItem == PlacableItem::SPAWN_POINT) {
 		if (Input::isMouseButtonDown(MouseButton::LEFT)) {
 			selectedRoom.spawnPoints.push_back(LevelSpawnPoint{
-				.position = Vec2(cursorGridPos) * cellSize
+				.position = alignedCursorPos
 			});
 		}
 		if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
-			auto& sp = selectedRoom.spawnPoints;
-			sp.erase(std::remove_if(
-				sp.begin(),
-				sp.end(),
-				[&](const LevelSpawnPoint& spawnPoint) -> bool { 
-					const auto position = spawnPointToPlayerSpawnPos(spawnPoint, playerSettings, selectedRoom.position, cellSize);
-					Aabb aabb(position - playerSettings.size / 2.0f, position + playerSettings.size / 2.0f);
-					if (aabb.contains(cursorPos)) {
-						return true;
-					}
-				}
-			), sp.end());
+			removeIf(selectedRoom.spawnPoints, [&](const LevelSpawnPoint& spawnPoint) -> bool {
+				const auto position = spawnPointToPlayerSpawnPos(spawnPoint, selectedRoom.position);
+				return (playerAabb(position).contains(cursorPos));
+			});
+		}
+	} else if (selectedPlacableItem == PlacableItem::DOUBLE_JUMP_ORB) {
+		if (Input::isMouseButtonDown(MouseButton::LEFT)) {
+			selectedRoom.doubleJumpOrbs.push_back(LevelDoubleJumpOrb{
+				.position = alignedCursorPos + Vec2(constants().cellSize / 2.0f)
+			});
+		}
+		if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
+			removeIf(selectedRoom.doubleJumpOrbs, [&](const LevelDoubleJumpOrb& orb) -> bool {
+				return circleContains(
+					orb.position, 
+					constants().doubleJumpOrbRadius, 
+					roomCursorPos);
+			});
 		}
 	}
 }
 
-void Editor::render(GameRenderer& renderer, f32 cellSize, const PlayerSettings& playerSettings) {
+void Editor::render(GameRenderer& renderer) {
 	glClear(GL_COLOR_BUFFER_BIT);
 
 	renderer.renderer.camera = camera;
-	renderer.renderGrid(cellSize);
+	renderer.renderGrid(constants().cellSize);
 
 	for (const auto& room : rooms) {
-		renderRoom(room->levelRoom, renderer, cellSize, playerSettings);
+		renderRoom(room->levelRoom, renderer);
 	}
 
 	renderer.update();
 }
 
-void Editor::renderRoom(const LevelRoom& room, GameRenderer& renderer, f32 cellSize, const PlayerSettings& playerSettings) {
-	Dbg::drawAabb(roomAabb(room, cellSize), Color3::WHITE, 2.0f);
+void Editor::renderRoom(const LevelRoom& room, GameRenderer& renderer) {
+	Dbg::drawAabb(roomAabb(room), Color3::WHITE, 2.0f);
 
 	for (const auto& spawnPoint : room.spawnPoints) {
-		const auto position = spawnPointToPlayerSpawnPos(spawnPoint, playerSettings, room.position, cellSize);
-		Dbg::drawAabb(
-			position - playerSettings.size / 2.0f,
-			position + playerSettings.size / 2.0f,
-			Color3::WHITE,
-			2.0f);
+		const auto position = spawnPointToPlayerSpawnPos(spawnPoint, room.position);
+		const auto aabb = playerAabb(position);
+		Dbg::drawAabb(aabb, Color3::WHITE, 2.0f);
+	}
+
+	for (const auto& orb : room.doubleJumpOrbs) {
+		renderer.renderDoubleJumpOrb(orb.position + Vec2(room.position) * constants().cellSize);
 	}
 
 	for (i32 roomYi = 0; roomYi < room.blockGrid.size().y; roomYi++) {
 		for (i32 roomXi = 0; roomXi < room.blockGrid.size().x; roomXi++) {
-			const auto cellBottomLeft = Vec2(roomXi, roomXi) * cellSize;
-			const auto cellTopRight = Vec2(roomXi + 1, roomXi + 1) * cellSize;
+			const auto cellBottomLeft = Vec2(roomXi, roomXi) * constants().cellSize;
+			const auto cellTopRight = Vec2(roomXi + 1, roomXi + 1) * constants().cellSize;
 
 			const auto xi = roomXi + room.position.x;
 			const auto yi = roomYi + room.position.y;
@@ -325,28 +349,28 @@ void Editor::renderRoom(const LevelRoom& room, GameRenderer& renderer, f32 cellS
 			case NORMAL: {
 				const auto directions = getBlockCollisionDirections(room.blockGrid, roomXi, roomYi);
 				const Block block{
-					.position = Vec2(xi, yi) * cellSize,
+					.position = Vec2(xi, yi) * constants().cellSize,
 					.collisionDirections = directions,
 				};
-				renderer.renderBlock(block, cellSize);
+				renderer.renderBlock(block);
 				break;
 			}
 
 			case SPIKE_LEFT:
-				renderer.renderSpike(makeSpikeLeft(roomXi, roomYi, cellSize, room.position));
+				renderer.renderSpike(makeSpikeLeft(roomXi, roomYi, room.position));
 				break;
 			case SPIKE_RIGHT:
-				renderer.renderSpike(makeSpikeRight(roomXi, roomYi, cellSize, room.position));
+				renderer.renderSpike(makeSpikeRight(roomXi, roomYi, room.position));
 				break;
 			case SPIKE_TOP:
-				renderer.renderSpike(makeSpikeTop(roomXi, roomYi, cellSize, room.position));
+				renderer.renderSpike(makeSpikeTop(roomXi, roomYi, room.position));
 				break;
 			case SPIKE_BOTTOM:
-				renderer.renderSpike(makeSpikeBottom(roomXi, roomYi, cellSize, room.position));
+				renderer.renderSpike(makeSpikeBottom(roomXi, roomYi, room.position));
 				break;
 
 			case PLATFORM:
-				renderer.renderPlatform(makePlatform(roomXi, roomYi, cellSize, room.position), cellSize);
+				renderer.renderPlatform(makePlatform(roomXi, roomYi, room.position));
 				break;
 
 			case EMPTY:
@@ -357,7 +381,7 @@ void Editor::renderRoom(const LevelRoom& room, GameRenderer& renderer, f32 cellS
 	}
 }
 
-void Editor::roomSizeGui(LevelRoom& room, f32 cellSize) {
+void Editor::roomSizeGui(LevelRoom& room) {
 	Gui::put("% x %", room.blockGrid.size().x, room.blockGrid.size().y);
 	auto increaseLeftAndBottom = [](const Array2d<BlockType>& array, i32 increaseX, i32 increaseY) -> Array2d<BlockType> {
 		auto n = Array2d<BlockType>::withAllSetTo(
@@ -406,13 +430,13 @@ void Editor::roomSizeGui(LevelRoom& room, f32 cellSize) {
 		if (ImGui::Button("+")) {
 			room.blockGrid = increaseLeftAndBottom(room.blockGrid, increaseOrDecreaseSize, 0);
 			room.position.x -= increaseOrDecreaseSize;
-			moveObjects(room, Vec2T<i32>(1, 0), cellSize);
+			moveObjects(room, Vec2T<i32>(1, 0));
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("-")) {
 			room.blockGrid = decreaseLeftAndBottom(room.blockGrid, increaseOrDecreaseSize, 0);
 			room.position.x += increaseOrDecreaseSize;
-			moveObjects(room, Vec2T<i32>(-1, 0), cellSize);
+			moveObjects(room, Vec2T<i32>(-1, 0));
 		}
 		ImGui::PopID();
 
@@ -440,13 +464,13 @@ void Editor::roomSizeGui(LevelRoom& room, f32 cellSize) {
 		ImGui::PushID("bottom");
 		if (ImGui::Button("+")) {
 			room.blockGrid = increaseLeftAndBottom(room.blockGrid, 0, increaseOrDecreaseSize);
-			moveObjects(room, Vec2T<i32>(0, 1), cellSize);
+			moveObjects(room, Vec2T<i32>(0, 1));
 			room.position.y -= increaseOrDecreaseSize;
 		}
 		ImGui::SameLine();
 		if (ImGui::Button("-")) {
 			room.blockGrid = decreaseLeftAndBottom(room.blockGrid, 0, increaseOrDecreaseSize);
-			moveObjects(room, Vec2T<i32>(0, -1), cellSize);
+			moveObjects(room, Vec2T<i32>(0, -1));
 			room.position.y += increaseOrDecreaseSize;
 		}
 		ImGui::PopID();
@@ -541,17 +565,25 @@ void Editor::roomSizeGui(LevelRoom& room, f32 cellSize) {
 	//}
 }
 
-void Editor::moveObjects(LevelRoom& room, Vec2T<i32> change, f32 cellSize) {
+void Editor::moveObjects(LevelRoom& room, Vec2T<i32> change) {
 	for (auto& spawnPoint : room.spawnPoints) {
-		spawnPoint.position += Vec2(change) * cellSize;
+		spawnPoint.position += Vec2(change) * constants().cellSize;
 	}
 }
 
-void Editor::onSwitchToGame() {
+Vec2T<i32> Editor::worldPositionToWorldGridPosition(Vec2 worldPosition) {
+	return Vec2T<i32>((worldPosition / constants().cellSize).applied(floor));
+}
+
+Editor::OnSwitchToGameResult Editor::onSwitchToGame() {
 	if (!lastLoadedLevel.has_value()) {
-		return;
+		return OnSwitchToGameResult{ .selectedRoomIndex = std::nullopt };
 	}
-	saveLevelToFile(*lastLoadedLevel, generateLevel());
+	auto result = generateLevel2();
+	saveLevelToFile(*lastLoadedLevel, std::move(result.level));
+	return OnSwitchToGameResult{
+		.selectedRoomIndex = result.selectedRoomIndex
+	};
 }
 
 void Editor::onSwitchFromGame() {
@@ -587,7 +619,9 @@ void Editor::editorTryLoadLevelFromFile(std::string_view path) {
 void Editor::saveSettings() {
 	if (lastLoadedLevel.has_value()) {
 		EditorSettings settings{
-			.lastLoadedLevel = *lastLoadedLevel
+			.lastLoadedLevel = *lastLoadedLevel,
+			.lastLoadedCameraPosition = camera.pos,
+			.lastLoadedCameraZoom = camera.zoom
 		};
  		const auto json = toJson(settings);
 		std::ofstream file(EDITOR_SETTINGS_PATH);
@@ -624,15 +658,25 @@ void Editor::loadLevel(Level&& level) {
 }
 
 Level Editor::generateLevel() {
+	return generateLevel2().level;
+}
+
+Editor::GenerateLevel2Result Editor::generateLevel2() {
 	Level level;
+	std::optional<i32> selectedRoomIndex;
 	for (const auto& room : rooms) {
+		if (room.id == selectedRoomId) {
+			selectedRoomIndex = level.rooms.size();
+		}
+
 		level.rooms.emplace_back(LevelRoom{
 			.position = room->levelRoom.position,
 			.blockGrid = Array2d<BlockType>(room->levelRoom.blockGrid),
 			.spawnPoints = room->levelRoom.spawnPoints,
+			.doubleJumpOrbs = room->levelRoom.doubleJumpOrbs
 		});
 	}
-	return level;
+	return GenerateLevel2Result{ .level = std::move(level), .selectedRoomIndex = selectedRoomIndex};
 }
 
 //std::optional<LevelTransition> Editor::LevelTransitionPlaceState::onLeftClick(Vec2 cursorPos, f32 cellSize) {

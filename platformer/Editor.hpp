@@ -13,15 +13,20 @@ struct Editor {
 	If some level are static like block in the game loop then it probably doesn't make sense to try to manage them using ids. 
 	*/
 
-	void update(f32 dt, f32 cellSize, const PlayerSettings& playerSettings);
-	void updateSelectedRoom(f32 cellSize, const PlayerSettings& playerSettings);
-	void render(GameRenderer& renderer, f32 cellSize, const PlayerSettings& playerSettings);
-	void renderRoom(const LevelRoom& room, GameRenderer& renderer, f32 cellSize, const PlayerSettings& playerSettings);
+	void update(f32 dt);
+	void updateSelectedRoom();
+	void render(GameRenderer& renderer);
+	void renderRoom(const LevelRoom& room, GameRenderer& renderer);
 	i32 increaseOrDecreaseSize = 1;
-	void roomSizeGui(LevelRoom& room, f32 cellSize);
-	void moveObjects(LevelRoom& room, Vec2T<i32> change, f32 cellSize);
+	void roomSizeGui(LevelRoom& room);
+	void moveObjects(LevelRoom& room, Vec2T<i32> change);
 
-	void onSwitchToGame();
+	Vec2T<i32> worldPositionToWorldGridPosition(Vec2 worldPosition);
+
+	struct OnSwitchToGameResult {
+		std::optional<i32> selectedRoomIndex;
+	};
+	OnSwitchToGameResult onSwitchToGame();
 	void onSwitchFromGame();
 
 	void loadNewLevel(Level&& level, std::string&& newLevelName);
@@ -41,7 +46,8 @@ struct Editor {
 		SPIKE_BOTTOM,
 		SPIKE_LEFT,
 		SPIKE_RIGHT,
-		PLATFORM
+		PLATFORM,
+		DOUBLE_JUMP_ORB,
 	};
 
 	//struct LevelTransitionPlaceState {
@@ -91,6 +97,11 @@ struct Editor {
 
 	void loadLevel(Level&& level);
 	Level generateLevel();
+	struct GenerateLevel2Result {
+		Level level;
+		std::optional<i32> selectedRoomIndex;
+	};
+	GenerateLevel2Result generateLevel2();
 
 	Camera camera;
 };

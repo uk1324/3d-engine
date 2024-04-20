@@ -2,6 +2,7 @@
 #include <FileIo.hpp>
 #include <fstream>
 #include <engine/Json/JsonParser.hpp>
+#include <platformer/Constants.hpp>
 #include <Put.hpp>
 #include <engine/Json/JsonPrinter.hpp>
 
@@ -25,18 +26,16 @@
 //	return json;
 //}
 
-Aabb roomAabb(const LevelRoom& room, f32 cellSize) {
-	return Aabb(
-		Vec2(room.position) * cellSize, 
-		Vec2(room.position + Vec2T<i32>(room.blockGrid.size()))* cellSize);
-}
+//Aabb roomAabb(const LevelRoom& room, f32 cellSize) {
+//	return Aabb(
+//		Vec2(room.position) * cellSize, 
+//		Vec2(room.position + Vec2T<i32>(room.blockGrid.size()))* cellSize);
+//}
 
 Vec2 spawnPointToPlayerSpawnPos(
 	const LevelSpawnPoint& spawnPoint,
-	const PlayerSettings& settings,
-	Vec2T<i32> roomPosition,
-	f32 cellSize) {
-	return spawnPoint.position + Vec2(roomPosition) * cellSize + settings.size / 2.0f;
+	Vec2T<i32> roomPosition) {
+	return spawnPoint.position + Vec2(roomPosition) * constants().cellSize + constants().playerSize / 2.0f;
 }
 
 std::optional<Level> tryLoadLevelFromFile(std::string_view path) {

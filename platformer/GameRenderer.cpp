@@ -2,6 +2,7 @@
 #include <framework/Dbg.hpp>
 #include <framework/ShaderManager.hpp>
 #include <framework/Instancing.hpp>
+#include <platformer/Constants.hpp>
 #include <platformer/Shaders/gridData.hpp>
 #include <engine/Math/Color.hpp>
 #include <FileIo.hpp>
@@ -17,27 +18,27 @@ void GameRenderer::update() {
 	renderer.update();
 }
 
-void GameRenderer::renderBlock(const Block& block, f32 cellSize) {
+void GameRenderer::renderBlock(const Block& block) {
 	using namespace BlockCollisionDirections;
 
 	const auto color = Color3::GREEN;
 
 	f32 width = 2.0f;
 
-	Dbg::drawFilledAabb(block.position, block.position + Vec2(cellSize), Color3::WHITE / 20.0f);
+	Dbg::drawFilledAabb(block.position, block.position + Vec2(constants().cellSize), Color3::WHITE / 20.0f);
 
 	if (block.collisionDirections & D) {
 		Dbg::drawLine(
 			Vec2(block.position),
-			Vec2(block.position) + Vec2(cellSize, 0.0f),
+			Vec2(block.position) + Vec2(constants().cellSize, 0.0f),
 			color,
 			width);
 	}
 
 	if (block.collisionDirections & U) {
 		Dbg::drawLine(
-			Vec2(block.position) + Vec2(0.0f, cellSize),
-			Vec2(block.position) + Vec2(cellSize, cellSize),
+			Vec2(block.position) + Vec2(0.0f, constants().cellSize),
+			Vec2(block.position) + Vec2(constants().cellSize, constants().cellSize),
 			color,
 			width);
 	}
@@ -45,45 +46,53 @@ void GameRenderer::renderBlock(const Block& block, f32 cellSize) {
 	if (block.collisionDirections & L) {
 		Dbg::drawLine(
 			Vec2(block.position),
-			Vec2(block.position) + Vec2(0.0f, cellSize),
+			Vec2(block.position) + Vec2(0.0f, constants().cellSize),
 			color,
 			width);
 	}
 
 	if (block.collisionDirections & R) {
 		Dbg::drawLine(
-			Vec2(block.position) + Vec2(cellSize, 0.0f),
-			Vec2(block.position) + Vec2(cellSize, cellSize),
+			Vec2(block.position) + Vec2(constants().cellSize, 0.0f),
+			Vec2(block.position) + Vec2(constants().cellSize, constants().cellSize),
 			color,
 			width);
 	}
 }
 
-void GameRenderer::renderBlocks(const std::vector<Block>& blocks, f32 cellSize) {
+void GameRenderer::renderBlocks(const std::vector<Block>& blocks) {
 
 	for (const auto& block : blocks) {
-		renderBlock(block, cellSize);
+		renderBlock(block);
 	}
 }
 
 void GameRenderer::renderSpike(const Spike& spike) {
-	Dbg::drawAabb(
+	Dbg::drawFilledAabb(
 		spike.hitbox.min,
 		spike.hitbox.max,
-		Color3::RED,
-		1.0f);
+		Color3::RED);
 }
 
-void GameRenderer::renderPlatform(const Platform& platform, f32 cellSize) {
-	Dbg::drawLine(platform.position, platform.position + Vec2(cellSize, 0.0f), Color3::WHITE / 2.0f, 2.0f);
+void GameRenderer::renderPlatform(const Platform& platform) {
+	Dbg::drawLine(platform.position, platform.position + Vec2(constants().cellSize, 0.0f), Color3::WHITE / 2.0f, 2.0f);
 }
 
-void GameRenderer::renderPlayer(const Player& player, const PlayerSettings& settings) {
+void GameRenderer::renderPlayer(const Player& player) {
 	Dbg::drawAabb(
-		player.position - settings.size / 2.0f,
-		player.position + settings.size / 2.0f,
+		player.position - constants().playerSize / 2.0f,
+		player.position + constants().playerSize / 2.0f,
 		Color3::WHITE,
 		2.0f);
+}
+
+void GameRenderer::renderDoubleJumpOrb(const Vec2 position) {
+	Dbg::drawCircle(position, constants().doubleJumpOrbRadius, Color3::GREEN, 0.1f);
+}
+
+void GameRenderer::renderDoubleJumpOrb(const DoubleJumpOrb& doubleJumpOrb) {
+	const auto color = doubleJumpOrb.isActive() ? Color3::GREEN : Color3::WHITE / 2.0f;
+	Dbg::drawCircle(doubleJumpOrb.position, constants().doubleJumpOrbRadius, color, 0.1f);
 }
 
 void GameRenderer::renderGrid(f32 smallCellSize) {
