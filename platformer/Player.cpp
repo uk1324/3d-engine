@@ -15,7 +15,7 @@ void Player::updateMovement(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs) 
     f32 speed = 1.0f / 1.5f;
 
     if (!grounded) {
-        speed *= 0.45f;
+        speed *= 0.40f;
     }
 
     if (left) {
@@ -79,10 +79,10 @@ void Player::updateMovement(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs) 
             velocity.y = jumpSpeed * 1.3f;
         } else if (!grounded && touchingWallOnLeft && elapsedSinceLastJumped) {
             jumped = true;
-            velocity = Vec2(jumpSpeed * 1.3f, jumpSpeed * 1.3f);
+            velocity = Vec2(jumpSpeed * 1.55f, jumpSpeed * 1.3f);
             jumpedOffGround = false;
         } else if (!grounded && touchingWallOnRight) {
-            velocity = Vec2(-jumpSpeed * 1.3f, jumpSpeed * 1.3f);
+            velocity = Vec2(-jumpSpeed * 1.55f, jumpSpeed * 1.3f);
             jumped = true;
             jumpedOffGround = false;
         }
