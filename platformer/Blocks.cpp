@@ -2,6 +2,7 @@
 
 #include <platformer/Blocks.hpp>
 #include <platformer/Constants.hpp>
+#include <engine/Math/Utils.hpp>
 
 BlockCollsionDirectionsBitfield getBlockCollisionDirections(const Array2d<BlockType>& blockGrid, i32 x, i32 y) {
 	struct Entry {

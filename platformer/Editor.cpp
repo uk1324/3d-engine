@@ -64,6 +64,7 @@ Editor::~Editor() {
 
 void Editor::update(f32 dt) {
 	rooms.update();
+	movingBlocks.update();
 
 	static bool firstFrame = true;
 	if (firstFrame) {
@@ -117,7 +118,7 @@ void Editor::update(f32 dt) {
 				continue;
 			}
 
-			if (roomAabb(room->levelRoom).contains(cursorPos)) {
+			if (roomAabb(room->position, room->blockGrid.size()).contains(cursorPos)) {
 				selectedRoomId = room.id;
 				break;
 			}
@@ -152,10 +153,8 @@ void Editor::update(f32 dt) {
 
 	if (ImGui::Button("add room")) {
 		rooms.create(EditorRoom{
-			.levelRoom = LevelRoom{
-				.position = worldPositionToWorldGridPosition(camera.pos),
-				.blockGrid = Array2d<BlockType>(45, 25)
-			}
+			.position = worldPositionToWorldGridPosition(camera.pos),
+			.blockGrid = Array2d<BlockType>(45, 25),
 		});
 	}
 
@@ -166,7 +165,7 @@ void Editor::update(f32 dt) {
 			if (ImGui::Button("delete")) {
 				rooms.destroy(*selectedRoomId);
 			}
-			roomSizeGui(selectedRoom->levelRoom);
+			roomSizeGui(*selectedRoom);
 		}
 	} else {
 		ImGui::TextWrapped("right click on a room to select it");
@@ -181,6 +180,7 @@ void Editor::update(f32 dt) {
 		{ PlacableItem::SPIKE_RIGHT, "spike right" },
 		{ PlacableItem::PLATFORM, "platform" },
 		{ PlacableItem::DOUBLE_JUMP_ORB, "double jump orb" },
+		{ PlacableItem::MOVING_BLOCK, "moving block" },
 	};
 
 	ImGui::SeparatorText("block selection");
@@ -221,7 +221,7 @@ void Editor::updateSelectedRoom() {
 		return;
 	}
 
-	auto& selectedRoom = selectedEditorRoom->levelRoom;
+	auto& selectedRoom = *selectedEditorRoom;
 
 	if (Input::isKeyDownWithAutoRepeat(KeyCode::RIGHT)) {
 		std::cout << "test";
@@ -307,6 +307,28 @@ void Editor::updateSelectedRoom() {
 					roomCursorPos);
 			});
 		}
+	} else if (selectedPlacableItem == PlacableItem::MOVING_BLOCK) {
+		std::optional<MovingBlockId> selected;
+		for (const auto& block : movingBlocks) {
+			const auto aabb = movingBlockAabbs(block.entity);
+			if (aabb.start.contains(roomCursorPos) || aabb.end.contains(roomCursorPos)) {
+				selected = block.id;
+			}
+		}
+
+		if (Input::isMouseButtonDown(MouseButton::LEFT)) {
+			auto result = movingBlockPlaceState.onLeftClick(cursorPos, selectedEditorRoom->position);
+			if (result.has_value()) {
+				const auto id = movingBlocks.create(std::move(*result)).id;
+				selectedEditorRoom->movingBlocks.push_back(id);
+			}
+		}
+		if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
+			if (selected.has_value()) {
+				movingBlocks.destroy(*selected);
+			}
+			movingBlockPlaceState.onRightClick();
+		}
 	}
 }
 
@@ -317,14 +339,18 @@ void Editor::render(GameRenderer& renderer) {
 	renderer.renderGrid(constants().cellSize);
 
 	for (const auto& room : rooms) {
-		renderRoom(room->levelRoom, renderer);
+		renderRoom(room.entity, renderer);
+	}
+
+	if (selectedPlacableItem == PlacableItem::MOVING_BLOCK) {
+		movingBlockPlaceState.render(cursorPosWorldSpace(camera));
 	}
 
 	renderer.update();
 }
 
-void Editor::renderRoom(const LevelRoom& room, GameRenderer& renderer) {
-	Dbg::drawAabb(roomAabb(room), Color3::WHITE, 2.0f);
+void Editor::renderRoom(const EditorRoom& room, GameRenderer& renderer) {
+	Dbg::drawAabb(roomAabb(room.position, room.blockGrid.size()), Color3::WHITE, 2.0f);
 
 	for (const auto& spawnPoint : room.spawnPoints) {
 		const auto position = spawnPointToPlayerSpawnPos(spawnPoint, room.position);
@@ -334,6 +360,15 @@ void Editor::renderRoom(const LevelRoom& room, GameRenderer& renderer) {
 
 	for (const auto& orb : room.doubleJumpOrbs) {
 		renderer.renderDoubleJumpOrb(orb.position + Vec2(room.position) * constants().cellSize);
+	}
+
+	const auto roomOffset = Vec2(room.position) * constants().cellSize;
+
+	for (const auto& block : movingBlocks) {
+		const auto aabb = movingBlockAabbs(block.entity);
+		Dbg::drawAabb(aabb.start.translated(roomOffset), Color3::GREEN / 2.0f, 2.0f);
+		Dbg::drawAabb(aabb.end.translated(roomOffset), Color3::GREEN / 6.0f, 2.0f);
+		Dbg::drawLine(aabb.start.center() + roomOffset, aabb.end.center() + roomOffset, Color3::WHITE / 2.0f, 2.0f);
 	}
 
 	for (i32 roomYi = 0; roomYi < room.blockGrid.size().y; roomYi++) {
@@ -381,7 +416,7 @@ void Editor::renderRoom(const LevelRoom& room, GameRenderer& renderer) {
 	}
 }
 
-void Editor::roomSizeGui(LevelRoom& room) {
+void Editor::roomSizeGui(EditorRoom& room) {
 	Gui::put("% x %", room.blockGrid.size().x, room.blockGrid.size().y);
 	auto increaseLeftAndBottom = [](const Array2d<BlockType>& array, i32 increaseX, i32 increaseY) -> Array2d<BlockType> {
 		auto n = Array2d<BlockType>::withAllSetTo(
@@ -493,79 +528,9 @@ void Editor::roomSizeGui(LevelRoom& room) {
 		ImGui::SameLine();
 		ImGui::Text("top");
 	}
-
-	//if (ImGui::Button("increase left")) {
-	//	const auto increase = 1;
-	//	auto n = Array2d<BlockType>(
-	//		room.blockGrid.size().x + increase,
-	//		room.blockGrid.size().y);
-
-	//	for (i32 y = 0; y < n.size().y; y++) {
-	//		for (i32 x = 0; x < increase; x++) {
-	//			n(x, y) = BlockType::EMPTY;
-	//		}
-	//	}
-
-	//	for (i32 y = 0; y < n.size().y; y++) {
-	//		for (i32 x = increase; x < n.size().x; x++) {
-	//			n(x, y) = room.blockGrid(x - increase, y);
-	//		}
-	//	}
-	//	room.blockGrid = std::move(n);
-	//	room.position.x -= increase;
-	//}
-
-	//if (ImGui::Button("decrease left")) {
-	//	const auto decrase = 1;
-	//	auto n = Array2d<BlockType>(
-	//		room.blockGrid.size().x - decrase,
-	//		room.blockGrid.size().y);
-
-	//	for (i32 y = 0; y < n.size().y; y++) {
-	//		for (i32 x = 0; x < n.size().x; x++) {
-	//			n(x, y) = room.blockGrid(x + decrase, y);
-	//		}
-	//	}
-	//	room.blockGrid = std::move(n);
-	//	room.position.x += decrase;
-	//}
-
-	//if (ImGui::Button("increase right")) {
-	//	const auto increase = 1;
-	//	auto n = Array2d<BlockType>(
-	//		room.blockGrid.size().x + increase,
-	//		room.blockGrid.size().y);
-
-	//	for (i32 y = 0; y < n.size().y; y++) {
-	//		for (i32 x = 0; x < increase; x++) {
-	//			n(room.blockGrid.size().x + x, y) = BlockType::EMPTY;
-	//		}
-	//	}
-
-	//	for (i32 y = 0; y < n.size().y; y++) {
-	//		for (i32 x = increase; x < n.size().x; x++) {
-	//			n(x, y) = room.blockGrid(x, y);
-	//		}
-	//	}
-	//	room.blockGrid = std::move(n);
-	//}
-
-	//if (ImGui::Button("decrease right")) {
-	//	const auto decrase = 1;
-	//	auto n = Array2d<BlockType>(
-	//		room.blockGrid.size().x - decrase,
-	//		room.blockGrid.size().y);
-
-	//	for (i32 y = 0; y < n.size().y; y++) {
-	//		for (i32 x = 0; x < n.size().x; x++) {
-	//			n(x, y) = room.blockGrid(x, y);
-	//		}
-	//	}
-	//	room.blockGrid = std::move(n);
-	//}
 }
 
-void Editor::moveObjects(LevelRoom& room, Vec2T<i32> change) {
+void Editor::moveObjects(EditorRoom& room, Vec2T<i32> change) {
 	for (auto& spawnPoint : room.spawnPoints) {
 		spawnPoint.position += Vec2(change) * constants().cellSize;
 	}
@@ -573,6 +538,11 @@ void Editor::moveObjects(LevelRoom& room, Vec2T<i32> change) {
 
 Vec2T<i32> Editor::worldPositionToWorldGridPosition(Vec2 worldPosition) {
 	return Vec2T<i32>((worldPosition / constants().cellSize).applied(floor));
+}
+
+Vec2 Editor::worldPositionRoundedToGrid(Vec2 worldPosition) {
+	const auto gridPosition = worldPositionToWorldGridPosition(worldPosition);
+	return Vec2(gridPosition) * constants().cellSize;
 }
 
 Editor::OnSwitchToGameResult Editor::onSwitchToGame() {
@@ -651,9 +621,17 @@ void Editor::errorModal() {
 
 void Editor::loadLevel(Level&& level) {
 	for (auto& room : level.rooms) {
-		rooms.create(EditorRoom{
-			.levelRoom = std::move(room)
-		});
+		EditorRoom r{
+			.position = room.position,
+			.blockGrid = std::move(room.blockGrid),
+			.spawnPoints = std::move(room.spawnPoints),
+			.doubleJumpOrbs = std::move(room.doubleJumpOrbs),
+		};
+		for (auto& movingBlock : room.movingBlocks) {
+			const auto id = movingBlocks.create(std::move(movingBlock)).id;
+			r.movingBlocks.push_back(id);
+		}
+		rooms.create(std::move(r));
 	}
 }
 
@@ -670,42 +648,21 @@ Editor::GenerateLevel2Result Editor::generateLevel2() {
 		}
 
 		level.rooms.emplace_back(LevelRoom{
-			.position = room->levelRoom.position,
-			.blockGrid = Array2d<BlockType>(room->levelRoom.blockGrid),
-			.spawnPoints = room->levelRoom.spawnPoints,
-			.doubleJumpOrbs = room->levelRoom.doubleJumpOrbs
+			.position = room->position,
+			.blockGrid = Array2d<BlockType>(room->blockGrid),
+			.spawnPoints = room->spawnPoints,
+			.doubleJumpOrbs = room->doubleJumpOrbs,
 		});
+		auto& levelRoom = level.rooms.back();
+		for (const auto& id : room->movingBlocks) {
+			const auto block = movingBlocks.get(id);
+			if (block.has_value()) {
+				levelRoom.movingBlocks.push_back(*block);
+			}
+		}
 	}
 	return GenerateLevel2Result{ .level = std::move(level), .selectedRoomIndex = selectedRoomIndex};
 }
-
-//std::optional<LevelTransition> Editor::LevelTransitionPlaceState::onLeftClick(Vec2 cursorPos, f32 cellSize) {
-//	if (!triggerCorner0.has_value()) {
-//		triggerCorner0 = cursorPos;
-//		return std::nullopt;
-//	}
-//
-//	if (!triggerCorner1.has_value()) {
-//		triggerCorner1 = cursorPos;
-//		return std::nullopt;
-//	}
-//
-//	Aabb triggerHitbox = Aabb::fromCorners(*triggerCorner0, *triggerCorner1);
-//	triggerHitbox.max += Vec2(cellSize);
-//
-//	triggerCorner0 = std::nullopt;
-//	triggerCorner1 = std::nullopt;
-//
-//	return LevelTransition{
-//		.respawnPoint = cursorPos,
-//		.trigger = triggerHitbox,
-//	};
-//}
-
-//void Editor::LevelTransitionPlaceState::onRightClick() {
-//	triggerCorner0 = std::nullopt;
-//	triggerCorner1 = std::nullopt;
-//}
 
 const char* createNewLevelModalName = "new level";
 void Editor::CreateNewLevelInputState::openModal() {
@@ -790,4 +747,57 @@ std::optional<Editor::OpenLevelModalState::Result> Editor::OpenLevelModalState::
 	ImGui::EndPopup();
 
 	return std::nullopt;
+}
+
+std::optional<LevelMovingBlock> Editor::MovingBlockPlaceState::onLeftClick(Vec2 globalCursorPos, Vec2T<i32> roomPosition) {
+
+	const auto cursorPosRounded = Editor::worldPositionRoundedToGrid(globalCursorPos);
+
+	if (!blockCorner0.has_value()) {
+		blockCorner0 = cursorPosRounded;
+		return std::nullopt;
+	}
+
+	if (!blockCorner1.has_value()) {
+		blockCorner1 = cursorPosRounded + Vec2(1.0f);
+		return std::nullopt;
+	}
+
+	const auto roomOffset = Vec2(roomPosition) * constants().cellSize;
+
+	const auto blockAabb = Aabb::fromCorners(*blockCorner0, *blockCorner1);
+
+	LevelMovingBlock result{
+		.position = blockAabb.min - roomOffset,
+		.size = blockAabb.size(),
+		.endPosition = cursorPosRounded - roomOffset
+	};
+
+	blockCorner0 = std::nullopt;
+	blockCorner1 = std::nullopt;
+
+	return result;
+}
+
+void Editor::MovingBlockPlaceState::onRightClick() {
+	blockCorner0 = std::nullopt;
+	blockCorner1 = std::nullopt;
+}
+
+void Editor::MovingBlockPlaceState::render(Vec2 globalCursorPos) {
+	const auto cursor = worldPositionRoundedToGrid(globalCursorPos);
+
+	if (blockCorner0.has_value() && !blockCorner1.has_value()) {
+		Dbg::drawAabb(Aabb::fromCorners(*blockCorner0, cursor + Vec2(1.0f)), Color3::WHITE / 2.0f, 2.0f);
+	}
+
+	if (blockCorner0.has_value() && blockCorner1.has_value()) {
+		const auto aabb = Aabb::fromCorners(*blockCorner0, *blockCorner1);
+		Dbg::drawAabb(aabb, Color3::GREEN, 2.0f);
+		const auto preview = Aabb(cursor, cursor + aabb.size());
+		Dbg::drawAabb(preview, Color3::WHITE / 2.0f, 2.0f);
+		Dbg::drawLine(aabb.center(), preview.center(), Color3::WHITE / 2.0f, 2.0f);
+	}
+
+	
 }

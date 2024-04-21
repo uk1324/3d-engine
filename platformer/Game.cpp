@@ -56,6 +56,9 @@ void Game::gameUpdate() {
 		for (auto& orb : activeRoom->doubleJumpOrbs) {
 			orb.elapsedSinceUsed += dt;
 		}
+		for (auto& block : activeRoom->movingBlocks) {
+			block.update(dt);
+		}
 		player.updateMovement(dt, activeRoom->doubleJumpOrbs);
 	}
 
@@ -116,6 +119,10 @@ void Game::gameRender() {
 		}
 		for (const auto& orb : room.doubleJumpOrbs) {
 			renderer.renderDoubleJumpOrb(orb);
+		}
+		for (const auto& block : room.movingBlocks) {
+			const auto position = block.position();
+			Dbg::drawAabb(position, position + block.size, Color3::GREEN, 2.0f);
 		}
 	}
 	renderer.update();
@@ -230,18 +237,10 @@ void Game::onSwitchFromEditor(std::optional<i32> editorSelectedRoomIndex) {
 		loadRoom(room);
 	}
  	spawnPlayer(editorSelectedRoomIndex);
-	/*if (this->level.rooms.size() > 0) {
-		loadRoom(this->level.rooms[0]);
-	}*/
 }
 
 void Game::loadRoom(LevelRoom& room) {
 	RuntimeRoom runtimeRoom;
-	//activeRoom = room;
-	/*runtimeRoom.blocks.clear();
-	runtimeRoom.spikes.clear();
-	runtimeRoom.platforms.clear();
-	runtimeRoom.*/
 
 	const auto roomOffset = Vec2(room.position) * constants().cellSize;
 	for (i32 y = 0; y < room.blockGrid.size().y; y++) {
@@ -286,31 +285,8 @@ void Game::loadRoom(LevelRoom& room) {
 		});
 	}
 
-	// TODO: make this a reference
-	//std::optional<SpawnPoint> spawnPoint;
-
-	//for (const auto& transition : level.levelTransitions) {
-	//	if ((enteredFromLevelName.has_value() && transition.level == *enteredFromLevelName) ||
-	//		transition.level == FIRST_LEVEL_NAME) {
-	//		spawnPoint = transition;
-	//	}
-	//	
-	//}
-
-	//if (!spawnPoint.has_value()) {
-	//	// TODO: Maybe default.
-	//	ASSERT_NOT_REACHED();
-	//	return;
-	//}
-
-	//Vec2 spawnPoint = Vec2(0.0f);
-	//if (room.spawnPoints.size() > 0) {
-	//	spawnPoint = spawnPointToPlayerSpawnPos(room.spawnPoints[0], playerSettings, room.position, cellSize);
-	//}
-
-	///*player = Player{};
-	//player.position = levelTransitionToPlayerSpawnPos(*spawnPoint, playerSettings);*/
-	//player = Player{};
-	//player.position = spawnPoint;
+	for (const auto& block : room.movingBlocks) {
+		runtimeRoom.movingBlocks.push_back(MovingBlock(block, room.position));
+	}
 	rooms.push_back(std::move(runtimeRoom));
 }

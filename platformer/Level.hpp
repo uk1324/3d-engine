@@ -19,4 +19,10 @@ Vec2 spawnPointToPlayerSpawnPos(
 std::optional<Level> tryLoadLevelFromFile(std::string_view path);
 void saveLevelToFile(std::string_view path, const Level& level);
 
-LevelRoom levelRoomClone(const LevelRoom& levelRoom);
+struct MovingBlockAabbs {
+	Aabb start, end;
+};
+MovingBlockAabbs movingBlockAabbs(Vec2 position, Vec2 size, Vec2 endPosition);
+MovingBlockAabbs movingBlockAabbs(const LevelMovingBlock& movingBlock);
+
+

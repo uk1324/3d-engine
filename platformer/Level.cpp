@@ -60,6 +60,16 @@ void saveLevelToFile(std::string_view path, const Level& level) {
 	Json::print(file, json);
 }
 
+MovingBlockAabbs movingBlockAabbs(Vec2 position, Vec2 size, Vec2 endPosition) {
+	const auto start = Aabb::fromCorners(position, position + size);
+	const auto end = Aabb(endPosition, endPosition + size);
+	return MovingBlockAabbs{ start, end };
+}
+
+MovingBlockAabbs movingBlockAabbs(const LevelMovingBlock& movingBlock) {
+	return movingBlockAabbs(movingBlock.position, movingBlock.size, movingBlock.endPosition);
+}
+
 //LevelRoom levelRoomClone(const LevelRoom& levelRoom) {
 //	return LevelRoom{
 //		.blockGrid = 

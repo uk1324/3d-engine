@@ -2,6 +2,7 @@
 
 #include <platformer/GameRenderer.hpp>
 #include <platformer/Editor.hpp>
+#include <platformer/Entities.hpp>
 #include <RefOptional.hpp>
 #include <Array2d.hpp>
 
@@ -37,6 +38,7 @@ struct Game {
 		std::vector<Spike> spikes;
 		std::vector<Platform> platforms;
 		std::vector<DoubleJumpOrb> doubleJumpOrbs;
+		std::vector<MovingBlock> movingBlocks;
 	};
 	std::vector<RuntimeRoom> rooms;
 

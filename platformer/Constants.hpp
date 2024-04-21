@@ -15,3 +15,4 @@ const GameConstants& constants();
 
 Aabb playerAabb(Vec2 playerPosition);
 Aabb roomAabb(const LevelRoom& room);
+Aabb roomAabb(Vec2T<i32> position, Vec2T<i64> size);

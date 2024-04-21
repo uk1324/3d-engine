@@ -72,6 +72,10 @@ auto Aabb::addedPadding(float padding) const -> Aabb {
 	return Aabb{ min - Vec2{ padding }, max + Vec2{ padding } };
 }
 
+Aabb Aabb::translated(Vec2 translation) const {
+	return Aabb(min + translation, max + translation);
+}
+
 Aabb Aabb::intersection(const Aabb& aabb) const {
 	const auto mi = Vec2(std::max(aabb.min.x, min.x), std::max(aabb.min.y, min.y));
 	const auto ma = Vec2(std::min(aabb.max.x, max.x), std::min(aabb.max.y, max.y));

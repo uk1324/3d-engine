@@ -12,7 +12,11 @@ Aabb playerAabb(Vec2 playerPosition) {
 }
 
 Aabb roomAabb(const LevelRoom& room) {
+	return roomAabb(room.position, room.blockGrid.size());
+}
+
+Aabb roomAabb(Vec2T<i32> position, Vec2T<i64> size) {
 	return Aabb(
-		Vec2(room.position) * constants().cellSize,
-		Vec2(room.position + Vec2T<i32>(room.blockGrid.size())) * constants().cellSize);
+		Vec2(position) * constants().cellSize,
+		Vec2(position + Vec2T<i32>(size)) * constants().cellSize);
 }
