@@ -17,8 +17,8 @@ void Player::updateMovement(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs) 
     const bool right = Input::isKeyHeld(KeyCode::D);
     const bool jump = Input::isKeyHeld(KeyCode::SPACE);
 
-    /*f32 speed = 1.0f / 1.5f;*/
-    f32 speed = 40.0f / 1.5f;
+    f32 speed = 1.0f / 1.5f;
+    //f32 speed = 40.0f / 1.5f;
 
     if (!isGrounded()) {
         speed *= 0.40f;
@@ -218,6 +218,10 @@ void Player::blockCollision(const std::vector<Block>& blocks) {
             return;
         }
 
+        if (delta.x != 0.0f) {
+            int x = 5;
+        }
+
         const auto epsilon = 1e-3f;
         const auto movement = (std::clamp(closestHit->time - epsilon, 0.0f, 1.0f)) * delta;
         position += movement;
@@ -229,6 +233,12 @@ void Player::blockCollision(const std::vector<Block>& blocks) {
             delta.y = 0.0f;
             velocity.y = 0.0f;
         }
+        if (closestHit->time == 0.0f) {
+            //position = pToV(closestHit->pos);
+            position += pToV(closestHit->normal) * 0.01f;
+            int x = 5;
+        }
+
         //position += pToV(closestHit->delta);
 
         if (closestHit->normal.y == 1.0f) {
