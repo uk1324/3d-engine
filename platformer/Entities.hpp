@@ -6,6 +6,7 @@ struct MovingBlock {
 	MovingBlock(const LevelMovingBlock& movingBlock, Vec2T<i32> roomPosition);
 	void reset();
 	void update(f32 dt);
+	//Vec2 velocity() const;
 
 	Vec2 position() const;
 
@@ -14,5 +15,6 @@ struct MovingBlock {
 	Vec2 size;
 	f32 t;
 	f32 speed;
+	Vec2 positionDelta;
 	bool movingForward;
 };

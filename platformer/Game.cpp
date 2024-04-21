@@ -30,7 +30,7 @@ void Game::update() {
 		editor.render(renderer);
 	}
 }
-
+#include <imgui/imgui.h>
 void Game::gameUpdate() {
 	std::optional<i32> roomWithBiggestOverlapIndex;
 	f32 biggestOverlap = 0.0f;
@@ -56,15 +56,24 @@ void Game::gameUpdate() {
 		for (auto& orb : activeRoom->doubleJumpOrbs) {
 			orb.elapsedSinceUsed += dt;
 		}
+		// Doing things in this order seems to work fine, but not perfect.
 		for (auto& block : activeRoom->movingBlocks) {
 			block.update(dt);
 		}
+		player.checkIfPlayerIsStandingOnMovingBlocks(activeRoom->movingBlocks);
+		/*if (player.blockThatIsBeingStoodOnVelocity.has_value()) {
+			ImGui::InputFloat("vel", player.blockThatIsBeingStoodOnVelocity->data());
+		}*/
+		ImGui::InputFloat2("vel", player.velocity.data());
+		ImGui::Text("%d", player.blockThatIsBeingStoodOnVelocity.has_value());
 		player.updateMovement(dt, activeRoom->doubleJumpOrbs);
+		player.blockCollision(activeRoom->blocks);
 	}
 
 	for (const auto room : rooms) {
 		
-		player.blockCollision(room.blocks);
+		/*player.blockCollision(room.blocks);
+		player.movingBlockCollision(room.movingBlocks);*/
 
 		const auto playerAabb = ::playerAabb(player.position);
 
@@ -95,7 +104,8 @@ void Game::gameUpdate() {
 			if (playerBottomY >= platformY && playerBottomY + player.velocity.y <= platformY) {
 				player.velocity.y = 0.0f;
 				player.position.y = platformY + constants().playerSize.y / 2.0f;
-				player.grounded = true;
+				player.blockThatIsBeingStoodOnVelocity = Vec2(0.0f);
+				//player.grounded = true;
 			}
 		}
 	}
