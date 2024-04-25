@@ -151,6 +151,11 @@ void Continous2dSystemVisualization::derivativePlot(Renderer2d& renderer2d) {
 	const auto view = ImPlot::GetPlotLimits();
 	basinOfAttractionState.render(*this, Aabb(Vec2(view.X.Min, view.Y.Min), Vec2(view.X.Max, view.Y.Max)), renderer2d);
 
+	if (selectedToolType == ToolType::CALCULATE_INDEX) {
+		calculateIndexTool.update();
+	}
+
+
 	ImPlot::PopStyleColor();
 
 	ImPlot::EndPlot();
@@ -674,6 +679,12 @@ void Continous2dSystemVisualization::settings() {
 	if (ImGui::Button("remove all")) {
 		testPoints.clear();
 	}
+
+	if (selectedToolType == ToolType::CALCULATE_INDEX) {
+		ImGui::SeparatorText("index");
+		calculateIndexTool.settings(*this);
+	}
+
 	if (ImGui::Button("spawn on boundary")) {
 		spawnPointsOnBoundaryNextFrame = true;
 	}
@@ -1074,7 +1085,6 @@ void Continous2dSystemVisualization::BasinOfAttractionState::recompileShader(
 	Continous2dSystemVisualization& state,
 	Renderer2d& renderer2d) {
 
-	// This doesn't work well, because many interation are required to converge to the fixed point. It looks like a fractal, but after many iterations it coverges into simple shapes. Look at the shadertoy below (in the previous commits).
 	StringStream s;
 	s << "#version 430 core\n";
 	s << "in vec2 fragmentTexturePosition;\n";
@@ -1136,7 +1146,7 @@ void Continous2dSystemVisualization::BasinOfAttractionState::recompileShader(
 		)";
 	}
 	s << "}\n";
-	//std::cout << s.string() << '\n';
+	std::cout << s.string() << '\n';
 	auto result = ShaderProgram::fromSource(renderer2d.fullscreenQuadVertSource, s.string());
 	if (!result.has_value()) {
 		shaderProgram = std::nullopt;
@@ -1319,4 +1329,105 @@ void Continous2dSystemVisualization::SurfacePlotWindow::updateArray(Continous2dS
 	//		heightmap(xi, yi) = z;
 	//	}
 	//}
+}
+
+void Continous2dSystemVisualization::CalculateIndexTool::update() {
+
+	Input::ignoreImGuiWantCapture = true;
+	if (Input::isKeyHeld(KeyCode::LEFT_CTRL)) {
+		const auto scroll = Input::scrollDelta();
+		const auto speed = 0.8f;
+		if (scroll > 0.0f) {
+			radius *= speed;
+		}
+		if (scroll < 0.0f) {
+			radius /= speed;
+		}
+	}
+	Input::ignoreImGuiWantCapture = false;
+
+	ImPlot::PushPlotClipRect();
+	const auto cursorPosPlotSpace = ImPlot::GetPlotMousePos();
+	ImVec2 cursorPosPixelSpace = ImPlot::PlotToPixels(cursorPosPlotSpace);
+	const auto radiusPixels = 
+		ImPlot::PlotToPixels(ImPlotPoint(radius * 0.5f, 0.0f)).x - 
+		ImPlot::PlotToPixels(ImPlotPoint(radius * -0.5f, 0.0f)).x;
+	ImPlot::GetPlotDrawList()->AddCircle(cursorPosPixelSpace, radiusPixels, IM_COL32(255, 255, 0, 255), 20);
+	ImPlot::PopPlotClipRect();
+
+	positionInPlotSpace = Vec2(cursorPosPlotSpace.x, cursorPosPlotSpace.y);
+	ImPlot::PushStyleColor(ImPlotCol_Line, Vec4(Color3::BLACK));
+	plotVec2Line("abcd", abc);
+	ImPlot::PopStyleColor();
+}
+
+void Continous2dSystemVisualization::CalculateIndexTool::settings(Continous2dSystemVisualization& s) {
+	ImGui::SliderFloat("radius", &radius, 0.0f, 100.0f);
+	radius = std::clamp(radius, 0.0f, 100.0f);
+
+	/*
+	da = (xdy - ydx)/(x^2 + y^2)
+	da = (xy'dt - yx'dt)/(x^2 + y^2)
+	da = ((xy' - yx')/(x^2 + y^2)) dt
+	*/
+
+	//float integral = 0.0f;
+	//i32 sampleCount = 1000;
+	//abc.clear();
+	//Vec2 oldPos = s.sampleVectorField(Vec2(radius, 0.0f));
+	//for (i32 i = 1; i < sampleCount; i++) {
+	//	const auto t = float(i) / float(sampleCount - 1);
+	//	const auto dt = (1.0f / float(sampleCount - 1)) * TAU<float>;
+	//	const auto a = lerp(0.0f, TAU<float>, t);
+	//	const auto pos = positionInPlotSpace + Vec2::fromPolar(a, radius);
+
+	//	const auto f = s.sampleVectorField(pos);
+	//	const auto df = (pos - oldPos) / dt;
+
+	//	integral += (f.x * df.y - f.y * df.x) / f.lengthSq() * dt;
+
+	//	oldPos = pos;
+	//	//const auto f = (formulaInput0)
+
+	//	abc.push_back(pos);
+	//}
+	if (Input::isKeyDown(KeyCode::K)) {
+		int x = 5;
+	}
+
+	float integral = 0.0f;
+	i32 sampleCount = 100;
+	abc.clear();
+	auto sample = [&](Vec2 offsetFromCenter) {
+		return s.sampleVectorField(positionInPlotSpace + offsetFromCenter);
+	};
+
+	const Vec2 firstF = sample(Vec2::fromPolar(0.0f, radius));
+	abc.push_back(firstF);
+	Vec2 oldF = firstF;
+	for (i32 i = 1; i < sampleCount; i++) {
+		const auto t = float(i) / float(sampleCount - 1);
+		const auto dt = (1.0f / float(sampleCount - 1)) * TAU<float>;
+		const auto a = lerp(0.0f, TAU<float>, t);
+
+		const auto f = sample(Vec2::fromPolar(a, radius));
+		/*const auto angleDifference = f.angle() - oldF.angle();*/
+
+		auto angleBetween = [](Vec2 a, Vec2 b) {
+			// https://wumbo.net/formulas/angle-between-two-vectors-2d/
+			return atan2(a.y * b.x - a.x * b.y, a.x * b.x + a.y * b.y);
+		};
+		const auto angleDifference = angleBetween(f, oldF);
+
+		/*integral += acos(std::clamp(dot(f.normalized(), oldF.normalized()), 0.0f, 1.0f));*/
+		//integral += asin(std::clamp(cross(f.normalized(), oldF.normalized()), 0.0f, 1.0f));
+		integral += angleDifference;
+		oldF = f;
+
+		abc.push_back(f);
+	}
+
+	integral /= TAU<float>;
+	ImGui::Text("index %g", integral);
+	ImGui::InputFloat2("circle center", positionInPlotSpace.data());
 }

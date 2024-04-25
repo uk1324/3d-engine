@@ -102,9 +102,10 @@ struct Continous2dSystemVisualization {
 
 	enum class ToolType {
 		SPAWN_TEST_POINTS,
+		CALCULATE_INDEX,
 	};
 	ToolType selectedToolType = ToolType::SPAWN_TEST_POINTS;
-	const char* toolTypeNames = "spawn test points\0";
+	const char* toolTypeNames = "spawn test points\0calculate index\0";
 
 	struct LinearizationToolState {
 		bool show = false;
@@ -114,6 +115,15 @@ struct Continous2dSystemVisualization {
 	} linearizationToolState;
 	void linearizationToolSettings();
 	static void linearizationToolUpdate(LinearizationToolState& s, const std::vector<Vec2> fixedPoints);
+
+	struct CalculateIndexTool {
+		Vec2 positionInPlotSpace;
+		float radius = 1.0f;
+		std::vector<Vec2> abc;
+		void update();
+		void settings(Continous2dSystemVisualization& s);
+	};
+	CalculateIndexTool calculateIndexTool;
 
 	struct BasinOfAttractionState {
 		bool show = false;
