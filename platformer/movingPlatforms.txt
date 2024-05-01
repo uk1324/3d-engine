@@ -10,3 +10,12 @@ In what order should thing be updated in?
 
 - update player velocity
 - move the player right before a collision happens
+
+Detect swept player position with swept box.
+Then the player is already in the right position and doesn't need to be moved to be in the position right before collision.
+The player will get inside the box because they didn't get moved.
+The player still need to be moved when standing on the box.
+
+Detect swept player with static box.
+Then the player needs to be moved by the same amount the box moved.
+The issue is that if the player is standing then the collision won't be detected so the box will move into the player. 

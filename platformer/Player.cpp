@@ -204,26 +204,42 @@ void Player::collision(
     //    //blockCopy.update(dt);
     //    blockCollision(playerAabb, blockAabb, L | R | U | D, blockCopy.positionDelta);
     //}
-    //std::optional<i32> indexToIgnore;
+    std::optional<i32> indexToIgnore;
 
     for (i32 _ = 0; _ < AXIS_COUNT; _++) {
+        i32 index = 0;
         const auto playerAabb = ::playerAabb(position);
         const auto pAabb = AABB(playerAabb.center(), playerAabb.size() / 2.0f);
 
         std::optional<Hit> closestHit;
         Vec2 closestHitPositionDelta = Vec2(0.0f);
+        i32 closestHitIndex = 0;
 
         auto checkHit = [&](const std::optional<Hit>& hit, Vec2 positionDelta = Vec2(0.0f)) -> void {
             if (!hit.has_value()) {
                 return;
             }
+
+            /*using namespace BlockCollisionDirections;
+            if ((hit->normal.x == 1.0f && !(collisionDirections & R)) ||
+                hit->normal.x == -1.0f && !(collisionDirections & L) ||
+                hit->normal.y == 1.0f && !(collisionDirections & U) ||
+                hit->normal.y == -1.0f && !(collisionDirections & D)) {
+                return;
+            }*/
+
             if (!closestHit.has_value() || hit->time < closestHit->time) {
                 closestHit = hit;
                 closestHitPositionDelta = positionDelta;
+                closestHitIndex = index;
             }
         };
 
         for (const auto& block : blocks) {
+            index++;
+            if (index == indexToIgnore) {
+                continue;
+            }
             const auto blockAabb = Aabb(block.position, block.position + Vec2(constants().cellSize));
 
             auto bAabb = AABB(blockAabb.center(), blockAabb.size() / 2.0f);
@@ -233,9 +249,12 @@ void Player::collision(
         }
 
         for (const auto& platform : platforms) {
+            index++;
+            if (index == indexToIgnore) {
+                continue;
+            }
             const auto playerBottomY = position.y - constants().playerSize.y / 2.0f;
             const auto platformY = platform.position.y;
-
             //Dbg::drawAabb(platformAabb1, Vec3(1.0f), 2.0f); 
 
             if (velocity.y > 0.0f || playerBottomY < platformY) {
@@ -243,8 +262,8 @@ void Player::collision(
             }
 
             const auto platformAabb1 = Aabb(
-                Vec2(platform.position.x, platformY),
-                Vec2(platform.position.x + constants().cellSize, platformY + 1.0f));
+            Vec2(platform.position.x, platformY),
+            Vec2(platform.position.x + constants().cellSize, platformY + 1.0f));
             auto platformAabb = AABB(platformAabb1.center(), platformAabb1.size() / 2.0f);
 
             auto result = platformAabb.sweepAABB(pAabb, movementDelta);
@@ -255,13 +274,18 @@ void Player::collision(
         }
 
         for (const auto& block : movingBlocks) {
+            index++;
+            if (index == indexToIgnore) {
+                continue;
+            }
+
             const auto blockAabb = Aabb(block.position(), block.position() + block.size);
             auto bAabb = AABB(blockAabb.center(), blockAabb.size() / 2.0f);
 
             auto blockCopy = block;
             blockCopy.update(dt);
 
-            auto result = bAabb.sweepAABB(pAabb, movementDelta);
+            auto result = bAabb.sweepAABB(pAabb, movementDelta - blockCopy.positionDelta);
             checkHit(result.hit, blockCopy.positionDelta);
         }
 
@@ -269,6 +293,7 @@ void Player::collision(
             position += movementDelta;
             break;
         }
+        indexToIgnore = closestHitIndex;
 
         //if (closestHit->time == 0.0f) {
         //    break;
@@ -298,6 +323,7 @@ void Player::collision(
                 using namespace BlockCollisionDirections;
                 blockCollision(movementDelta, playerAabb, blockAabb, L | R | U | D, blockCopy.positionDelta);
             }
+            ImGui::Text("already colliding");
             continue;
         }
 
@@ -343,6 +369,22 @@ void Player::collision(
         //    isGrounded = true;
         //}
     }
+
+    //{
+    //    const auto playerAabb = ::playerAabb(position);
+    //    for (const auto& block : blocks) {
+    //        const auto blockAabb = Aabb(block.position, block.position + Vec2(constants().cellSize));;
+    //        blockCollision(movementDelta, playerAabb, blockAabb, block.collisionDirections, Vec2(0.0f));
+    //    }
+    //    for (const auto& block : movingBlocks) {
+    //        auto blockCopy = block;
+    //        blockCopy.update(dt);
+    //        //const auto blockAabb = Aabb(block.position(), block.position() + block.size);
+    //        const auto blockAabb = Aabb(blockCopy.position(), blockCopy.position() + blockCopy.size);
+    //        using namespace BlockCollisionDirections;
+    //        blockCollision(movementDelta, playerAabb, blockAabb, L | R | U | D, blockCopy.positionDelta);
+    //    }
+    //}
 
     if (blockThatIsBeingTouchedMovementDelta.has_value()) {
         position += *blockThatIsBeingTouchedMovementDelta;
@@ -425,7 +467,7 @@ void Player::blockCollision(
         //blockVelocity.x = 0.0f;
     }
     if (collisionDirections & U && distance.top < distance.left && distance.top < distance.right) {
-        movement.y = 0.0f;
+         movement.y = 0.0f;
         velocity.y = 0.0f;
         position.y = blockPosition.y + blockSize.y + constants().playerSize.y / 2.0f + EPSILON;
         isGrounded = true;
