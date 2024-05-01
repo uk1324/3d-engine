@@ -11,9 +11,9 @@ struct Player {
 	Vec2 position;
 	Vec2 velocity = Vec2(0.0f);
 
-	//bool grounded = false;
-	std::optional<Vec2> blockThatIsBeingStoodOnVelocity;
-	bool isGrounded() const; 
+	bool isGrounded = false;
+	std::optional<Vec2> blockThatIsBeingTouchedMovementDelta;
+	//bool isGrounded() const; 
 	f32 elapsedSinceLastGrounded = std::numeric_limits<f32>::infinity();
 
 	bool touchingWallOnLeft = false;
@@ -29,10 +29,15 @@ struct Player {
 
 	void update();
 	void updateMovement(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs);
-	void blockCollision(const std::vector<Block>& blocks);
-	void movingBlockCollision(const std::vector<MovingBlock>& movingBlocks);
+	void collision(
+		f32 dt,
+		const std::vector<Block>& blocks, 
+		const std::vector<Platform>& platforms,
+		const std::vector<MovingBlock>& movingBlocks);
+	//void movingBlockCollision(const std::vector<MovingBlock>& movingBlocks);
 	void checkIfPlayerIsStandingOnMovingBlocks(const std::vector<MovingBlock>& movingBlocks);
 	void blockCollision(
+		Vec2& movement,
 		const Aabb& playerAabb, 
 		const Aabb& blockAabb, 
 		BlockCollsionDirectionsBitfield collisionDirections,

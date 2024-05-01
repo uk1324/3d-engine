@@ -1,0 +1,12 @@
+How should moving platforms work?
+
+When a platform moves into the player the player should be pushed by the platform.
+
+When the player is standing on the player the player is moved with the platform, but the players velocity isn't modified so when the player is standing still on a platform that is moving horizontally and jumps then the platform will move under them.
+
+One issue is that the moving blocks change direction discontinously so for example not move at all if after half a move it get's to the end and the changes direction and uses the other half of the move to move back.
+
+In what order should thing be updated in?
+
+- update player velocity
+- move the player right before a collision happens

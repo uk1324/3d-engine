@@ -2,7 +2,6 @@
 #include <engine/Math/Utils.hpp>
 #include <platformer/Constants.hpp>
 #include "Entities.hpp"
-
 void MovingBlock::reset() {
 	t = 0.0f;
 	movingForward = true;
@@ -38,5 +37,5 @@ MovingBlock::MovingBlock(const LevelMovingBlock& movingBlock, Vec2T<i32> roomPos
 }
 
 Vec2 MovingBlock::position() const {
-	return lerp(startPosition, endPosition, t);
+	return lerp(startPosition, endPosition, smoothstep(t));
 }

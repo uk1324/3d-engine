@@ -32,84 +32,77 @@ void Game::update() {
 }
 #include <imgui/imgui.h>
 void Game::gameUpdate() {
-	std::optional<i32> roomWithBiggestOverlapIndex;
-	f32 biggestOverlap = 0.0f;
-	for (i32 i = 0; i < level.rooms.size(); i++) {
-		auto& room = level.rooms[i];
-		const auto aabbRoom = roomAabb(room);
-		const auto aabbPlayer = playerAabb(player.position);
-		const auto overlap = aabbPlayer.intersection(aabbRoom);
-		const auto overlapArea = overlap.area();
-		if (overlapArea > biggestOverlap) {
-			biggestOverlap = overlapArea;
-			roomWithBiggestOverlapIndex = i;
+	{
+		std::optional<i32> roomWithBiggestOverlapIndex;
+		f32 biggestOverlap = 0.0f;
+		for (i32 i = 0; i < level.rooms.size(); i++) {
+			auto& room = level.rooms[i];
+			const auto aabbRoom = roomAabb(room);
+			const auto aabbPlayer = playerAabb(player.position);
+			const auto overlap = aabbPlayer.intersection(aabbRoom);
+			const auto overlapArea = overlap.area();
+			if (overlapArea > biggestOverlap) {
+				biggestOverlap = overlapArea;
+				roomWithBiggestOverlapIndex = i;
+			}
+		}
+
+		if (activeRoomIndex.has_value() && roomWithBiggestOverlapIndex.has_value()) {
+			if (activeRoomIndex != roomWithBiggestOverlapIndex) {
+				activeRoomIndex = roomWithBiggestOverlapIndex;
+			}
 		}
 	}
 
-	if (activeRoomIndex.has_value() && roomWithBiggestOverlapIndex.has_value()) {
-		if (activeRoomIndex != roomWithBiggestOverlapIndex) {
-			activeRoomIndex = roomWithBiggestOverlapIndex;
-		}
+	if (auto activeRoom = activeRuntimeRoom(); activeRoom.has_value()) {
+		//player.checkIfPlayerIsStandingOnMovingBlocks(activeRoom->movingBlocks);
+		//ImGui::InputFloat2("vel", player.velocity.data());
+		//ImGui::Text("%d", player.blockThatIsBeingStoodOnVelocity.has_value());
+		player.updateMovement(dt, activeRoom->doubleJumpOrbs);
 	}
+
+	// Could use an iterator instead of copying this. Could have an iterator of all the active rooms.
+	std::vector<Block> activeBlocks;
+	std::vector<Platform> activePlatforms;
+	std::vector<MovingBlock> activeMovingBlocks;
+
+	for (i32 i = 0; i < rooms.size(); i++) {
+		const auto& runtimeRoom = rooms[i];
+		const auto& levelRoom = level.rooms[i];
+		auto playerAabb = ::playerAabb(player.position);
+		const auto movement = player.velocity.applied(abs);
+		playerAabb.min -= movement;
+		playerAabb.max += movement;
+		const auto roomAabb = ::roomAabb(levelRoom);
+
+		if (!playerAabb.collides(roomAabb)) {
+			continue;
+		}
+
+		activeBlocks.insert(activeBlocks.end(), runtimeRoom.blocks.begin(), runtimeRoom.blocks.end());
+		activePlatforms.insert(activePlatforms.end(), runtimeRoom.platforms.begin(), runtimeRoom.platforms.end());
+		activeMovingBlocks.insert(activeMovingBlocks.end(), runtimeRoom.movingBlocks.begin(), runtimeRoom.movingBlocks.end());
+	}
+	player.collision(dt, activeBlocks, activePlatforms, activeMovingBlocks);
 
 	if (auto activeRoom = activeRuntimeRoom(); activeRoom.has_value()) {
 		for (auto& orb : activeRoom->doubleJumpOrbs) {
 			orb.elapsedSinceUsed += dt;
 		}
-		// Doing things in this order seems to work fine, but not perfect.
 		for (auto& block : activeRoom->movingBlocks) {
 			block.update(dt);
 		}
-		player.checkIfPlayerIsStandingOnMovingBlocks(activeRoom->movingBlocks);
-		/*if (player.blockThatIsBeingStoodOnVelocity.has_value()) {
-			ImGui::InputFloat("vel", player.blockThatIsBeingStoodOnVelocity->data());
-		}*/
-		ImGui::InputFloat2("vel", player.velocity.data());
-		ImGui::Text("%d", player.blockThatIsBeingStoodOnVelocity.has_value());
-		player.updateMovement(dt, activeRoom->doubleJumpOrbs);
-		player.blockCollision(activeRoom->blocks);
 	}
 
-	for (const auto room : rooms) {
-		
-		/*player.blockCollision(room.blocks);
-		player.movingBlockCollision(room.movingBlocks);*/
-
-		const auto playerAabb = ::playerAabb(player.position);
-
+	for (const auto& room : rooms) {
+		auto playerAabb = ::playerAabb(player.position);
 		for (const auto& spike : room.spikes) {
 			if (!spike.hitbox.collides(playerAabb)) {
 				continue;
 			}
 			spawnPlayer(std::nullopt);
 		}
-
-		for (const auto& platform : room.platforms) {
-			const auto hitbox = Aabb(platform.position, platform.position + Vec2(constants().cellSize, 0.0f));
-			auto playerHitbox = playerAabb;
-			const auto padding = player.velocity.applied(abs);
-			playerHitbox.min -= padding;
-			playerHitbox.max += padding;
-
-			if (!hitbox.collides(playerHitbox)) {
-				continue;
-			}
-
-			if (player.velocity.y > 0) {
-				continue;
-			}
-
-			const auto playerBottomY = player.position.y - constants().playerSize.y / 2.0f;
-			const auto platformY = platform.position.y;
-			if (playerBottomY >= platformY && playerBottomY + player.velocity.y <= platformY) {
-				player.velocity.y = 0.0f;
-				player.position.y = platformY + constants().playerSize.y / 2.0f;
-				player.blockThatIsBeingStoodOnVelocity = Vec2(0.0f);
-				//player.grounded = true;
-			}
-		}
 	}
-
 }
 
 void Game::gameRender() {

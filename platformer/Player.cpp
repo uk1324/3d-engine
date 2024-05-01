@@ -8,19 +8,31 @@
 #include <imgui/imgui.h>
 
 
-bool Player::isGrounded() const {
-    return blockThatIsBeingStoodOnVelocity.has_value();
-}
+//bool Player::isGrounded() const {
+//    return blockThatIsBeingStoodOnVelocity.has_value();
+//}
 
 void Player::updateMovement(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs) {
     const bool left = Input::isKeyHeld(KeyCode::A);
     const bool right = Input::isKeyHeld(KeyCode::D);
     const bool jump = Input::isKeyHeld(KeyCode::SPACE);
 
+    //ImGui::Checkbox("isGrounded", &isGrounded);
+    ImGui::InputFloat2("velocity", velocity.data());
+    ImGui::Text("is grounded: %s", isGrounded ? "true" : "false");
+    ImGui::Text("touching wall on left: %s", touchingWallOnLeft ? "true" : "false");
+    ImGui::Text("touching wall on right: %s", touchingWallOnRight ? "true" : "false");
+    /*ImGui::Text("touched block position delta: %s");*/
+    if (blockThatIsBeingTouchedMovementDelta.has_value()) {
+        ImGui::InputFloat2("touched block position delta", blockThatIsBeingTouchedMovementDelta->data());
+    } else {
+        ImGui::Text("no block touched");
+    }
+
     f32 speed = 1.0f / 1.5f;
     //f32 speed = 40.0f / 1.5f;
 
-    if (!isGrounded()) {
+    if (!isGrounded) {
         speed *= 0.40f;
     }
 
@@ -32,7 +44,7 @@ void Player::updateMovement(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs) 
     }
 
     elapsedSinceLastGrounded += dt;
-    if (isGrounded()) {
+    if (isGrounded) {
         elapsedSinceLastGrounded = 0.0f;
     }
     /*if (this.grounded) {
@@ -83,11 +95,11 @@ void Player::updateMovement(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs) 
             jumpedOffGround = false;
             // The orb gives a bigger jump, but doesn't allow holding space to extend it, because it the holding with the orb felt like flying.
             velocity.y = jumpSpeed * 1.3f;
-        } else if (!isGrounded() && touchingWallOnLeft && elapsedSinceLastJumped) {
+        } else if (!isGrounded && touchingWallOnLeft && elapsedSinceLastJumped) {
             jumped = true;
             velocity = Vec2(jumpSpeed * 1.55f, jumpSpeed * 1.3f);
             jumpedOffGround = false;
-        } else if (!isGrounded() && touchingWallOnRight) {
+        } else if (!isGrounded && touchingWallOnRight) {
             velocity = Vec2(-jumpSpeed * 1.55f, jumpSpeed * 1.3f);
             jumped = true;
             jumpedOffGround = false;
@@ -95,7 +107,9 @@ void Player::updateMovement(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs) 
 
         if (jumped) {
             jumpReleased = false;
-            blockThatIsBeingStoodOnVelocity = std::nullopt;
+            //blockThatIsBeingStoodOnVelocity = std::nullopt;
+            isGrounded = false;
+            blockThatIsBeingTouchedMovementDelta = std::nullopt;
             elapsedSinceJumpPressed = 0.0f;
             elapsedSinceLastJumped = 0.0f;
         }
@@ -111,7 +125,7 @@ void Player::updateMovement(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs) 
     const auto holdingOntoLeftWall = touchingWallOnLeft && left;
     const auto holdingOntoRightWall = touchingWallOnRight && right;
 
-    if (!isGrounded()) {
+    /*if (!isGrounded)*/ {
         const auto jumpGravityMultiplier = 0.8f;
         const auto fallGravityMultiplier = 1.5f;
 
@@ -129,7 +143,7 @@ void Player::updateMovement(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs) 
     }
 
     const auto frictionX = 0.85;
-    if (isGrounded()) {
+    if (isGrounded) {
         velocity.x *= frictionX;
     } else {
         velocity.x *= 0.94f;
@@ -149,14 +163,190 @@ void Player::updateMovement(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs) 
 
     if (!dead) {
         //position += velocity;
-        if (blockThatIsBeingStoodOnVelocity.has_value()) {
+        /*if (blockThatIsBeingStoodOnVelocity.has_value()) {
             position += *blockThatIsBeingStoodOnVelocity;
-        }
+        }*/
     }
 
-    blockThatIsBeingStoodOnVelocity = std::nullopt;
+    //blockThatIsBeingStoodOnVelocity = std::nullopt;
+    isGrounded = false;
+    blockThatIsBeingTouchedMovementDelta = std::nullopt;
     touchingWallOnLeft = false;
     touchingWallOnRight = false;
+}
+#include <framework/Dbg.hpp>
+
+void Player::collision(
+    f32 dt,
+    const std::vector<Block>& blocks, 
+    const std::vector<Platform>& platforms,
+    const std::vector<MovingBlock>& movingBlocks) {
+    static constexpr i32 AXIS_COUNT = 2;
+    // For sliding to work with swept collision first the motion is done until some object is hit. After that the movement delta in the direction of collision is set to zero and the swept collision for the new movement delta is performed.
+    Vec2 movementDelta = velocity;
+
+    //if (blockThatIsBeingStoodOnVelocity.has_value()) {
+    //    position += *blockThatIsBeingStoodOnVelocity;
+    //}
+    if (Input::isKeyDown(KeyCode::K)) {
+        int x = 5;
+    }
+
+    //const auto playerAabb = ::playerAabb(position);
+    //for (const auto& block : blocks) {
+    //    const auto blockAabb = Aabb(block.position, block.position + Vec2(constants().cellSize));;
+    //    blockCollision(playerAabb, blockAabb, block.collisionDirections, Vec2(0.0f));
+    //}
+    //for (const auto& block : movingBlocks) {
+    //    const auto blockAabb = Aabb(block.position(), block.position() + block.size);
+    //    using namespace BlockCollisionDirections;
+    //    auto blockCopy = block;
+    //    //blockCopy.update(dt);
+    //    blockCollision(playerAabb, blockAabb, L | R | U | D, blockCopy.positionDelta);
+    //}
+    //std::optional<i32> indexToIgnore;
+
+    for (i32 _ = 0; _ < AXIS_COUNT; _++) {
+        const auto playerAabb = ::playerAabb(position);
+        const auto pAabb = AABB(playerAabb.center(), playerAabb.size() / 2.0f);
+
+        std::optional<Hit> closestHit;
+        Vec2 closestHitPositionDelta = Vec2(0.0f);
+
+        auto checkHit = [&](const std::optional<Hit>& hit, Vec2 positionDelta = Vec2(0.0f)) -> void {
+            if (!hit.has_value()) {
+                return;
+            }
+            if (!closestHit.has_value() || hit->time < closestHit->time) {
+                closestHit = hit;
+                closestHitPositionDelta = positionDelta;
+            }
+        };
+
+        for (const auto& block : blocks) {
+            const auto blockAabb = Aabb(block.position, block.position + Vec2(constants().cellSize));
+
+            auto bAabb = AABB(blockAabb.center(), blockAabb.size() / 2.0f);
+
+            auto result = bAabb.sweepAABB(pAabb, movementDelta);
+            checkHit(result.hit);
+        }
+
+        for (const auto& platform : platforms) {
+            const auto playerBottomY = position.y - constants().playerSize.y / 2.0f;
+            const auto platformY = platform.position.y;
+
+            //Dbg::drawAabb(platformAabb1, Vec3(1.0f), 2.0f); 
+
+            if (velocity.y > 0.0f || playerBottomY < platformY) {
+                continue;
+            }
+
+            const auto platformAabb1 = Aabb(
+                Vec2(platform.position.x, platformY),
+                Vec2(platform.position.x + constants().cellSize, platformY + 1.0f));
+            auto platformAabb = AABB(platformAabb1.center(), platformAabb1.size() / 2.0f);
+
+            auto result = platformAabb.sweepAABB(pAabb, movementDelta);
+            if (!result.hit.has_value() || result.hit->normal.x != 0.0f) {
+                continue;
+            }
+            checkHit(result.hit);
+        }
+
+        for (const auto& block : movingBlocks) {
+            const auto blockAabb = Aabb(block.position(), block.position() + block.size);
+            auto bAabb = AABB(blockAabb.center(), blockAabb.size() / 2.0f);
+
+            auto blockCopy = block;
+            blockCopy.update(dt);
+
+            auto result = bAabb.sweepAABB(pAabb, movementDelta);
+            checkHit(result.hit, blockCopy.positionDelta);
+        }
+
+        if (!closestHit.has_value()) {
+            position += movementDelta;
+            break;
+        }
+
+        //if (closestHit->time == 0.0f) {
+        //    break;
+        //}
+
+        //ImGui::InputFloat2("normal", closestHit->normal.data());
+
+        const auto epsilon = 0.01f;
+        //const auto epsilon = 0.0f;
+        const auto movement = (std::clamp(closestHit->time - epsilon, 0.0f, 1.0f)) * movementDelta;
+        position += movement;
+        movementDelta -= movement;
+
+        if (closestHit->time == 0.0f) {
+            //position += closestHit->normal * 0.03f;
+            //break;
+            const auto playerAabb = ::playerAabb(position);
+            for (const auto& block : blocks) {
+                const auto blockAabb = Aabb(block.position, block.position + Vec2(constants().cellSize));;
+                blockCollision(movementDelta, playerAabb, blockAabb, block.collisionDirections, Vec2(0.0f));
+            }
+            for (const auto& block : movingBlocks) {
+                auto blockCopy = block;
+                blockCopy.update(dt);
+                //const auto blockAabb = Aabb(block.position(), block.position() + block.size);
+                const auto blockAabb = Aabb(blockCopy.position(), blockCopy.position() + blockCopy.size);
+                using namespace BlockCollisionDirections;
+                blockCollision(movementDelta, playerAabb, blockAabb, L | R | U | D, blockCopy.positionDelta);
+            }
+            continue;
+        }
+
+        if (closestHit->normal.x != 0) {
+            movementDelta.x = 0.0f;
+            velocity.x = 0.0f;
+            closestHitPositionDelta.y = 0.0f;
+        } else if (closestHit->normal.y != 0) {
+            movementDelta.y = 0.0f;
+            velocity.y = 0.0f;
+            //closestHitPositionDelta.x = 0.0f;
+        }
+
+        if (closestHit->normal.y == 1.0f) {
+            isGrounded = true;
+        }
+        if (closestHit->normal.x == 1.0f) {
+            touchingWallOnLeft = true;
+        }
+        if (closestHit->normal.x == -1.0f) {
+            touchingWallOnRight = true;
+        }
+
+        blockThatIsBeingTouchedMovementDelta = closestHitPositionDelta;
+
+        //if (closestHit->normal.x != 0) {
+        //    movementDelta.x = 0.0f;
+        //    velocity.x = 0.0f;
+        //    //velocity.x = closestHitPositionDelta.x;
+        //} else if (closestHit->normal.y != 0) {
+        //    movementDelta.y = 0.0f;
+        //    velocity.y = 0.0f;
+        //    if (closestHitPositionDelta != Vec2(0.0f)) {
+        //        int x = 5;
+        //    }
+        //    //velocity.y = closestHitPositionDelta.y;
+        //}
+        ////if (closestHit->time == 0.0f) {
+        ////    position += closestHit->normal * 0.01f;
+        ////}
+        //if (closestHit->normal.y == 1.0f) {
+        //    //blockThatIsBeingStoodOnVelocity = closestHitPositionDelta;
+        //    isGrounded = true;
+        //}
+    }
+
+    if (blockThatIsBeingTouchedMovementDelta.has_value()) {
+        position += *blockThatIsBeingTouchedMovementDelta;
+    }
 }
 
 struct Distance {
@@ -175,88 +365,6 @@ Distance getDistance(const Aabb& a, const Aabb& b, Vec2 aVel) {
     };
 }
 
-#include <framework/Dbg.hpp>
-void Player::blockCollision(const std::vector<Block>& blocks) {
-    auto vToP = [](Vec2 v) {
-        return Point(v.x, v.y);
-    };
-
-    auto pToV = [](Point v) {
-        return Vec2(v.x, v.y);
-    };
-
-    //Dbg::drawAabb(playerAabb, Vec3(1.0f, 0.0f, 0.0f), 2.0f);
-    Vec2 delta = velocity;
-    for (i32 i = 0; i < 2; i++) {
-        const auto playerAabb = ::playerAabb(position);
-        std::optional<Hit> closestHit;
-        for (const auto& block : blocks) {
-            const auto blockAabb = Aabb(block.position, block.position + Vec2(constants().cellSize));
-
-            auto pAabb = AABB(vToP(playerAabb.center()), vToP(playerAabb.size() / 2.0f));
-            auto bAabb = AABB(vToP(blockAabb.center()), vToP(blockAabb.size() / 2.0f));
-
-            /*auto result = bAabb.sweepAABB(pAabb, vToP(velocity));*/
-            auto result = bAabb.sweepAABB(pAabb, vToP(velocity));
-            //const auto result = aabbVsSweeptAabbCollision(pAabb, bAabb, vToP(delta));
-// 
-            //const auto result = aabbVsSweeptAabbCollision(blockAabb, playerAabb, delta);
-            if (!result.hit.has_value()) {
-                continue;
-            }
-            Dbg::drawAabb(blockAabb, Vec3(1.0f), 2.0f);
-            //Dbg::drawDisk(result.hit->pos, 4.0f, Vec3(1.0f));
-            //Dbg::drawDisk(result.pos, 4.0f, Vec3(1.0f, 0.0f, 0.0f));
-            //Dbg::drawDisk(position + result.hit->delta, 4.0f, Vec3(1.0f, 0.0f, 0.0f));
-            if (!closestHit.has_value() || result.hit->time < closestHit->time) {
-                closestHit = result.hit;
-            }
-        }
-
-        if (!closestHit.has_value()) {
-            position += delta;
-            return;
-        }
-
-        if (delta.x != 0.0f) {
-            int x = 5;
-        }
-
-        const auto epsilon = 1e-3f;
-        const auto movement = (std::clamp(closestHit->time - epsilon, 0.0f, 1.0f)) * delta;
-        position += movement;
-        delta -= movement;
-        if (closestHit->normal.x != 0) {
-            delta.x = 0.0f;
-            velocity.x = 0.0f;
-        } else if (closestHit->normal.y != 0) {
-            delta.y = 0.0f;
-            velocity.y = 0.0f;
-        }
-        if (closestHit->time == 0.0f) {
-            //position = pToV(closestHit->pos);
-            position += pToV(closestHit->normal) * 0.01f;
-            int x = 5;
-        }
-
-        //position += pToV(closestHit->delta);
-
-        if (closestHit->normal.y == 1.0f) {
-            blockThatIsBeingStoodOnVelocity = Vec2(0.0f);
-        }
-    }
-}
-
-void Player::movingBlockCollision(const std::vector<MovingBlock>& movingBlocks) {
-    const auto playerAabb = ::playerAabb(position);
-    for (const auto& block : movingBlocks) {
-        const auto position = block.position();
-        const auto blockAabb = Aabb(position, position + block.size);
-        using namespace BlockCollisionDirections;
-        blockCollision(playerAabb, blockAabb, L | R | U | D, block.positionDelta);
-    }
-}
-
 void Player::checkIfPlayerIsStandingOnMovingBlocks(const std::vector<MovingBlock>& movingBlocks) {
     const auto playerAabb = ::playerAabb(position);
     for (const auto& block : movingBlocks) {
@@ -269,12 +377,14 @@ void Player::checkIfPlayerIsStandingOnMovingBlocks(const std::vector<MovingBlock
 
         auto distance = getDistance(playerAabb, blockAabb, velocity);
         if (distance.top < distance.left && distance.top < distance.right) {
-            blockThatIsBeingStoodOnVelocity = block.positionDelta;
+            //blockThatIsBeingStoodOnVelocity = block.positionDelta;
+            //blockThatIsBeingTouchedMovementDelta = 
         }
     }
 }
 
 void Player::blockCollision(
+    Vec2& movement,
     const Aabb& playerAabb,
     const Aabb& blockAabb,
     BlockCollsionDirectionsBitfield collisionDirections,
@@ -286,31 +396,40 @@ void Player::blockCollision(
         return;
     }
 
-    auto distance = getDistance(playerAabb, blockAabb, velocity);
+     auto distance = getDistance(playerAabb, blockAabb, velocity);
 
     const auto blockSize = blockAabb.size();
     const auto blockPosition = blockAabb.min;
     const auto playerSize = playerAabb.size();
 
     using namespace BlockCollisionDirections;
+    const auto EPSILON = 0.01f;
     if (collisionDirections & L && distance.left < distance.top && distance.left < distance.bottom) {
+        movement.x = 0.0f;
         velocity.x = 0.0f;
-        position.x = blockPosition.x - playerSize.x + constants().playerSize.x / 2.0f;
+        position.x = blockPosition.x - playerSize.x + constants().playerSize.x / 2.0f - EPSILON;
         touchingWallOnRight = true;
+        //blockVelocity.y = 0.0f;
     }
     if (collisionDirections & R && distance.right < distance.top && distance.right < distance.bottom) {
+        movement.x = 0.0f;
         velocity.x = 0.0f;
-        position.x = blockPosition.x + blockSize.x + constants().playerSize.x / 2.0f;
+        position.x = blockPosition.x + blockSize.x + constants().playerSize.x / 2.0f + EPSILON;
         touchingWallOnLeft = true;
+       //blockVelocity.y = 0.0f;
     }
     if (collisionDirections & D && distance.bottom < distance.left && distance.bottom < distance.right) {
+        movement.y = 0.0f;
         velocity.y = 0.0f;
-        position.y = blockPosition.y - playerSize.y + constants().playerSize.y / 2.0f;
+        position.y = blockPosition.y - playerSize.y + constants().playerSize.y / 2.0f - EPSILON;
+        //blockVelocity.x = 0.0f;
     }
     if (collisionDirections & U && distance.top < distance.left && distance.top < distance.right) {
+        movement.y = 0.0f;
         velocity.y = 0.0f;
-        position.y = blockPosition.y + blockSize.y + constants().playerSize.y / 2.0f;
-        blockThatIsBeingStoodOnVelocity = blockVelocity;
-        //grounded = true;
+        position.y = blockPosition.y + blockSize.y + constants().playerSize.y / 2.0f + EPSILON;
+        isGrounded = true;
+        //blockVelocity.x = 0.0f;
     }
+    //blockThatIsBeingTouchedMovementDelta = blockVelocity;
 }
