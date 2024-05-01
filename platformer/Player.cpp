@@ -156,6 +156,12 @@ void Player::updateMovement(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs) 
         this.velY = 10
     }*/
     velocity.y = std::max(-10.0f, velocity.y);
+    if (isGrounded) {
+        velocity.y -= 1.0f;
+    }
+    /*if (blockThatIsBeingTouchedMovementDelta.has_value() && isGrounded && blockThatIsBeingTouchedMovementDelta->y) {
+        velocity.y = blockThatIsBeingTouchedMovementDelta->y;
+    }*/
 
 
     //velocity.x *= this.frictionX
@@ -330,9 +336,11 @@ void Player::collision(
         if (closestHit->normal.x != 0) {
             movementDelta.x = 0.0f;
             velocity.x = 0.0f;
+            //velocity.x = closestHitPositionDelta.x;
             closestHitPositionDelta.y = 0.0f;
         } else if (closestHit->normal.y != 0) {
             movementDelta.y = 0.0f;
+            //velocity.y = closestHitPositionDelta.y;
             velocity.y = 0.0f;
             //closestHitPositionDelta.x = 0.0f;
         }
@@ -473,5 +481,5 @@ void Player::blockCollision(
         isGrounded = true;
         //blockVelocity.x = 0.0f;
     }
-    //blockThatIsBeingTouchedMovementDelta = blockVelocity;
+    blockThatIsBeingTouchedMovementDelta = blockVelocity;
 }
