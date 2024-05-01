@@ -19,3 +19,5 @@ The player still need to be moved when standing on the box.
 Detect swept player with static box.
 Then the player needs to be moved by the same amount the box moved.
 The issue is that if the player is standing then the collision won't be detected so the box will move into the player. 
+
+Not sure how to make the moving platform work with swept collision checking so I will just use normal collision checking for them. That is if the platform collides with the player the player gets moved out of the platform.
