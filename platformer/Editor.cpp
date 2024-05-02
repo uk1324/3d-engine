@@ -602,6 +602,9 @@ void Editor::moveObjects(EditorRoom& room, Vec2T<i32> change) {
 	for (auto& orb : room.doubleJumpOrbs) {
 		orb.position = updatePosition(orb.position);
 	}
+	for (auto& orb : room.attractingOrbs) {
+		orb.position = updatePosition(orb.position);
+	}
 	for (auto& blockId : room.movingBlocks) {
 		auto block = movingBlocks.get(blockId);
 		if (!block.has_value()) {

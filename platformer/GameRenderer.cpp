@@ -4,6 +4,7 @@
 #include <framework/Instancing.hpp>
 #include <platformer/Constants.hpp>
 #include <platformer/Shaders/gridData.hpp>
+#include <platformer/Shaders/backgroundData.hpp>
 #include <engine/Math/Color.hpp>
 #include <FileIo.hpp>
 
@@ -11,11 +12,14 @@ GameRenderer::GameRenderer()
 	: renderer(Renderer2d::make())
 	// TODO: maybe allow the manager to take one source one path to source.
 	, gridShader(MAKE_GENERATED_SHADER(GRID))
-	, gridVao(createInstancingVao<GridShader>(renderer.fullscreenQuad2dPtVerticesVbo, renderer.fullscreenQuad2dPtVerticesIbo, renderer.instancesVbo)) {
+	, gridVao(createInstancingVao<GridShader>(renderer.fullscreenQuad2dPtVerticesVbo, renderer.fullscreenQuad2dPtVerticesIbo, renderer.instancesVbo))
+	, backgroundShader(MAKE_GENERATED_SHADER(BACKGROUND))
+	, backgroundVao(createInstancingVao<BackgroundShader>(renderer.fullscreenQuad2dPtVerticesVbo, renderer.fullscreenQuad2dPtVerticesIbo, renderer.instancesVbo)) {
 }
 
 void GameRenderer::update() {
 	renderer.update();
+	backgroundElapsed += 1.0f / 60.0f;
 }
 
 void GameRenderer::renderBlock(const Block& block) {
@@ -108,6 +112,18 @@ void GameRenderer::renderGrid(f32 smallCellSize) {
 		.smallCellSize = smallCellSize
 	});
 	drawInstances(gridVao, renderer.instancesVbo, instances, [](usize count) {
+		glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, count);
+	});
+}
+
+void GameRenderer::renderBackground() {
+	backgroundShader.use();
+	std::vector<BackgroundInstance> instances;
+	instances.push_back(BackgroundInstance{
+		.clipToWorld = renderer.camera.clipSpaceToWorldSpace(),
+		.time = backgroundElapsed
+	});
+	drawInstances(backgroundVao, renderer.instancesVbo, instances, [](usize count) {
 		glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, count);
 	});
 }

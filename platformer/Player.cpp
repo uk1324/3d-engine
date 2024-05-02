@@ -104,7 +104,7 @@ void Player::updateVelocity(
             ImGui::Text("distance: %g", distance);
             ImGui::Text("velocity: %g, %g", velocity.x, velocity.y);
             velocity += direction * acceleration;
-            //velocity *= 0.99f;
+            velocity *= 0.99f;
             /*if (isnan(position.x) || isnan(position.y)) {
                 int x = 5;
             }*/

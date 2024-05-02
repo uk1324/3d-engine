@@ -1,6 +1,7 @@
 #include <platformer/Game.hpp>
 #include <platformer/Constants.hpp>
 #include <framework/Dbg.hpp>
+#include <framework/ShaderManager.hpp>
 #include <engine/Input/Input.hpp>
 #include <engine/Math/Color.hpp>
 #include <glad/glad.h>
@@ -10,6 +11,8 @@ Game::Game() {
 }
 
 void Game::update() {
+	ShaderManager::update();
+
 	if (Input::isKeyDown(KeyCode::TAB)) {
 		if (mode == Mode::EDITOR) {
 			const auto result = editor.onSwitchToGame();
@@ -100,6 +103,8 @@ void Game::gameUpdate() {
 void Game::gameRender() {
 	glClear(GL_COLOR_BUFFER_BIT);
  	updateCamera();
+
+	renderer.renderBackground();
 
 	for (const auto& room : rooms) {
 		// TODO: Culling

@@ -20,9 +20,15 @@ struct GameRenderer {
 	void renderDoubleJumpOrb(const DoubleJumpOrb& doubleJumpOrb);
 
 	void renderGrid(f32 smallCellSize);
+	void renderBackground();
 
 	Renderer2d renderer;
 
 	Vao gridVao;
 	ShaderProgram& gridShader;
+
+	Vao backgroundVao;
+	ShaderProgram& backgroundShader;
+
+	f32 backgroundElapsed = 0.0f;
 };
