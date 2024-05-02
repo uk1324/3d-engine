@@ -37,6 +37,10 @@ struct DoubleJumpOrb {
 	bool isActive() const;
 };
 
+struct AttractingOrb {
+	Vec2 position;
+};
+
 enum class BlockType : u8 {
 	EMPTY,
 	NORMAL,

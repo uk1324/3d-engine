@@ -180,6 +180,7 @@ void Editor::update(f32 dt) {
 		{ PlacableItem::SPIKE_RIGHT, "spike right" },
 		{ PlacableItem::PLATFORM, "platform" },
 		{ PlacableItem::DOUBLE_JUMP_ORB, "double jump orb" },
+		{ PlacableItem::ATTRACTING_ORB, "attracting orb" },
 		{ PlacableItem::MOVING_BLOCK, "moving block" },
 	};
 
@@ -326,6 +327,20 @@ void Editor::updateSelectedRoom() {
 					roomCursorPos);
 			});
 		}
+	} else if (selectedPlacableItem == PlacableItem::ATTRACTING_ORB) {
+		if (Input::isMouseButtonDown(MouseButton::LEFT)) {
+			selectedRoom.attractingOrbs.push_back(LevelAttractingOrb{
+				.position = alignedCursorPos + Vec2(constants().cellSize / 2.0f)
+			});
+		}
+		if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
+			removeIf(selectedRoom.attractingOrbs, [&](const LevelAttractingOrb& orb) -> bool {
+				return circleContains(
+					orb.position,
+					constants().attractingOrbRadius,
+					roomCursorPos);
+			});
+		}
 	} else if (selectedPlacableItem == PlacableItem::MOVING_BLOCK) {
 		struct HoveredOver {
 			MovingBlockId id;
@@ -397,6 +412,10 @@ void Editor::renderRoom(const EditorRoom& room, GameRenderer& renderer) {
 
 	for (const auto& orb : room.doubleJumpOrbs) {
 		renderer.renderDoubleJumpOrb(orb.position + Vec2(room.position) * constants().cellSize);
+	}
+
+	for (const auto& orb : room.attractingOrbs) {
+		renderer.renderAttractingOrb(orb.position + Vec2(room.position) * constants().cellSize);
 	}
 
 	const auto roomOffset = Vec2(room.position) * constants().cellSize;
@@ -684,6 +703,7 @@ void Editor::loadLevel(Level&& level) {
 			.blockGrid = std::move(room.blockGrid),
 			.spawnPoints = std::move(room.spawnPoints),
 			.doubleJumpOrbs = std::move(room.doubleJumpOrbs),
+			.attractingOrbs = std::move(room.attractingOrbs)
 		};
 		for (auto& movingBlock : room.movingBlocks) {
 			const auto id = movingBlocks.create(std::move(movingBlock)).id;
@@ -710,6 +730,7 @@ Editor::GenerateLevel2Result Editor::generateLevel2() {
 			.blockGrid = Array2d<BlockType>(room->blockGrid),
 			.spawnPoints = room->spawnPoints,
 			.doubleJumpOrbs = room->doubleJumpOrbs,
+			.attractingOrbs = room->attractingOrbs
 		});
 		auto& levelRoom = level.rooms.back();
 		for (const auto& id : room->movingBlocks) {

@@ -17,6 +17,7 @@ struct Editor {
 		SPIKE_RIGHT,
 		PLATFORM,
 		DOUBLE_JUMP_ORB,
+		ATTRACTING_ORB,
 		MOVING_BLOCK
 	};
 
@@ -27,6 +28,7 @@ struct Editor {
 		Array2d<BlockType> blockGrid;
 		std::vector<LevelSpawnPoint> spawnPoints;
 		std::vector<LevelDoubleJumpOrb> doubleJumpOrbs;
+		std::vector<LevelAttractingOrb> attractingOrbs;
 		std::vector<MovingBlockId> movingBlocks;
 	};
 	using RoomId = EntityArray<EditorRoom>::Id;

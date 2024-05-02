@@ -9,6 +9,8 @@ struct GameConstants {
 	f32 cellSize = 20.0f;
 	f32 doubleJumpOrbRadius = 10.0f;
 	f32 doubleJumpOrbCooldown = 3.0f;
+	f32 attractingOrbRadius = 10.0f;
+	f32 attractingOrbCooldown = 3.0f;
 };
 
 const GameConstants& constants();

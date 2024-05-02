@@ -7,10 +7,16 @@
 #include <platformer/Collision.hpp>
 #include <imgui/imgui.h>
 
-void Player::updateVelocity(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs) {
+#include <framework/Dbg.hpp>
+
+void Player::updateVelocity(
+    f32 dt, 
+    std::vector<DoubleJumpOrb>& doubleJumpOrbs, 
+    std::vector<AttractingOrb>& attractingOrbs) {
     const bool left = Input::isKeyHeld(KeyCode::A);
     const bool right = Input::isKeyHeld(KeyCode::D);
     const bool jump = Input::isKeyHeld(KeyCode::SPACE);
+    const bool use = Input::isKeyHeld(KeyCode::J);
 
     //ImGui::Checkbox("isGrounded", &isGrounded);
     //ImGui::InputFloat2("velocity", velocity.data());
@@ -68,6 +74,43 @@ void Player::updateVelocity(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs) 
         }
     }
 
+    bool used = false;
+    if (use) {
+        used = true;
+        for (auto& orb : attractingOrbs) {
+            Dbg::drawCircle(orb.position, constants().cellSize * 2.0f, Vec3(1.0f, 0.0f, 0.0f));
+            const auto fromPlayerToOrb = orb.position - position;
+            const auto distance = fromPlayerToOrb.length();
+            const auto direction = fromPlayerToOrb / distance;
+            auto scale = [](f32 t) -> f32 {
+                // move the maximum to 1.0f
+                static const f32 maximumT = sqrt(0.5f);
+                t *= maximumT;
+
+                // move the maximum to 2 * cellSize
+                t /= constants().cellSize * 3.0f;
+
+                f32 value = t * exp(-t * t);
+
+                // make the maximum value 1.0f
+                const auto maximumValue = sqrt(1 / (2.0f * exp(1.0f)));
+                value /= maximumValue;
+
+                return value;
+            };
+            /*velocity += direction * distance * exp(-distance * distance / 4000.0f) / 20.0f;*/
+            const auto acceleration = scale(distance);
+            ImGui::Text("accleration: %g", acceleration);
+            ImGui::Text("distance: %g", distance);
+            ImGui::Text("velocity: %g, %g", velocity.x, velocity.y);
+            velocity += direction * acceleration;
+            //velocity *= 0.99f;
+            /*if (isnan(position.x) || isnan(position.y)) {
+                int x = 5;
+            }*/
+        }
+    }
+
     if (elapsedSinceJumpPressed < jumpPressedRememberTime && jumpReleased) {
         bool jumped = false;
 
@@ -102,7 +145,7 @@ void Player::updateVelocity(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs) 
     }
     elapsedSinceLastJumped += dt;
 
-    if (jump && jumpedOffGround && elapsedSinceLastJumped < 0.07f && velocity.y > 0.0f) {
+    if (jump && jumpedOffGround && elapsedSinceLastJumped < 0.07f && velocity.y > 0.0f && !used) {
         velocity.y += 0.5f;
     }
 

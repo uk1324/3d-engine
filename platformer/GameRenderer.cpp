@@ -90,6 +90,10 @@ void GameRenderer::renderDoubleJumpOrb(const Vec2 position) {
 	Dbg::drawCircle(position, constants().doubleJumpOrbRadius, Color3::GREEN, 0.1f);
 }
 
+void GameRenderer::renderAttractingOrb(const Vec2 position) {
+	Dbg::drawCircle(position, constants().attractingOrbRadius, Color3::CYAN, 0.1f);
+}
+
 void GameRenderer::renderDoubleJumpOrb(const DoubleJumpOrb& doubleJumpOrb) {
 	const auto color = doubleJumpOrb.isActive() ? Color3::GREEN : Color3::WHITE / 2.0f;
 	Dbg::drawCircle(doubleJumpOrb.position, constants().doubleJumpOrbRadius, color, 0.1f);

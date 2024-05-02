@@ -9,6 +9,7 @@ struct GameRoom {
 	std::vector<Spike> spikes;
 	std::vector<Platform> platforms;
 	std::vector<DoubleJumpOrb> doubleJumpOrbs;
+	std::vector<AttractingOrb> attractingOrbs;
 	std::vector<MovingBlock> movingBlocks;
 };
 

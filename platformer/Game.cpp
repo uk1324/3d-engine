@@ -55,7 +55,7 @@ void Game::gameUpdate() {
 	}
 
 	if (auto activeRoom = activeGameRoom(); activeRoom.has_value()) {
-		player.updateVelocity(dt, activeRoom->doubleJumpOrbs);
+		player.updateVelocity(dt, activeRoom->doubleJumpOrbs, activeRoom->attractingOrbs);
 	}
 
 	// Could use an iterator instead of copying this. Could have an iterator of all the active rooms.
@@ -114,6 +114,9 @@ void Game::gameRender() {
 		}
 		for (const auto& orb : room.doubleJumpOrbs) {
 			renderer.renderDoubleJumpOrb(orb);
+		}
+		for (const auto& orb : room.attractingOrbs) {
+			renderer.renderAttractingOrb(orb.position);
 		}
 		for (const auto& block : room.movingBlocks) {
 			const auto position = block.position();
@@ -285,6 +288,12 @@ void Game::loadRoom(LevelRoom& room) {
 		runtimeRoom.doubleJumpOrbs.push_back(DoubleJumpOrb{
 			.position = orb.position + roomOffset,
 			.elapsedSinceUsed = std::numeric_limits<f32>::infinity(),
+		});
+	}
+
+	for (const auto& orb : room.attractingOrbs) {
+		runtimeRoom.attractingOrbs.push_back(AttractingOrb{
+			.position = orb.position + roomOffset,
 		});
 	}
 

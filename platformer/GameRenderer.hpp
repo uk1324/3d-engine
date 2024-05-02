@@ -16,6 +16,7 @@ struct GameRenderer {
 	void renderPlatform(const Platform& platform);
 	void renderPlayer(const Player& player);
 	void renderDoubleJumpOrb(const Vec2 position);
+	void renderAttractingOrb(const Vec2 position);
 	void renderDoubleJumpOrb(const DoubleJumpOrb& doubleJumpOrb);
 
 	void renderGrid(f32 smallCellSize);
