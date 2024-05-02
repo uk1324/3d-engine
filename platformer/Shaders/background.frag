@@ -73,7 +73,8 @@ vec3 voronoi( in vec2 x )
 }
 
 float g(vec2 p) {
-    float v = smoothstep(0.0, 0.2, voronoi(p).x);
+    //float v = smoothstep(0.0, 0.2, voronoi(p).x);
+    float v = smoothstep(0.0, 0.2, abs(voronoi(p).x - 0.1));
 //    if (v > 1.0) {
 //        return 0.0;
 //    }
