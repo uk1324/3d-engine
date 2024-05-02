@@ -93,6 +93,7 @@ struct Editor {
 		void onRightClick();
 		void render(Vec2 globalCursorPos);
 	} movingBlockPlaceState;
+	std::optional<MovingBlockId> selectedMovingBlock;
 
 	std::optional<Vec2> moveGrabStartWorldPos;
 	std::optional<RoomId> selectedRoomId;

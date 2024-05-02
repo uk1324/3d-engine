@@ -2,7 +2,7 @@
 
 #include <platformer/GameRenderer.hpp>
 #include <platformer/Editor.hpp>
-#include <platformer/Entities.hpp>
+#include <platformer/GameRoom.hpp>
 #include <RefOptional.hpp>
 #include <Array2d.hpp>
 
@@ -33,19 +33,13 @@ struct Game {
 		GAME,
 	};
 
-	struct RuntimeRoom {
-		std::vector<Block> blocks;
-		std::vector<Spike> spikes;
-		std::vector<Platform> platforms;
-		std::vector<DoubleJumpOrb> doubleJumpOrbs;
-		std::vector<MovingBlock> movingBlocks;
-	};
-	std::vector<RuntimeRoom> rooms;
+
+	std::vector<GameRoom> rooms;
 
 	Level level;
 	std::optional<i32> activeRoomIndex;
 	std::optional<LevelRoom&> activeLevelRoom();
-	std::optional<RuntimeRoom&> activeRuntimeRoom();
+	std::optional<GameRoom&> activeGameRoom();
 
 	Mode mode = Mode::GAME; 
 

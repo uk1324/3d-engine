@@ -14,6 +14,9 @@ struct [[Json]] LevelMovingBlock {
 	Vec2 position = `Vec2(0.0f)`;
 	Vec2 size = `Vec2(0.0f)`;
 	Vec2 endPosition = `Vec2(0.0f)`;
+	float speedBlockPerSecond = `1.0f`;
+	bool activateOnCollision = `false`;
+	bool stopAtEnd = `false`;
 }
 
 struct [[Json]] LevelRoom {

@@ -6,9 +6,17 @@ void MovingBlock::reset() {
 	t = 0.0f;
 	movingForward = true;
 	positionDelta = Vec2(0.0f);
+	if (activateOnCollision) {
+		active = false;
+	}
 }
 
 void MovingBlock::update(f32 dt) {
+	if (!active) {
+		positionDelta = Vec2(0.0f);
+		return;
+	}
+
 	const auto beforeUpdatePosition = position();
 	const auto distance = startPosition.distanceTo(endPosition);
 	const auto deltaT = (speed * dt) / distance;
@@ -24,18 +32,31 @@ void MovingBlock::update(f32 dt) {
 	positionDelta = afterUpdatePosition - beforeUpdatePosition;
 }
 
-//Vec2 MovingBlock::velocity() const {
-//	return (endPosition - startPosition).normalized() * speed * (movingForward ? 1.0f : -1.0f);
-//}
+void MovingBlock::onPlayerCollision() {
+	if (activateOnCollision) {
+		active = true;
+	}
+}
 
 MovingBlock::MovingBlock(const LevelMovingBlock& movingBlock, Vec2T<i32> roomPosition)
 	: startPosition(movingBlock.position + Vec2(roomPosition) * constants().cellSize)
 	, endPosition(movingBlock.endPosition + Vec2(roomPosition) * constants().cellSize)
 	, size(movingBlock.size)
-	, speed(60.0f) {
+	, speed(movingBlock.speedBlockPerSecond * constants().cellSize)
+	, activateOnCollision(movingBlock.activateOnCollision) {
+	if (activateOnCollision) {
+		active = false;
+	} else {
+		active = true;
+	}
+
 	reset();
 }
 
 Vec2 MovingBlock::position() const {
 	return lerp(startPosition, endPosition, smoothstep(t));
+}
+
+Aabb MovingBlock::aabb() const {
+	return Aabb(position(), position() + size);
 }

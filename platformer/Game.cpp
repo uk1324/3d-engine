@@ -54,20 +54,14 @@ void Game::gameUpdate() {
 		}
 	}
 
-	if (auto activeRoom = activeRuntimeRoom(); activeRoom.has_value()) {
-		//player.checkIfPlayerIsStandingOnMovingBlocks(activeRoom->movingBlocks);
-		//ImGui::InputFloat2("vel", player.velocity.data());
-		//ImGui::Text("%d", player.blockThatIsBeingStoodOnVelocity.has_value());
-		player.updateMovement(dt, activeRoom->doubleJumpOrbs);
+	if (auto activeRoom = activeGameRoom(); activeRoom.has_value()) {
+		player.updateVelocity(dt, activeRoom->doubleJumpOrbs);
 	}
 
 	// Could use an iterator instead of copying this. Could have an iterator of all the active rooms.
-	std::vector<Block> activeBlocks;
-	std::vector<Platform> activePlatforms;
-	std::vector<MovingBlock> activeMovingBlocks;
-
+	std::vector<GameRoom*> activeRooms;
 	for (i32 i = 0; i < rooms.size(); i++) {
-		const auto& runtimeRoom = rooms[i];
+		auto& runtimeRoom = rooms[i];
 		const auto& levelRoom = level.rooms[i];
 		auto playerAabb = ::playerAabb(player.position);
 		const auto movement = player.velocity.applied(abs);
@@ -78,14 +72,12 @@ void Game::gameUpdate() {
 		if (!playerAabb.collides(roomAabb)) {
 			continue;
 		}
-
-		activeBlocks.insert(activeBlocks.end(), runtimeRoom.blocks.begin(), runtimeRoom.blocks.end());
-		activePlatforms.insert(activePlatforms.end(), runtimeRoom.platforms.begin(), runtimeRoom.platforms.end());
-		activeMovingBlocks.insert(activeMovingBlocks.end(), runtimeRoom.movingBlocks.begin(), runtimeRoom.movingBlocks.end());
+		activeRooms.push_back(&runtimeRoom);
 	}
-	player.collision(dt, activeBlocks, activePlatforms, activeMovingBlocks);
+	collisionDetection(dt, activeRooms, player);
+	//player.collision(dt, activeBlocks, activePlatforms, activeMovingBlocks);
 
-	if (auto activeRoom = activeRuntimeRoom(); activeRoom.has_value()) {
+	if (auto activeRoom = activeGameRoom(); activeRoom.has_value()) {
 		for (auto& orb : activeRoom->doubleJumpOrbs) {
 			orb.elapsedSinceUsed += dt;
 		}
@@ -209,6 +201,14 @@ void Game::spawnPlayer(std::optional<i32> editorSelectedRoomIndex) {
 	player = Player{};
 	player.position = spawnPointPosition;
 	activeRoomIndex = roomIndex;
+
+	auto& gameRoom = rooms[roomIndex];
+	for (auto& block : gameRoom.movingBlocks) {
+		block.reset();
+	}
+	for (auto& orb : gameRoom.doubleJumpOrbs) {
+		orb.reset();
+	}
 }
 
 std::optional<LevelRoom&> Game::activeLevelRoom() {
@@ -218,7 +218,7 @@ std::optional<LevelRoom&> Game::activeLevelRoom() {
 	return std::nullopt;
 }
 
-std::optional<Game::RuntimeRoom&> Game::activeRuntimeRoom() {
+std::optional<GameRoom&> Game::activeGameRoom() {
 	if (activeRoomIndex.has_value() && *activeRoomIndex < rooms.size()) {
 		return rooms[*activeRoomIndex];
 	}
@@ -243,7 +243,7 @@ void Game::onSwitchFromEditor(std::optional<i32> editorSelectedRoomIndex) {
 }
 
 void Game::loadRoom(LevelRoom& room) {
-	RuntimeRoom runtimeRoom;
+	GameRoom runtimeRoom;
 
 	const auto roomOffset = Vec2(room.position) * constants().cellSize;
 	for (i32 y = 0; y < room.blockGrid.size().y; y++) {

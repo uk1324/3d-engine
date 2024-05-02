@@ -28,18 +28,19 @@ struct Player {
 	bool dead = false;
 
 	void update();
-	void updateMovement(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs);
-	void collision(
-		f32 dt,
-		const std::vector<Block>& blocks, 
-		const std::vector<Platform>& platforms,
-		const std::vector<MovingBlock>& movingBlocks);
+	void updateVelocity(f32 dt, std::vector<DoubleJumpOrb>& doubleJumpOrbs);
+	//void collision(
+	//	f32 dt,
+	//	const std::vector<Block>& blocks, 
+	//	const std::vector<Platform>& platforms,
+	//	const std::vector<MovingBlock>& movingBlocks);
 	//void movingBlockCollision(const std::vector<MovingBlock>& movingBlocks);
-	void checkIfPlayerIsStandingOnMovingBlocks(const std::vector<MovingBlock>& movingBlocks);
-	void blockCollision(
+	//void checkIfPlayerIsStandingOnMovingBlocks(const std::vector<MovingBlock>& movingBlocks);
+	/*void blockCollision(
 		Vec2& movement,
 		const Aabb& playerAabb, 
 		const Aabb& blockAabb, 
 		BlockCollsionDirectionsBitfield collisionDirections,
-		Vec2 blockVelocity);
+		Vec2 blockVelocity);*/
+	Aabb aabb() const;
 };

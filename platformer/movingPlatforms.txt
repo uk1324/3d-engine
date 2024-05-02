@@ -6,6 +6,8 @@ When the player is standing on the player the player is moved with the platform,
 
 One issue is that the moving blocks change direction discontinously so for example not move at all if after half a move it get's to the end and the changes direction and uses the other half of the move to move back.
 
+To do collision between 2 swept aabbs do the collision relative to one of them. That is subtract the velocity of one from the other. Then this can be treated as subtracting the velocity from both objects, which makes one of the static.
+
 In what order should thing be updated in?
 
 - update player velocity
@@ -21,3 +23,6 @@ Then the player needs to be moved by the same amount the box moved.
 The issue is that if the player is standing then the collision won't be detected so the box will move into the player. 
 
 Not sure how to make the moving platform work with swept collision checking so I will just use normal collision checking for them. That is if the platform collides with the player the player gets moved out of the platform.
+
+Physically the moving platform could be modelled as having infinite mass.
+When standing on an object that starts moving the friciton allows to stand on the object.

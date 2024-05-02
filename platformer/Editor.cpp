@@ -192,6 +192,24 @@ void Editor::update(f32 dt) {
 			selectedPlacableItem = type;
 		}
 	}
+	ImGui::SeparatorText("selected");
+	if (selectedPlacableItem == PlacableItem::MOVING_BLOCK) {
+		if (selectedMovingBlock.has_value()) {
+			auto movingBlock = movingBlocks.get(*selectedMovingBlock);
+			if (movingBlock.has_value()) {
+				ImGui::InputFloat("speed block per second", &movingBlock->speedBlockPerSecond);
+				if (movingBlock->speedBlockPerSecond < 0.0f) {
+					movingBlock->speedBlockPerSecond = 0.0f;
+				}
+				ImGui::Checkbox("activate on collision", &movingBlock->activateOnCollision);
+			} else {
+				selectedMovingBlock = std::nullopt;
+			}
+
+		} else {
+			ImGui::Text("no moving block selected");
+		}
+	}
 
 	ImGui::End();
 
@@ -308,26 +326,44 @@ void Editor::updateSelectedRoom() {
 			});
 		}
 	} else if (selectedPlacableItem == PlacableItem::MOVING_BLOCK) {
-		std::optional<MovingBlockId> selected;
-		for (const auto& block : movingBlocks) {
-			const auto aabb = movingBlockAabbs(block.entity);
+		struct HoveredOver {
+			MovingBlockId id;
+			i32 index;
+		};
+		std::optional<HoveredOver> hoveredOver;
+		for (i32 i = 0; i < selectedRoom.movingBlocks.size(); i++) {
+			const auto& blockId = selectedRoom.movingBlocks[i];
+			const auto& block = movingBlocks.get(blockId);
+			const auto aabb = movingBlockAabbs(*block);
 			if (aabb.start.contains(roomCursorPos) || aabb.end.contains(roomCursorPos)) {
-				selected = block.id;
+				hoveredOver = HoveredOver{
+					.id = blockId,
+					.index = i
+				};
 			}
 		}
-
+		
 		if (Input::isMouseButtonDown(MouseButton::LEFT)) {
-			auto result = movingBlockPlaceState.onLeftClick(cursorPos, selectedEditorRoom->position);
-			if (result.has_value()) {
-				const auto id = movingBlocks.create(std::move(*result)).id;
-				selectedEditorRoom->movingBlocks.push_back(id);
+			if (hoveredOver.has_value()) {
+				selectedMovingBlock = hoveredOver->id;
+			} else {
+				auto result = movingBlockPlaceState.onLeftClick(cursorPos, selectedEditorRoom->position);
+				if (result.has_value()) {
+					const auto id = movingBlocks.create(std::move(*result)).id;
+					selectedEditorRoom->movingBlocks.push_back(id);
+				}
 			}
 		}
 		if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
-			if (selected.has_value()) {
-				movingBlocks.destroy(*selected);
+			if (selectedMovingBlock.has_value()) {
+				selectedMovingBlock = std::nullopt;
+			} else {
+				if (hoveredOver.has_value()) {
+					movingBlocks.destroy(hoveredOver->id);
+					selectedRoom.movingBlocks.erase(selectedRoom.movingBlocks.begin() + hoveredOver->index);
+				}
+				movingBlockPlaceState.onRightClick();
 			}
-			movingBlockPlaceState.onRightClick();
 		}
 	}
 }
@@ -364,8 +400,13 @@ void Editor::renderRoom(const EditorRoom& room, GameRenderer& renderer) {
 
 	const auto roomOffset = Vec2(room.position) * constants().cellSize;
 
-	for (const auto& block : movingBlocks) {
-		const auto aabb = movingBlockAabbs(block.entity);
+	for (const auto& blockId : room.movingBlocks) {
+		const auto block = movingBlocks.get(blockId);
+		if (!block.has_value()) {
+			ASSERT_NOT_REACHED();
+			continue;
+		}
+		const auto aabb = movingBlockAabbs(*block);
 		Dbg::drawAabb(aabb.start.translated(roomOffset), Color3::GREEN / 2.0f, 2.0f);
 		Dbg::drawAabb(aabb.end.translated(roomOffset), Color3::GREEN / 6.0f, 2.0f);
 		Dbg::drawLine(aabb.start.center() + roomOffset, aabb.end.center() + roomOffset, Color3::WHITE / 2.0f, 2.0f);
@@ -531,8 +572,24 @@ void Editor::roomSizeGui(EditorRoom& room) {
 }
 
 void Editor::moveObjects(EditorRoom& room, Vec2T<i32> change) {
+	auto updatePosition = [&](Vec2 p) -> Vec2 {
+		return p + Vec2(change) * constants().cellSize;
+	};
+
 	for (auto& spawnPoint : room.spawnPoints) {
-		spawnPoint.position += Vec2(change) * constants().cellSize;
+		spawnPoint.position = updatePosition(spawnPoint.position);
+	}
+	for (auto& orb : room.doubleJumpOrbs) {
+		orb.position = updatePosition(orb.position);
+	}
+	for (auto& blockId : room.movingBlocks) {
+		auto block = movingBlocks.get(blockId);
+		if (!block.has_value()) {
+			ASSERT_NOT_REACHED();
+			continue;
+		}
+		block->position = updatePosition(block->position);
+		block->endPosition = updatePosition(block->endPosition);
 	}
 }
 
