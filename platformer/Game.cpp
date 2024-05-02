@@ -64,7 +64,7 @@ void Game::gameUpdate() {
 		auto& runtimeRoom = rooms[i];
 		const auto& levelRoom = level.rooms[i];
 		auto playerAabb = ::playerAabb(player.position);
-		const auto movement = player.velocity.applied(abs);
+		const auto movement = player.velocity.applied(abs) + Vec2(constants().cellSize);
 		playerAabb.min -= movement;
 		playerAabb.max += movement;
 		const auto roomAabb = ::roomAabb(levelRoom);

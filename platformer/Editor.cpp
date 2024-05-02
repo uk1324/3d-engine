@@ -202,6 +202,7 @@ void Editor::update(f32 dt) {
 					movingBlock->speedBlockPerSecond = 0.0f;
 				}
 				ImGui::Checkbox("activate on collision", &movingBlock->activateOnCollision);
+				ImGui::Checkbox("stop at end", &movingBlock->stopAtEnd);
 			} else {
 				selectedMovingBlock = std::nullopt;
 			}

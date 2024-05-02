@@ -21,4 +21,5 @@ struct MovingBlock {
 	bool movingForward;
 	bool active;
 	bool activateOnCollision;
+	bool stopAtEnd;
 };

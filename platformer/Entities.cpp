@@ -25,8 +25,14 @@ void MovingBlock::update(f32 dt) {
 		movingForward = true;
 		t = -t;
 	} else if (t > 1.0f) {
-		t = 2.0f - t;
-		movingForward = false;
+		if (stopAtEnd) {
+			t = 1.0f;
+		} else {
+			// Go the other way.
+			t = 2.0f - t;
+			movingForward = false;
+		}
+		
 	}
 	const auto afterUpdatePosition = position();
 	positionDelta = afterUpdatePosition - beforeUpdatePosition;
@@ -43,7 +49,8 @@ MovingBlock::MovingBlock(const LevelMovingBlock& movingBlock, Vec2T<i32> roomPos
 	, endPosition(movingBlock.endPosition + Vec2(roomPosition) * constants().cellSize)
 	, size(movingBlock.size)
 	, speed(movingBlock.speedBlockPerSecond * constants().cellSize)
-	, activateOnCollision(movingBlock.activateOnCollision) {
+	, activateOnCollision(movingBlock.activateOnCollision)
+	, stopAtEnd(movingBlock.stopAtEnd) {
 	if (activateOnCollision) {
 		active = false;
 	} else {
