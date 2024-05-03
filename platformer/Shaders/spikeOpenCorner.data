@@ -1,0 +1,16 @@
+import "../../framework/Vertex2dPt.data";
+
+shader SpikeOpenCorner {
+	vertexStruct = Vertex2dPt;
+	vertInstance = {
+		Mat3x2 transform;
+		Mat3x2 clipToWorld;
+	};
+	fragInstance = {
+		float time;
+	};
+	vertOut = {
+		Vec2 position;
+		Vec2 worldPosition;
+	};
+}

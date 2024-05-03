@@ -3,6 +3,7 @@
 in vec2 worldPosition; 
 
 in mat3x2 clipToWorld; 
+in vec2 cameraPosition; 
 in float time; 
 out vec4 fragColor;
 
@@ -105,7 +106,9 @@ vec3 voronoi( in vec2 x )
 }
 
 float g(vec2 p) {
+    //float v = smoothstep(0.0, 0.2, voronoi(p).x);
     float v = smoothstep(0.0, 0.2, voronoi(p).x);
+    v = min(voronoi(p).x, 0.2) / 0.2;
     //float v = smoothstep(0.0, 0.2, abs(voronoi(p).x - 0.06));
 //    if (v > 1.0) {
 //        return 0.0;
@@ -124,9 +127,15 @@ vec3 getNormal(vec2 p )
 
 void main()
 {
-    vec2 p = worldPosition / 1800.0;
-
-    vec3 c = voronoi( 8.0*p );
+//    float sc = 1.0 / 20.0;
+//    vec2 p = worldPosition / 1800.0 * sc;
+//    vec2 pos = (p - cameraPosition) / sc;
+//    p = pos;
+//
+//    vec3 c = voronoi( 8.0*p );
+//    vec2 p = worldPosition / 200.0;
+//    p = (cameraPosition * 20.0 - p);
+    vec2 p = worldPosition / 1800.0 - cameraPosition / (1800.0 * 6);
 
 	// isolines
     vec3 col = vec3(0.0);
@@ -162,14 +171,26 @@ void main()
     //vec3 background = vec3(octave01(p * 8.0, 1));
     vec3 background = vec3(0.0);
 
-    col = mix(col + vec3(0.25), background, smoothstep(0.16, 0.2, d));
+    //col;
+    col = mix(col + vec3(0.25), background, smoothstep(0.19, 0.2, d));
     col *= 0.05;
 //    if (d > 0.2) {
 //        col = vec3(0.0);
 //    }
     //col = vec3(d);
+	//fragColor = vec4(col,1.0);
+    //col = vec3(maze(worldPosition / 20.0) * smoothstep(0.1, 0.101, simplex3d(vec3(worldPosition / 200.0, time / 50.0)) - 0));
+//    float noise = simplex3d(vec3(worldPosition / 200.0, time / 5000.0));
+//    float c = dot(getNormal2(worldPosition / 200.0), normalize(vec3(1.0, 1.0, 0.0)));
+//    c = pow(c, 20.0);
+//    vec3 ca = hsv2rgb(vec3(c, 1.0, 1.0));
 
-	fragColor = vec4(col,1.0);
+    //noise += 1.0;
+    //noise /= 2.0;
+    //col = vec3(maze(worldPosition / 40.0) * (clamp(noise, 0, 1) + 0.02));
+    //col = vec3(maze(worldPosition / 20.0) * voronoi(worldPosition / 200.0).x - 0.2);
+    //col = vec3(1);
+    fragColor = vec4(col,1.0);
 }
 
 //vec2 random2( vec2 p ) {
@@ -232,6 +253,6 @@ void main()
 //    fragColor = vec4(color,1.0);
 //
 //	//fragColor = vec4(worldPosition, 0.0, 1.0);
-//	//fragColor = vec4(1, 0, 0, 1);
+//fragColor = vec4(1, 0, 0, 1);
 //}
 //

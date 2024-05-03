@@ -101,7 +101,7 @@ void ImageRenderer::drawImage(Span2d<const Pixel32> data, const Mat3x2& transfor
 Renderer2d Renderer2d::make() {
 	auto fullscreenQuad2dPtVerticesVbo = Vbo(fullscreenQuad2dPtVertices, sizeof(fullscreenQuad2dPtVertices));
 	auto fullscreenQuad2dPtVerticesIbo = Ibo(fullscreenQuad2dPtIndices, sizeof(fullscreenQuad2dPtIndices));
-	auto instancesVbo = Vbo(4 * 1024ull);
+	auto instancesVbo = Vbo(10 * 1024ull);
 
 	auto imageRenderer = ImageRenderer::make(fullscreenQuad2dPtVerticesVbo, fullscreenQuad2dPtVerticesIbo, instancesVbo);
 	auto shapeRenderer = ShapeRenderer2d::make(fullscreenQuad2dPtVerticesVbo, fullscreenQuad2dPtVerticesIbo, instancesVbo);
@@ -159,33 +159,9 @@ float Renderer2d::getQuadPixelSizeX(float scale) const {
 float Renderer2d::getQuadPixelSizeY(float scale) const {
 	return scale * camera.zoom * Window::size().y;
 }
-// TODO: make functions that allow rendering the different debug shapes when wanted.
-void Renderer2d::drawDbg() {
-	// TODO: How to properly handle transparency and rendering the instances object in order. Just using the depth buffer won't work, because then the transparent parts overrite the z buffer. Would either need to sort or do addative blending and discard the depth value on non opaque pixels.
-	/*auto calculateDepth = [](i32 drawIndex) -> float {
-		return -drawIndex / static_cast<float>(Dbg::drawnThingsCount);
-	};*/
 
-	// @Performance maybe flip the order to avoid overdraw.
-
-	/* 
-	Problem: Rendering 2d shapes in the correct order and correctly blended.
-
-	Rendering in correct order:
-	- Use depth buffer
-	- Render sorted
-
-	Correctly blending:
-	- Render in correct order.
-	- It would probably be possible to render the opaque parts of objects first and then use sorme sort of depth peeling only on the transparent parts of objects.
-
-	Sorting and then rendering everything using a single shader.
-	Issues:
-	- Have to pass the data to each instance. Could just pass the type of rendered object and an index to an array containing instances of that type. Another option would to to use a union type, but decoding it inside of the shader would probably be a pain.
-	- Branching in shaders is inefficient.
-	*/
-
-	std::vector<Vertex2Pc> triangleVertices;
+void Renderer2d::drawDbgFilledTriangles() {
+		std::vector<Vertex2Pc> triangleVertices;
 
 	GLint64 instanceBufferSize;
 	glGetBufferParameteri64v(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &instanceBufferSize);
@@ -211,7 +187,34 @@ void Renderer2d::drawDbg() {
 	}
 	draw();
 	Dbg::filledTriangles.clear();
+}
 
+// TODO: make functions that allow rendering the different debug shapes when wanted.
+void Renderer2d::drawDbg() {
+	// TODO: How to properly handle transparency and rendering the instances object in order. Just using the depth buffer won't work, because then the transparent parts overrite the z buffer. Would either need to sort or do addative blending and discard the depth value on non opaque pixels.
+	/*auto calculateDepth = [](i32 drawIndex) -> float {
+		return -drawIndex / static_cast<float>(Dbg::drawnThingsCount);
+	};*/
+
+	// @Performance maybe flip the order to avoid overdraw.
+
+	/* 
+	Problem: Rendering 2d shapes in the correct order and correctly blended.
+
+	Rendering in correct order:
+	- Use depth buffer
+	- Render sorted
+
+	Correctly blending:
+	- Render in correct order.
+	- It would probably be possible to render the opaque parts of objects first and then use sorme sort of depth peeling only on the transparent parts of objects.
+
+	Sorting and then rendering everything using a single shader.
+	Issues:
+	- Have to pass the data to each instance. Could just pass the type of rendered object and an index to an array containing instances of that type. Another option would to to use a union type, but decoding it inside of the shader would probably be a pain.
+	- Branching in shaders is inefficient.
+	*/
+	drawDbgFilledTriangles();
 
 	const auto defaultWidth = 20.0f / Window::size().y;
 	// TODO: Could try adding the smoothing to the size so the actual size without the smoothing is solid.

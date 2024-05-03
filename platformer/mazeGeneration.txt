@@ -1,0 +1,1 @@
+To generate an inifnite maze in a shader you could divide the plane into a grid. Then generate wether there is a connection in any direction, but to prevent isolated cells there has to be at least one connection. Then generate the values for neighbouring cells and logic or them so that the connections match up.

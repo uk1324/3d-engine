@@ -1,13 +1,14 @@
 import "../../framework/Vertex2dPt.data";
 
-shader Background {
+shader Player {
 	vertexStruct = Vertex2dPt;
-	vertOut = {
-		vec2 worldPosition;
+	vertInstance = {
+		Mat3x2 transform;
 	};
 	fragInstance = {
-		Mat3x2 clipToWorld;
-		Vec2 cameraPosition;
 		float time;
+	};
+	vertOut = {
+		Vec2 position;
 	};
 }

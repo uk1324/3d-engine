@@ -5,6 +5,9 @@
 #include <platformer/Constants.hpp>
 #include <platformer/Shaders/gridData.hpp>
 #include <platformer/Shaders/backgroundData.hpp>
+#include <platformer/Shaders/blocksData.hpp>
+#include <platformer/Shaders/playerData.hpp>
+#include <platformer/Shaders/spikeCenterData.hpp>
 #include <engine/Math/Color.hpp>
 #include <FileIo.hpp>
 
@@ -14,24 +17,34 @@ GameRenderer::GameRenderer()
 	, gridShader(MAKE_GENERATED_SHADER(GRID))
 	, gridVao(createInstancingVao<GridShader>(renderer.fullscreenQuad2dPtVerticesVbo, renderer.fullscreenQuad2dPtVerticesIbo, renderer.instancesVbo))
 	, backgroundShader(MAKE_GENERATED_SHADER(BACKGROUND))
-	, backgroundVao(createInstancingVao<BackgroundShader>(renderer.fullscreenQuad2dPtVerticesVbo, renderer.fullscreenQuad2dPtVerticesIbo, renderer.instancesVbo)) {
+	, backgroundVao(createInstancingVao<BackgroundShader>(renderer.fullscreenQuad2dPtVerticesVbo, renderer.fullscreenQuad2dPtVerticesIbo, renderer.instancesVbo))
+	, blocksShader(MAKE_GENERATED_SHADER(BLOCKS))
+	, playerVao(createInstancingVao<PlayerShader>(renderer.fullscreenQuad2dPtVerticesVbo, renderer.fullscreenQuad2dPtVerticesIbo, renderer.instancesVbo))
+	, playerShader(MAKE_GENERATED_SHADER(PLAYER))
+	, spikeCenterVao(createInstancingVao<SpikeCenterShader>(renderer.fullscreenQuad2dPtVerticesVbo, renderer.fullscreenQuad2dPtVerticesIbo, renderer.instancesVbo))
+	, spikeCenterShader(MAKE_GENERATED_SHADER(SPIKE_CENTER)) {
 }
 
 void GameRenderer::update() {
+	
 	renderer.update();
 	backgroundElapsed += 1.0f / 60.0f;
 }
 
+const auto BLOCK_COLOR = Color3::WHITE / 10.0f;
+
 void GameRenderer::renderBlock(const Block& block) {
 	using namespace BlockCollisionDirections;
 
-	const auto color = Color3::GREEN;
+	/*const auto color = Color3::GREEN;*/
+	const auto color = BLOCK_COLOR;
+
 
 	f32 width = 2.0f;
 
-	Dbg::drawFilledAabb(block.position, block.position + Vec2(constants().cellSize), Color3::WHITE / 20.0f);
+	//Dbg::drawFilledAabb(block.position, block.position + Vec2(constants().cellSize), Color3::WHITE / 20.0f);
 
-	if (block.collisionDirections & D) {
+	/*if (block.collisionDirections & D) {
 		Dbg::drawLine(
 			Vec2(block.position),
 			Vec2(block.position) + Vec2(constants().cellSize, 0.0f),
@@ -61,6 +74,44 @@ void GameRenderer::renderBlock(const Block& block) {
 			Vec2(block.position) + Vec2(constants().cellSize, constants().cellSize),
 			color,
 			width);
+	}*/
+
+	float b = 2.0f;
+	if (block.collisionDirections & D) {
+		Dbg::drawFilledAabb(block.position, block.position + Vec2(constants().cellSize, b), color);
+		/*Dbg::drawLine(
+			Vec2(block.position),
+			Vec2(block.position) + Vec2(constants().cellSize, 0.0f),
+			color,
+			width);*/
+	}
+
+	const auto p = block.position + Vec2(constants().cellSize);
+	if (block.collisionDirections & U) {
+		Dbg::drawFilledAabb(p - Vec2(constants().cellSize, b), p, color);
+		/*Dbg::drawLine(
+			Vec2(block.position) + Vec2(0.0f, constants().cellSize),
+			Vec2(block.position) + Vec2(constants().cellSize, constants().cellSize),
+			color,
+			width);*/
+	}
+
+	if (block.collisionDirections & L) {
+		Dbg::drawFilledAabb(block.position, block.position + Vec2(b, constants().cellSize), color);
+		/*Dbg::drawLine(
+			Vec2(block.position),
+			Vec2(block.position) + Vec2(0.0f, constants().cellSize),
+			color,
+			width);*/
+	}
+
+	if (block.collisionDirections & R) {
+		Dbg::drawFilledAabb(p - Vec2(b, constants().cellSize), p, color);
+		/*Dbg::drawLine(
+			Vec2(block.position) + Vec2(constants().cellSize, 0.0f),
+			Vec2(block.position) + Vec2(constants().cellSize, constants().cellSize),
+			color,
+			width);*/
 	}
 }
 
@@ -71,6 +122,101 @@ void GameRenderer::renderBlocks(const std::vector<Block>& blocks) {
 	}
 }
 
+void GameRenderer::renderBlockOutlines(const Array2d<BlockType>& roomBlockGrid, Vec2T<i32> roomPosition) {
+	for (i32 yi = 0; yi < roomBlockGrid.size().y; yi++) {
+		for (i32 xi = 0; xi < roomBlockGrid.size().x; xi++) {
+			if (roomBlockGrid(xi, yi) != BlockType::NORMAL) {
+				continue;
+			}
+			auto get = [&roomBlockGrid](i32 x, i32 y) -> std::optional<u8> {
+				if (x < 0 || y < 0 || x >= roomBlockGrid.size().x || y >= roomBlockGrid.size().y) {
+					return std::nullopt;
+				}
+				if (roomBlockGrid(x, y) != BlockType::NORMAL) {
+					return std::nullopt;
+				}
+				return getBlockCollisionDirections(roomBlockGrid, x, y);
+			};
+
+			const auto aboveType = get(xi, yi + 1);
+			const auto belowType = get(xi, yi - 1);
+			const auto rightType = get(xi + 1, yi);
+			const auto leftType = get(xi - 1, yi);
+
+			const auto type = getBlockCollisionDirections(roomBlockGrid, xi, yi);
+			using namespace BlockCollisionDirections;
+			const auto cellBottomLeft = Vec2(xi + roomPosition.x, yi + roomPosition.y) * constants().cellSize;
+			const auto cellTopRight = cellBottomLeft + Vec2(constants().cellSize);
+			//Dbg::drawAabb(cellBottomLeft, cellTopRight);
+			float b = 2.0f;
+			const auto color = Color3::WHITE / 10.0f;
+			if (type & D) {
+				Dbg::drawFilledAabb(cellBottomLeft, cellBottomLeft + Vec2(constants().cellSize, b), color);
+			}
+			if (type & U) {
+				Dbg::drawFilledAabb(cellTopRight - Vec2(constants().cellSize, b), cellTopRight, color);
+			}
+			if (type & L) {
+				Dbg::drawFilledAabb(cellBottomLeft, cellBottomLeft + Vec2(b, constants().cellSize), color);
+			}
+			if (type & R) {
+				Dbg::drawFilledAabb(cellTopRight - Vec2(b, constants().cellSize), cellTopRight, color);
+			}
+			if (aboveType.has_value() && rightType.has_value() && *aboveType & R && *rightType & U) {
+				Dbg::drawFilledAabb(cellTopRight - Vec2(b), cellTopRight, color);
+			}
+			if (aboveType.has_value() && leftType.has_value() && *aboveType & L && *leftType & U) {
+				Dbg::drawFilledAabb(cellBottomLeft + Vec2(0.0f, constants().cellSize - b), cellBottomLeft + Vec2(b, constants().cellSize), color);
+			}
+			if (belowType.has_value() && leftType.has_value() && *belowType & L && *leftType & D) {
+				Dbg::drawFilledAabb(cellBottomLeft, cellBottomLeft + Vec2(b), color);
+			}
+			if (belowType.has_value() && rightType.has_value() && *belowType & R && *rightType & D) {
+				Dbg::drawFilledAabb(cellBottomLeft + Vec2(constants().cellSize - b, 0.0f), cellBottomLeft + Vec2(constants().cellSize, b), color);
+			}
+
+		}
+	}
+}
+
+void GameRenderer::renderSpikes(const Array2d<BlockType>& roomBlockGrid, Vec2T<i32> roomPosition) {
+	std::vector<SpikeCenterInstance> spikeCenters;
+
+	for (i32 yi = 0; yi < roomBlockGrid.size().y; yi++) {
+		for (i32 xi = 0; xi < roomBlockGrid.size().x; xi++) {
+			switch (roomBlockGrid(xi, yi)) {
+			case BlockType::SPIKE_LEFT: 
+			case BlockType::SPIKE_RIGHT:
+			case BlockType::SPIKE_TOP:
+			case BlockType::SPIKE_BOTTOM:
+			{
+				const auto spike = makeSpikeLeft(xi, yi, roomPosition);
+				auto aabb = spike.hitbox;
+				aabb.min.x -= constants().cellSize,
+				spikeCenters.push_back(SpikeCenterInstance{
+					.transform = renderer.camera.makeTransform(
+						aabb.center(),
+						0.0f,
+						aabb.size() / 2.0f
+					),
+					.clipToWorld = renderer.camera.clipSpaceToWorldSpace(),
+					.time = backgroundElapsed
+				});
+			}
+			
+			}
+			
+		}
+	}
+
+	glEnable(GL_BLEND);
+	spikeCenterShader.use();
+	drawInstances(spikeCenterVao, renderer.instancesVbo, spikeCenters, [](usize instanceCount) {
+		glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, instanceCount);
+	});
+	glDisable(GL_BLEND);
+}
+
 void GameRenderer::renderSpike(const Spike& spike) {
 	Dbg::drawFilledAabb(
 		spike.hitbox.min,
@@ -79,15 +225,31 @@ void GameRenderer::renderSpike(const Spike& spike) {
 }
 
 void GameRenderer::renderPlatform(const Platform& platform) {
-	Dbg::drawLine(platform.position, platform.position + Vec2(constants().cellSize, 0.0f), Color3::WHITE / 2.0f, 2.0f);
+	Dbg::drawLine(platform.position, platform.position + Vec2(constants().cellSize, 0.0f), BLOCK_COLOR, 2.0f);
 }
 
 void GameRenderer::renderPlayer(const Player& player) {
-	Dbg::drawAabb(
+	Dbg::drawFilledAabb(
 		player.position - constants().playerSize / 2.0f,
 		player.position + constants().playerSize / 2.0f,
-		Color3::WHITE,
-		2.0f);
+		Color3::WHITE);
+}
+
+void GameRenderer::renderPlayerFull(const Player& player) {
+	PlayerInstance instance{
+		.transform = renderer.camera.makeTransform(
+			player.position, 
+			0.0f, 
+			Vec2(constants().playerSize.y) * 4.0f
+		),
+		.time = backgroundElapsed
+	};
+	std::vector<PlayerInstance> instances;
+	instances.push_back(instance);
+	playerShader.use();
+	drawInstances(playerVao, renderer.instancesVbo, instances, [](usize instanceCount) {
+		glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, instanceCount);
+	});
 }
 
 void GameRenderer::renderDoubleJumpOrb(const Vec2 position) {
@@ -121,7 +283,8 @@ void GameRenderer::renderBackground() {
 	std::vector<BackgroundInstance> instances;
 	instances.push_back(BackgroundInstance{
 		.clipToWorld = renderer.camera.clipSpaceToWorldSpace(),
-		.time = backgroundElapsed
+		.cameraPosition = renderer.camera.pos,
+		.time = backgroundElapsed,
 	});
 	drawInstances(backgroundVao, renderer.instancesVbo, instances, [](usize count) {
 		glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, count);

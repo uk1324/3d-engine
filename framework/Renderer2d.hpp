@@ -55,6 +55,8 @@ struct Renderer2d {
 	float getQuadPixelSizeX(float scale) const;
 	float getQuadPixelSizeY(float scale) const;
 
+	void drawDbgFilledTriangles();
+
 private:
 	void drawDbg();
 };

@@ -3,15 +3,18 @@
 layout(location = 0) in vec2 vertexPosition; 
 layout(location = 1) in vec2 vertexTexturePosition; 
 layout(location = 2) in mat3x2 instanceClipToWorld; 
-layout(location = 5) in float instanceTime; 
+layout(location = 5) in vec2 instanceCameraPosition; 
+layout(location = 6) in float instanceTime; 
 
 out vec2 worldPosition; 
 
 out mat3x2 clipToWorld; 
+out vec2 cameraPosition; 
 out float time; 
 
 void passToFragment() {
     clipToWorld = instanceClipToWorld; 
+    cameraPosition = instanceCameraPosition; 
     time = instanceTime; 
 }
 

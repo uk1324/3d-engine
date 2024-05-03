@@ -100,20 +100,87 @@ void Game::gameUpdate() {
 	}
 }
 
+#include <platformer/Shaders/blocksData.hpp>
+
 void Game::gameRender() {
 	glClear(GL_COLOR_BUFFER_BIT);
  	updateCamera();
+	renderer.renderer.camera = camera;
 
 	renderer.renderBackground();
 
-	for (const auto& room : rooms) {
-		// TODO: Culling
-		renderer.renderer.camera = camera;
-		renderer.renderBlocks(room.blocks);
-		renderer.renderPlayer(player);
-		for (const auto& spike : room.spikes) {
-			renderer.renderSpike(spike);
+	auto renderBlockShader = [&](f32 scale) {
+		glEnable(GL_STENCIL_TEST);
+
+		glStencilMask(0xFF);
+		glClear(GL_STENCIL_BUFFER_BIT);
+		glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+		glStencilFunc(GL_ALWAYS, 1, 0xFF);
+
+		renderer.renderer.drawDbgFilledTriangles();
+
+		glStencilMask(0x00);
+		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+		glStencilFunc(GL_EQUAL, 1, 0xFF);
+		{
+			renderer.renderer.fullscreenQuad2dPtVerticesVao.bind();
+			renderer.blocksShader.use();
+			shaderSetUniforms(renderer.blocksShader, BlocksVertUniforms{
+				.clipToWorld = renderer.renderer.camera.clipSpaceToWorldSpace(),
+			});
+			shaderSetUniforms(renderer.blocksShader, BlocksFragUniforms{
+				.time = renderer.backgroundElapsed,
+				.scale = scale
+			});
+			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+			//DrawArrays(GL_TRIANGLES, 0, 6);
 		}
+		glDisable(GL_STENCIL_TEST);
+	};
+	
+	renderer.renderer.drawDbgFilledTriangles();
+
+	for (const auto& room : rooms) {
+		for (const auto& block : room.blocks) {
+			Dbg::drawFilledAabb(block.position, block.position + Vec2(constants().cellSize), Color3::WHITE / 20.0f);
+		}
+	}
+	renderBlockShader(1.0f);
+
+	//for (const auto& room : level.rooms) {
+	//	renderer.renderBlockOutlines(room.blockGrid, room.position);
+	//}
+	//renderBlockShader(5.0f);
+
+
+
+	//renderer.renderer.shapeRenderer
+	//renderer.renderPlayer(player);
+
+
+	//for (const auto& room : rooms) {
+	for (i32 i = 0; i < rooms.size(); i++) {
+		const auto& room = rooms[i];
+		const auto& levelRoom = level.rooms[i];
+
+		auto cameraAabb = camera.aabb();
+		cameraAabb.min -= Vec2(1.0f);
+		cameraAabb.max += Vec2(1.0f);
+		const auto roomAabb = ::roomAabb(levelRoom);
+
+		if (!cameraAabb.collides(roomAabb)) {
+			continue;
+		}
+			
+		renderer.renderBlockOutlines(levelRoom.blockGrid, levelRoom.position);
+		//renderer.renderBlocks(room.blocks);
+
+		/*for (const auto& spike : room.spikes) {
+			renderer.renderSpike(spike);
+		}*/
+		renderer.renderSpikes(levelRoom.blockGrid, levelRoom.position);
 		for (const auto& platform : room.platforms) {
 			renderer.renderPlatform(platform);
 		}
@@ -129,6 +196,16 @@ void Game::gameRender() {
 		}
 	}
 	renderer.update();
+
+	static bool v = false;
+	ImGui::Checkbox("test", &v);
+	if (v) {
+		renderer.renderPlayer(player);
+	} else {
+		glEnable(GL_BLEND);
+		renderer.renderPlayerFull(player);
+		glDisable(GL_BLEND);
+	}
 
 	if (const auto activeRoom = activeLevelRoom(); activeRoom.has_value()) {
 		const auto min = Vec2(activeRoom->position) * constants().cellSize;
