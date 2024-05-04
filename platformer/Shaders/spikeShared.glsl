@@ -34,6 +34,7 @@ vec4 spikeColor(float d, float time, vec2 worldPosition, vec2 normal) {
     //return vec4(vec3(d), 1.0);
     //return vec4(vec3(d), d);
     //return vec4(normal, 0.0, 1.0);
+    //return vec4((normal + 1.0) / 2.0, 0.0, 1.0);
     //normal = vec2(-normal.y, normal.x);
     worldPosition /= 200.0;
     vec2 pos = (vec2(perlin01(worldPosition), perlin01(worldPosition + vec2(123, 532))) - 0.5) * 2.0;

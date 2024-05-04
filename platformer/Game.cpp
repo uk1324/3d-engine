@@ -109,6 +109,21 @@ void Game::gameRender() {
 
 	renderer.renderBackground();
 
+	for (i32 i = 0; i < rooms.size(); i++) {
+		const auto& room = rooms[i];
+		const auto& levelRoom = level.rooms[i];
+
+		auto cameraAabb = camera.aabb();
+		cameraAabb.min -= Vec2(1.0f);
+		cameraAabb.max += Vec2(1.0f);
+		const auto roomAabb = ::roomAabb(levelRoom);
+
+		if (!cameraAabb.collides(roomAabb)) {
+			continue;
+		}
+		renderer.renderSpikes(levelRoom.blockGrid, levelRoom.position);
+	}
+
 	auto renderBlockShader = [&](f32 scale) {
 		glEnable(GL_STENCIL_TEST);
 
@@ -180,7 +195,7 @@ void Game::gameRender() {
 		/*for (const auto& spike : room.spikes) {
 			renderer.renderSpike(spike);
 		}*/
-		renderer.renderSpikes(levelRoom.blockGrid, levelRoom.position);
+		//renderer.renderSpikes(levelRoom.blockGrid, levelRoom.position);
 		for (const auto& platform : room.platforms) {
 			renderer.renderPlatform(platform);
 		}

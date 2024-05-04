@@ -35,6 +35,8 @@ public:
 	i64 clampX(i64 x) const;
 	i64 clampY(i64 y) const;
 
+	bool isInBounds(i64 x, i64 y) const;
+
 	void fillRectSize(i64 minX, i64 minY, i64 width, i64 height, const T& value);
 	void paste(
 		i64 offsetInThisX, 
@@ -161,6 +163,11 @@ i64 Array2d<T>::clampX(i64 x) const {
 template<typename T>
 i64 Array2d<T>::clampY(i64 y) const {
 	return std::clamp(y, i64(0), size_.y);
+}
+
+template<typename T>
+bool Array2d<T>::isInBounds(i64 x, i64 y) const {
+	return x >= 0 && y >= 0 && x < size_.x && y < size_.y;
 }
 
 template<typename T>

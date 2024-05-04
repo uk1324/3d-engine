@@ -4,9 +4,14 @@ shader SpikeOpenCorner {
 	vertexStruct = Vertex2dPt;
 	vertInstance = {
 		Mat3x2 transform;
+	};
+	vertUniforms = {
 		Mat3x2 clipToWorld;
 	};
 	fragInstance = {
+		float rotation;
+	};
+	fragUniforms = {
 		float time;
 	};
 	vertOut = {

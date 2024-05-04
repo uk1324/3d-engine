@@ -1,9 +1,11 @@
 #version 430 core
 
+uniform float time; 
+
 in vec2 position; 
 in vec2 worldPosition; 
 
-in float time; 
+in float rotation; 
 out vec4 fragColor;
 
 /*generated end*/
@@ -46,11 +48,14 @@ void main() {
 	//d = 1.0 - length(p);
 	
 	fragColor = vec4(vec3(d), d);
+	mat2 rot = mat2(vec2(cos(rotation), sin(rotation)), vec2(-sin(rotation), cos(rotation)));
+
 	vec2 normal;
 	//vec2 normal = normalize(vec2(position.y, position.x));
 	//normal = normalize(0.75 - position);
 	// Translating to make the normals align on sides.
 	normal = normalize(0.8 - position);
+	normal *= rot;
 //	if (p.x < p.y) {
 //		normal = vec2(0.0, 1.0);
 //	} else {

@@ -128,7 +128,6 @@ void GameRenderer::renderBlocks(const std::vector<Block>& blocks) {
 		renderBlock(block);
 	}
 }
-
 void GameRenderer::renderBlockOutlines(const Array2d<BlockType>& roomBlockGrid, Vec2T<i32> roomPosition) {
 	for (i32 yi = 0; yi < roomBlockGrid.size().y; yi++) {
 		for (i32 xi = 0; xi < roomBlockGrid.size().x; xi++) {
@@ -197,158 +196,199 @@ void GameRenderer::renderSpikes(const Array2d<BlockType>& roomBlockGrid, Vec2T<i
 		for (i32 xi = 0; xi < roomBlockGrid.size().x; xi++) {
 			const auto center = (Vec2(xi + roomPosition.x, yi + roomPosition.y) + Vec2(0.5f)) * constants().cellSize;
 
+			auto rotateAround = [](Vec2 point, f32 angle) -> Mat3x2 {
+				return Mat3x2::translate(-point)*
+					Mat3x2::rotate(angle)*
+					Mat3x2::translate(point);
+			};
+
+			auto reflectAround = [](Vec2 point) -> Mat3x2 {
+				return Mat3x2::translate(-point) *
+					Mat3x2::scale(Vec2(-1.0f, 1.0f)) *
+					Mat3x2::translate(point);
+			};
+
 			auto addSpikeCenter = [&](f32 rotation, Vec2 normal) {
-				const auto rot =
-					Mat3x2::translate(-center) *
-					Mat3x2::rotate(rotation) *
-					Mat3x2::translate(center);
-					const auto spike = makeSpikeLeft(xi, yi, roomPosition);
-					auto aabb = spike.hitbox;
-					aabb.min.x -= constants().cellSize,
-					spikeCenters.push_back(SpikeCenterInstance{
-						.transform = makeObjectTransform(
-							aabb.center(),
-							0.0f,
-							aabb.size() / 2.0f
-						) * rot * renderer.camera.worldToCameraToNdc(),
-						.clipToWorld = renderer.camera.clipSpaceToWorldSpace(),
-						.time = backgroundElapsed,
-						.normal = normal
+				const auto spike = makeSpikeLeft(xi, yi, roomPosition);
+
+				const Vec2 tangent = Vec2(-normal.y, normal.x);
+
+				auto aabb = spike.hitbox;
+				aabb.min.x -= constants().cellSize;
+
+				// The second open corner spike is a hacky way to extend the glow so that it doesn't abruptly stop.
+				f32 off = 0.3f;
+				if (roomBlockGrid.isInBounds(xi - tangent.x, yi - tangent.y) &&
+					roomBlockGrid(xi - tangent.x, yi - tangent.y) == BlockType::EMPTY) {
+					aabb.max.y -= constants().cellSize * off;
+
+					f32 r = rotation + PI<f32> / 2.0f;
+					auto pos = Vec2(xi + roomPosition.x + 1.0f - off, yi + roomPosition.y) * constants().cellSize;
+					auto aabb = Aabb(pos, pos + Vec2(constants().cellSize * 1.2f));
+					spikeOpenCorner.push_back(SpikeOpenCornerInstance{
+						.transform = 
+							makeObjectTransform(aabb.center(), 0.0f, aabb.size() / 2.0f) * 
+							rotateAround(center, r) * 
+							renderer.camera.worldToCameraToNdc(),
+						.rotation = -r,
 					});
-				};
+
+					spikeOpenCorner.push_back(SpikeOpenCornerInstance{
+						.transform = 
+							makeObjectTransform(aabb.center(), 0.0f, aabb.size() / 2.0f) * 
+							rotateAround(pos, -PI<f32> / 2.0f) *
+							rotateAround(center, r) * 
+							renderer.camera.worldToCameraToNdc(),
+						.rotation = -r + PI<f32> / 2.0f,
+					});
+				}
+				if (roomBlockGrid.isInBounds(xi + tangent.x, yi + tangent.y) &&
+					roomBlockGrid(xi + tangent.x, yi + tangent.y) == BlockType::EMPTY) {
+					aabb.min.y += constants().cellSize * off;
+
+					f32 r = rotation + PI<f32> / 2.0f;
+					auto pos = Vec2(xi + roomPosition.x + off, yi + roomPosition.y) * constants().cellSize;
+					auto aabb = Aabb(pos, pos + Vec2(constants().cellSize * 1.2f));
+
+					spikeOpenCorner.push_back(SpikeOpenCornerInstance{
+						.transform = 
+							makeObjectTransform(aabb.center(), 0.0f, aabb.size() / 2.0f) * 
+							rotateAround(pos, PI<f32> / 2.0f) *
+							rotateAround(center, r) *
+							renderer.camera.worldToCameraToNdc(),
+						.rotation = -r - PI<f32> / 2.0f,
+					});
+
+					spikeOpenCorner.push_back(SpikeOpenCornerInstance{
+						.transform = 
+							makeObjectTransform(aabb.center(), 0.0f, aabb.size() / 2.0f) * 
+							rotateAround(pos, PI<f32>) *
+							rotateAround(center, r) *
+							renderer.camera.worldToCameraToNdc(),
+						.rotation = -r - PI<f32>,
+					});
+				}
+
+				spikeCenters.push_back(SpikeCenterInstance{
+					.transform = makeObjectTransform(
+						aabb.center(),
+						0.0f,
+						aabb.size() / 2.0f
+					) * rotateAround(center, rotation) * renderer.camera.worldToCameraToNdc(),
+					.normal = normal,
+				});
+			};
+
+			auto addSpikeClosedCorner = [&](f32 rotation) {
+				spikeClosedCorner.push_back(SpikeClosedCornerInstance{
+					.transform = makeObjectTransform(
+						center,
+						0.0f,
+						Vec2(constants().cellSize) / 2.0f
+					) * rotateAround(center, rotation) * renderer.camera.worldToCameraToNdc(),
+					.rotation = -rotation,
+				});
+			};
+
+			auto addSpikeOpenCorner = [&](f32 rotation) {
+				const auto pos = Vec2(xi + roomPosition.x, yi + roomPosition.y) * constants().cellSize;
+				auto aabb = Aabb(pos, pos + Vec2(constants().cellSize * 1.2f));
+				spikeOpenCorner.push_back(SpikeOpenCornerInstance{
+					.transform = makeObjectTransform(
+						aabb.center(),
+						0.0f,
+						aabb.size() / 2.0f
+					) * rotateAround(center, rotation) * renderer.camera.worldToCameraToNdc(),
+					.rotation = -rotation,
+				});
+			};
 
 			const auto type = roomBlockGrid(xi, yi);
-
 			if (type == BlockType::SPIKE_LEFT) {
 				addSpikeCenter(0.0f, Vec2(-1.0f, 0.0f));
 			} else if (type == BlockType::SPIKE_TOP) {
 				addSpikeCenter(-PI<f32> / 2.0f, Vec2(0.0f, 1.0f));
 			} else if (type == BlockType::SPIKE_RIGHT) {
 				addSpikeCenter(PI<f32>, Vec2(1.0f, 0.0f));
+			} else if (type == BlockType::SPIKE_BOTTOM) {
+				addSpikeCenter(PI<f32> / 2.0f, Vec2(0.0f, -1.0f));
 			}
 
-			if (type == BlockType::SPIKE_BOTTOM) {
-				spikeClosedCorner.push_back(SpikeClosedCornerInstance{
-					.transform = renderer.camera.makeTransform(
-						center,
-						0.0f,
-						Vec2(constants().cellSize) / 2.0f
-					),
-					/*.transform = renderer.camera.makeTransform(
-						center + Vec2(constants().cellSize * 0.1f),
-						0.0f,
-						Vec2(constants().cellSize * 1.2f) / 2.0f
-					),*/
-					.clipToWorld = renderer.camera.clipSpaceToWorldSpace(),
-					.time = backgroundElapsed,
-				});
+			if (type == BlockType::SPIKE_TOP_RIGHT_CLOSED) {
+				addSpikeClosedCorner(PI<f32>);
 			}
 
+			if (type == BlockType::SPIKE_TOP_LEFT_CLOSED) {
+				addSpikeClosedCorner(-PI<f32> / 2.0f);
+			}
 
+			if (type == BlockType::SPIKE_BOTTOM_LEFT_CLOSED) {
+				addSpikeClosedCorner(0.0f);
+			}
 
-			//switch (roomBlockGrid(xi, yi)) {
-			//case BlockType::SPIKE_LEFT: 
-			//{
-			//	const auto spike = makeSpikeLeft(xi, yi, roomPosition);
-			//	auto aabb = spike.hitbox;
-			//	aabb.min.x -= constants().cellSize,
-			//	spikeCenters.push_back(SpikeCenterInstance{
-			//		.transform = renderer.camera.makeTransform(
-			//			aabb.center(),
-			//			0.0f,
-			//			aabb.size() / 2.0f
-			//		),
-			//		.clipToWorld = renderer.camera.clipSpaceToWorldSpace(),
-			//		.time = backgroundElapsed,
-			//		.normal = Vec2(1.0f, 0.0f)
-			//	});
-			//	break;
-			//}
+			if (type == BlockType::SPIKE_BOTTOM_RIGHT_CLOSED) {
+				addSpikeClosedCorner(PI<f32> / 2.0f);
+			}
 
-			//case BlockType::SPIKE_TOP:
-			//{
-			//	const auto pos = Vec2(xi + roomPosition.x, yi + roomPosition.y) * constants().cellSize;
-			//	auto aabb = Aabb(pos - Vec2(constants().cellSize * 0.2f, 0.0f), pos + Vec2(constants().cellSize) + Vec2(0.0f, constants().cellSize * 0.2f));
-			//	spikeOpenCorner.push_back(SpikeOpenCornerInstance{
-			//		.transform = renderer.camera.makeTransform(
-			//			aabb.center(),
-			//			0.0f,
-			//			aabb.size() / 2.0f
-			//		),
-			//		.clipToWorld = renderer.camera.clipSpaceToWorldSpace(),
-			//		.time = backgroundElapsed
-			//	});
-			//	break;
-			//}
-
-			//case BlockType::SPIKE_RIGHT:
-			//{
-			///*	const auto rot = 
-			//		Mat3x2::translate(-center) *
-			//		Mat3x2::rotate(-PI<f32> / 2.0f) *
-			//		Mat3x2::translate(-center);*/
-			//	/*const auto rot =
-			//		Mat3x2::translate(center) *
-			//		Mat3x2::rotate(-PI<f32> / 2.0f) *
-			//		Mat3x2::translate(-center);*/
-			//	const auto rot =
-			//		Mat3x2::translate(-center) *
-			//		Mat3x2::rotate(-PI<f32> / 2.0f) *
-			//		Mat3x2::translate(center);
-			//	/*const auto rot =
-			//		Mat3x2::translate(Vec2(1.0f, 0.0f));*/
- 		//		const auto spike = makeSpikeLeft(xi, yi, roomPosition);
-			//	auto aabb = spike.hitbox;
-			//	aabb.min.x -= constants().cellSize,
-			//	spikeCenters.push_back(SpikeCenterInstance{
-			//		.transform = makeObjectTransform(
-			//			aabb.center(),
-			//			0.0f,
-			//			aabb.size() / 2.0f
-			//		) * rot * renderer.camera.worldToCameraToNdc(),
-			//		.clipToWorld = renderer.camera.clipSpaceToWorldSpace(),
-			//		.time = backgroundElapsed,
-			//		.normal = Vec2(0.0f, 1.0f)
-			//	});
-			//	break;
-			//}
-
-			//
-			//case BlockType::SPIKE_BOTTOM: 
-			//{
-			//	spikeClosedCorner.push_back(SpikeClosedCornerInstance{
-			//		.transform = renderer.camera.makeTransform(
-			//			center,
-			//			0.0f,
-			//			Vec2(constants().cellSize) / 2.0f
-			//		),
-			//		.clipToWorld = renderer.camera.clipSpaceToWorldSpace(),
-			//		.time = backgroundElapsed,
-			//	});
-			//	break;
-			//}
-
-
-			//}
+			if (type == BlockType::SPIKE_TOP_RIGHT_OPEN) {
+				addSpikeOpenCorner(0.0f);
+			}
+			if (type == BlockType::SPIKE_TOP_LEFT_OPEN) {
+				addSpikeOpenCorner(PI<f32> / 2.0f);
+			}
+			if (type == BlockType::SPIKE_BOTTOM_RIGHT_OPEN) {
+				addSpikeOpenCorner(-PI<f32> / 2.0f);
+			}
+			if (type == BlockType::SPIKE_BOTTOM_LEFT_OPEN) {
+				addSpikeOpenCorner(PI<f32>);
+			}
 			
 		}
 	}
 
 	glEnable(GL_BLEND);
-	spikeCenterShader.use();
-	drawInstances(spikeCenterVao, renderer.instancesVbo, spikeCenters, [](usize instanceCount) {
-		glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, instanceCount);
-	});
 
-	spikeOpenCornerShader.use();
-	drawInstances(spikeOpenCornerVao, renderer.instancesVbo, spikeOpenCorner, [](usize instanceCount) {
-		glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, instanceCount);
-	});
+	const auto clipToWorld = renderer.camera.clipSpaceToWorldSpace();
+	const auto time = backgroundElapsed;
 
-	spikeClosedCornerShader.use();
-	drawInstances(spikeClosedCornerVao, renderer.instancesVbo, spikeClosedCorner, [](usize instanceCount) {
-		glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, instanceCount);
-	});
+	{
+		spikeCenterShader.use();
+		shaderSetUniforms(spikeCenterShader, SpikeCenterVertUniforms{
+			.clipToWorld = clipToWorld
+		});
+		shaderSetUniforms(spikeCenterShader, SpikeCenterFragUniforms{
+			.time = time
+		});
+		drawInstances(spikeCenterVao, renderer.instancesVbo, spikeCenters, [](usize instanceCount) {
+			glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, instanceCount);
+		});
+	}
+
+	{
+		spikeOpenCornerShader.use();
+		shaderSetUniforms(spikeOpenCornerShader, SpikeOpenCornerVertUniforms{
+			.clipToWorld = clipToWorld
+		});
+		shaderSetUniforms(spikeOpenCornerShader, SpikeOpenCornerFragUniforms{
+			.time = time
+		});
+		drawInstances(spikeOpenCornerVao, renderer.instancesVbo, spikeOpenCorner, [](usize instanceCount) {
+			glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, instanceCount);
+		});
+	}
+
+	{
+		spikeClosedCornerShader.use();
+		shaderSetUniforms(spikeClosedCornerShader, SpikeClosedCornerVertUniforms{
+			.clipToWorld = clipToWorld
+		});
+		shaderSetUniforms(spikeClosedCornerShader, SpikeClosedCornerFragUniforms{
+			.time = time
+		});
+		drawInstances(spikeClosedCornerVao, renderer.instancesVbo, spikeClosedCorner, [](usize instanceCount) {
+			glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, instanceCount);
+		});
+	}
 
 	glDisable(GL_BLEND);
 }

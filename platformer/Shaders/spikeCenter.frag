@@ -1,9 +1,10 @@
 #version 430 core
 
+uniform float time; 
+
 in vec2 position; 
 in vec2 worldPosition; 
 
-in float time; 
 in vec2 normal; 
 out vec4 fragColor;
 

@@ -1,0 +1,2 @@
+Could when trigger make it split into 3 parts that quickly disapperar then slowly move back.
+The shape could be done using operations on sdfs.
