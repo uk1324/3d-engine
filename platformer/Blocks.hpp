@@ -49,6 +49,14 @@ enum class BlockType : u8 {
 	SPIKE_TOP,
 	SPIKE_BOTTOM,
 	PLATFORM,
+	SPIKE_TOP_RIGHT_OPEN,
+	SPIKE_TOP_LEFT_OPEN,
+	SPIKE_BOTTOM_RIGHT_OPEN,
+	SPIKE_BOTTOM_LEFT_OPEN,
+	SPIKE_TOP_RIGHT_CLOSED,
+	SPIKE_TOP_LEFT_CLOSED,
+	SPIKE_BOTTOM_RIGHT_CLOSED,
+	SPIKE_BOTTOM_LEFT_CLOSED,
 };
 
 BlockCollsionDirectionsBitfield getBlockCollisionDirections(const Array2d<BlockType>& blockGrid, i32 x, i32 y);

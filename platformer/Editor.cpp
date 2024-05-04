@@ -182,6 +182,14 @@ void Editor::update(f32 dt) {
 		{ PlacableItem::DOUBLE_JUMP_ORB, "double jump orb" },
 		{ PlacableItem::ATTRACTING_ORB, "attracting orb" },
 		{ PlacableItem::MOVING_BLOCK, "moving block" },
+		{ PlacableItem::SPIKE_TOP_RIGHT_OPEN, "spike top right open" },
+		{ PlacableItem::SPIKE_TOP_LEFT_OPEN, "spike top left open" },
+		{ PlacableItem::SPIKE_BOTTOM_RIGHT_OPEN, "spike bottom right open" },
+		{ PlacableItem::SPIKE_BOTTOM_LEFT_OPEN, "spike bottom left open" },
+		{ PlacableItem::SPIKE_TOP_RIGHT_CLOSED, "spike top right closed" },
+		{ PlacableItem::SPIKE_TOP_LEFT_CLOSED, "spike top left closed" },
+		{ PlacableItem::SPIKE_BOTTOM_RIGHT_CLOSED, "spike bottom right closed" },
+		{ PlacableItem::SPIKE_BOTTOM_LEFT_CLOSED, "spike bottom left closed" },
 	};
 
 	ImGui::SeparatorText("block selection");
@@ -284,6 +292,14 @@ void Editor::updateSelectedRoom() {
 		case SPIKE_LEFT: return BlockType::SPIKE_LEFT;
 		case SPIKE_RIGHT: return BlockType::SPIKE_RIGHT;
 		case PLATFORM: return BlockType::PLATFORM;
+		case SPIKE_TOP_RIGHT_OPEN: return BlockType::SPIKE_TOP_RIGHT_OPEN;
+		case SPIKE_TOP_LEFT_OPEN: return BlockType::SPIKE_TOP_LEFT_OPEN;
+		case SPIKE_BOTTOM_RIGHT_OPEN: return BlockType::SPIKE_BOTTOM_RIGHT_OPEN;
+		case SPIKE_BOTTOM_LEFT_OPEN: return BlockType::SPIKE_BOTTOM_LEFT_OPEN;
+		case SPIKE_TOP_RIGHT_CLOSED: return BlockType::SPIKE_TOP_RIGHT_CLOSED;
+		case SPIKE_TOP_LEFT_CLOSED: return BlockType::SPIKE_TOP_LEFT_CLOSED;
+		case SPIKE_BOTTOM_RIGHT_CLOSED: return BlockType::SPIKE_BOTTOM_RIGHT_CLOSED;
+		case SPIKE_BOTTOM_LEFT_CLOSED: return BlockType::SPIKE_BOTTOM_LEFT_CLOSED;
 
 		case SPAWN_POINT:
 			break;

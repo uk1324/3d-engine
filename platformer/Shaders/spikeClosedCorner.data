@@ -1,6 +1,6 @@
 import "../../framework/Vertex2dPt.data";
 
-shader SpikeCenter {
+shader SpikeClosedCorner {
 	vertexStruct = Vertex2dPt;
 	vertInstance = {
 		Mat3x2 transform;
@@ -8,7 +8,6 @@ shader SpikeCenter {
 	};
 	fragInstance = {
 		float time;
-		Vec2 normal;
 	};
 	vertOut = {
 		Vec2 position;

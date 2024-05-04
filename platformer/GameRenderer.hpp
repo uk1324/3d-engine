@@ -41,5 +41,11 @@ struct GameRenderer {
 	Vao spikeCenterVao;
 	ShaderProgram& spikeCenterShader;
 
+	Vao spikeOpenCornerVao;
+	ShaderProgram& spikeOpenCornerShader;
+
+	Vao spikeClosedCornerVao;
+	ShaderProgram& spikeClosedCornerShader;
+
 	f32 backgroundElapsed = 0.0f;
 };

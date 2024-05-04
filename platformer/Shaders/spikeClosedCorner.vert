@@ -5,28 +5,26 @@ layout(location = 1) in vec2 vertexTexturePosition;
 layout(location = 2) in mat3x2 instanceTransform; 
 layout(location = 5) in mat3x2 instanceClipToWorld; 
 layout(location = 8) in float instanceTime; 
-layout(location = 9) in vec2 instanceNormal; 
 
 out vec2 position; 
 out vec2 worldPosition; 
 
 out float time; 
-out vec2 normal; 
 
 void passToFragment() {
     time = instanceTime; 
-    normal = instanceNormal; 
 }
 
 /*generated end*/
 
 void main() {
-	passToFragment();
+    passToFragment();
     gl_Position = vec4(instanceTransform * vec3(vertexPosition, 1.0), 0.0, 1.0);
 //    position = vertexTexturePosition;
 //    position -= vec2(0.5);
 //    position *= 2.0;
     position = vertexTexturePosition;
+    position /= 1.2;
     
     worldPosition = (gl_Position.xy - vec2(0.5)) * 2.0;
 	worldPosition = instanceClipToWorld * vec3(worldPosition, 1.0);
