@@ -113,20 +113,25 @@ void Game::gameRender() {
 
 	renderer.renderBackground();
 
+	auto isRoomInView = [&](const LevelRoom& room) {
+		auto cameraAabb = camera.aabb();
+		cameraAabb.min -= Vec2(1.0f);
+		cameraAabb.max += Vec2(1.0f);
+		const auto roomAabb = ::roomAabb(room);
+		return cameraAabb.collides(roomAabb);
+	};
+
 	for (i32 i = 0; i < rooms.size(); i++) {
 		const auto& room = rooms[i];
 		const auto& levelRoom = level.rooms[i];
 
-		auto cameraAabb = camera.aabb();
-		cameraAabb.min -= Vec2(1.0f);
-		cameraAabb.max += Vec2(1.0f);
-		const auto roomAabb = ::roomAabb(levelRoom);
-
-		if (!cameraAabb.collides(roomAabb)) {
+		if (!isRoomInView(levelRoom)) {
 			continue;
 		}
 		renderer.renderSpikes(levelRoom.blockGrid, levelRoom.position);
+		renderer.addAttractingOrbs(room.attractingOrbs, player.position);
 	}
+	renderer.renderAttractingOrbs();
 
 	auto renderBlockShader = [&](f32 scale) {
 		glEnable(GL_STENCIL_TEST);
@@ -154,7 +159,6 @@ void Game::gameRender() {
 				.scale = scale
 			});
 			glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
-			//DrawArrays(GL_TRIANGLES, 0, 6);
 		}
 		glDisable(GL_STENCIL_TEST);
 	};
@@ -168,18 +172,6 @@ void Game::gameRender() {
 	}
 	renderBlockShader(1.0f);
 
-	//for (const auto& room : level.rooms) {
-	//	renderer.renderBlockOutlines(room.blockGrid, room.position);
-	//}
-	//renderBlockShader(5.0f);
-
-
-
-	//renderer.renderer.shapeRenderer
-	//renderer.renderPlayer(player);
-
-
-	//for (const auto& room : rooms) {
 	for (i32 i = 0; i < rooms.size(); i++) {
 		const auto& room = rooms[i];
 		const auto& levelRoom = level.rooms[i];
@@ -192,25 +184,13 @@ void Game::gameRender() {
 		if (!cameraAabb.collides(roomAabb)) {
 			continue;
 		}
-		renderer.renderAttractingOrbs(room.attractingOrbs, player.position);
-
-
 		renderer.renderBlockOutlines(levelRoom.blockGrid, levelRoom.position);
-		//renderer.renderBlocks(room.blocks);
-
-		/*for (const auto& spike : room.spikes) {
-			renderer.renderSpike(spike);
-		}*/
-		//renderer.renderSpikes(levelRoom.blockGrid, levelRoom.position);
 		for (const auto& platform : room.platforms) {
 			renderer.renderPlatform(platform);
 		}
 		for (const auto& orb : room.doubleJumpOrbs) {
 			renderer.renderDoubleJumpOrb(orb);
 		}
-		/*for (const auto& orb : room.attractingOrbs) {
-			renderer.renderAttractingOrb(orb.position);
-		}*/
 		for (const auto& block : room.movingBlocks) {
 			const auto position = block.position();
 			Dbg::drawAabb(position, position + block.size, Color3::GREEN, 2.0f);

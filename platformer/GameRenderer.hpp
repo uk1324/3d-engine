@@ -4,6 +4,7 @@
 #include <platformer/Blocks.hpp>
 #include <platformer/Player.hpp>
 #include <framework/Renderer2d.hpp>
+#include <platformer/Shaders/attractingOrbData.hpp>
 
 struct GameRenderer {
 	GameRenderer();
@@ -20,7 +21,9 @@ struct GameRenderer {
 	void renderPlayerFull(const Player& player);
 	void renderDoubleJumpOrb(const Vec2 position);
 	void renderAttractingOrb(const Vec2 position);
-	void renderAttractingOrbs(const std::vector<AttractingOrb>& attractingOrbs, Vec2 playerPos);
+	std::vector<AttractingOrbInstance> attractingOrbInstances;
+	void addAttractingOrbs(const std::vector<AttractingOrb>& attractingOrbs, Vec2 playerPos);
+	void renderAttractingOrbs();
 	void renderDoubleJumpOrb(const DoubleJumpOrb& doubleJumpOrb);
 
 	void renderGrid(f32 smallCellSize);

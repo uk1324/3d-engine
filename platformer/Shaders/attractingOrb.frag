@@ -32,7 +32,7 @@ float falloff(float x, float equalToZeroAfter) {
 	if (x >= 1.0) {
 		return 0.0;
 	}
-    return (x-2.0)*x+1.0;
+    return (x - 2.0) * x + 1.0;
 }
 
 void main() {

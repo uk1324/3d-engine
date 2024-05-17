@@ -11,7 +11,6 @@
 #include <platformer/Shaders/spikeCenterData.hpp>
 #include <platformer/Shaders/spikeOpenCornerData.hpp>
 #include <platformer/Shaders/spikeClosedCornerData.hpp>
-#include <platformer/Shaders/attractingOrbData.hpp>
 #include <engine/Math/Color.hpp>
 #include <FileIo.hpp>
 
@@ -434,16 +433,18 @@ void GameRenderer::renderAttractingOrb(const Vec2 position) {
 	Dbg::drawCircle(position, constants().attractingOrbRadius, Color3::CYAN, 0.1f);
 }
 
-void GameRenderer::renderAttractingOrbs(const std::vector<AttractingOrb>& attractingOrbs, Vec2 playerPos) {
-	std::vector<AttractingOrbInstance> instances;
+void GameRenderer::addAttractingOrbs(const std::vector<AttractingOrb>& attractingOrbs, Vec2 playerPos) {
 	for (const auto& orb : attractingOrbs) {
-		instances.push_back(AttractingOrbInstance{
+		attractingOrbInstances.push_back(AttractingOrbInstance{
 			.transform = renderer.camera.makeTransform(orb.position, 0.0f, Vec2(100.0f)),
 			.playerWorldPos = playerPos,
 			.orbWorldPos = orb.position,
 			.t = orb.animationT
 		});
 	}
+}
+
+void GameRenderer::renderAttractingOrbs() {
 	glEnable(GL_BLEND);
 	shaderSetUniforms(attractingOrbShader, AttractingOrbFragUniforms{
 		.time = backgroundElapsed
@@ -452,8 +453,13 @@ void GameRenderer::renderAttractingOrbs(const std::vector<AttractingOrb>& attrac
 		.clipToWorld = renderer.camera.clipSpaceToWorldSpace(),
 	});
 	attractingOrbShader.use();
- 	drawInstances(attractingOrbVao, renderer.instancesVbo, instances, Renderer2d::drawFullscreenQuad2dInstances);
+	drawInstances(
+		attractingOrbVao, 
+		renderer.instancesVbo, 
+		attractingOrbInstances, 
+		Renderer2d::drawFullscreenQuad2dInstances);
 	glDisable(GL_BLEND);
+	attractingOrbInstances.clear();
 }
 
 void GameRenderer::renderDoubleJumpOrb(const DoubleJumpOrb& doubleJumpOrb) {
