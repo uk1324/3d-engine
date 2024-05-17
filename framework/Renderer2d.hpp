@@ -45,6 +45,8 @@ struct Renderer2d {
 	Vao fullscreenQuad2dPtVerticesVao;
 	static constexpr int fullscreenQuad2dPtVerticesIndexCount = 6;
 
+	static void drawFullscreenQuad2dInstances(usize instanceCount);
+
 	Vbo instancesVbo;
 
 	Camera camera;

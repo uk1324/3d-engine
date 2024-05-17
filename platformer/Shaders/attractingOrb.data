@@ -1,0 +1,22 @@
+import "../../framework/Vertex2dPt.data";
+
+shader AttractingOrb {
+	vertexStruct = Vertex2dPt;
+	vertInstance = {
+		Mat3x2 transform;
+	};
+	vertUniforms = {
+		Mat3x2 clipToWorld;
+	};
+	vertOut = {
+		Vec2 worldPosition;
+	};
+	fragInstance = {
+		Vec2 playerWorldPos;
+		Vec2 orbWorldPos;
+		float t;
+	};
+	fragUniforms = {
+		float time;
+	};
+}

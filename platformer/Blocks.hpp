@@ -39,6 +39,9 @@ struct DoubleJumpOrb {
 
 struct AttractingOrb {
 	Vec2 position;
+	f32 animationT = 0.0f;
+
+	void update(bool isPlayerPressingAttractButton, f32 dt);
 };
 
 enum class BlockType : u8 {

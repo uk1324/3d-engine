@@ -35,19 +35,21 @@ vec4 spikeColor(float d, float time, vec2 worldPosition, vec2 normal) {
     //return vec4(vec3(d), d);
     //return vec4(normal, 0.0, 1.0);
     //return vec4((normal + 1.0) / 2.0, 0.0, 1.0);
-    //normal = vec2(-normal.y, normal.x);
     worldPosition /= 200.0;
     vec2 pos = (vec2(perlin01(worldPosition), perlin01(worldPosition + vec2(123, 532))) - 0.5) * 2.0;
     //return vec4(pos, 0.0, 1.0);
 
     //return vec4(vec3(d), 1.0);
+    // Istead of doing the dot product of the random pos could just generate a random pos along, but I think it looks better with the dot product.
     float posAlong = dot(normal, pos);
     posAlong += 1.0;
     posAlong /= 2.0;
+
     //return vec4(vec3(posAlong), 1.0);
     d = 1.0 - d;
     d += octave01(vec2(time / 2.0, posAlong), 3) * 0.3 - 0.08;
     d *= 2.5 * 2.5;
     d = 1.0 / (d  * d);
-    return vec4(vec3(1,1./16.,1./16.) * exp(4.*d - 1.), d);
+
+    return vec4(vec3(1, 1.0 / 16.0, 1.0 / 16.0) * exp(4.0 * d - 1.0), d);
 }

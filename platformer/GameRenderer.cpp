@@ -11,25 +11,31 @@
 #include <platformer/Shaders/spikeCenterData.hpp>
 #include <platformer/Shaders/spikeOpenCornerData.hpp>
 #include <platformer/Shaders/spikeClosedCornerData.hpp>
+#include <platformer/Shaders/attractingOrbData.hpp>
 #include <engine/Math/Color.hpp>
 #include <FileIo.hpp>
+
+#define MAKE_VAO(Type) \
+	createInstancingVao<Type##Shader>(renderer.fullscreenQuad2dPtVerticesVbo, renderer.fullscreenQuad2dPtVerticesIbo, renderer.instancesVbo)
 
 GameRenderer::GameRenderer()
 	: renderer(Renderer2d::make())
 	// TODO: maybe allow the manager to take one source one path to source.
 	, gridShader(MAKE_GENERATED_SHADER(GRID))
-	, gridVao(createInstancingVao<GridShader>(renderer.fullscreenQuad2dPtVerticesVbo, renderer.fullscreenQuad2dPtVerticesIbo, renderer.instancesVbo))
+	, gridVao(MAKE_VAO(Grid))
 	, backgroundShader(MAKE_GENERATED_SHADER(BACKGROUND))
-	, backgroundVao(createInstancingVao<BackgroundShader>(renderer.fullscreenQuad2dPtVerticesVbo, renderer.fullscreenQuad2dPtVerticesIbo, renderer.instancesVbo))
+	, backgroundVao(MAKE_VAO(Background))
 	, blocksShader(MAKE_GENERATED_SHADER(BLOCKS))
-	, playerVao(createInstancingVao<PlayerShader>(renderer.fullscreenQuad2dPtVerticesVbo, renderer.fullscreenQuad2dPtVerticesIbo, renderer.instancesVbo))
+	, playerVao(MAKE_VAO(Player))
 	, playerShader(MAKE_GENERATED_SHADER(PLAYER))
-	, spikeCenterVao(createInstancingVao<SpikeCenterShader>(renderer.fullscreenQuad2dPtVerticesVbo, renderer.fullscreenQuad2dPtVerticesIbo, renderer.instancesVbo))
+	, spikeCenterVao(MAKE_VAO(SpikeCenter))
 	, spikeCenterShader(MAKE_GENERATED_SHADER(SPIKE_CENTER))
-	, spikeOpenCornerVao(createInstancingVao<SpikeOpenCornerShader>(renderer.fullscreenQuad2dPtVerticesVbo, renderer.fullscreenQuad2dPtVerticesIbo, renderer.instancesVbo))
+	, spikeOpenCornerVao(MAKE_VAO(SpikeOpenCorner))
 	, spikeOpenCornerShader(MAKE_GENERATED_SHADER(SPIKE_OPEN_CORNER))
-	, spikeClosedCornerVao(createInstancingVao<SpikeClosedCornerShader>(renderer.fullscreenQuad2dPtVerticesVbo, renderer.fullscreenQuad2dPtVerticesIbo, renderer.instancesVbo))
-	, spikeClosedCornerShader(MAKE_GENERATED_SHADER(SPIKE_CLOSED_CORNER)) {
+	, spikeClosedCornerVao(MAKE_VAO(SpikeClosedCorner))
+	, spikeClosedCornerShader(MAKE_GENERATED_SHADER(SPIKE_CLOSED_CORNER))
+	, attractingOrbVao(MAKE_VAO(AttractingOrb))
+	, attractingOrbShader(MAKE_GENERATED_SHADER(ATTRACTING_ORB)) {
 }
 
 void GameRenderer::update() {
@@ -359,9 +365,7 @@ void GameRenderer::renderSpikes(const Array2d<BlockType>& roomBlockGrid, Vec2T<i
 		shaderSetUniforms(spikeCenterShader, SpikeCenterFragUniforms{
 			.time = time
 		});
-		drawInstances(spikeCenterVao, renderer.instancesVbo, spikeCenters, [](usize instanceCount) {
-			glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, instanceCount);
-		});
+		drawInstances(spikeCenterVao, renderer.instancesVbo, spikeCenters, Renderer2d::drawFullscreenQuad2dInstances);
 	}
 
 	{
@@ -372,9 +376,7 @@ void GameRenderer::renderSpikes(const Array2d<BlockType>& roomBlockGrid, Vec2T<i
 		shaderSetUniforms(spikeOpenCornerShader, SpikeOpenCornerFragUniforms{
 			.time = time
 		});
-		drawInstances(spikeOpenCornerVao, renderer.instancesVbo, spikeOpenCorner, [](usize instanceCount) {
-			glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, instanceCount);
-		});
+		drawInstances(spikeOpenCornerVao, renderer.instancesVbo, spikeOpenCorner, Renderer2d::drawFullscreenQuad2dInstances);
 	}
 
 	{
@@ -385,9 +387,7 @@ void GameRenderer::renderSpikes(const Array2d<BlockType>& roomBlockGrid, Vec2T<i
 		shaderSetUniforms(spikeClosedCornerShader, SpikeClosedCornerFragUniforms{
 			.time = time
 		});
-		drawInstances(spikeClosedCornerVao, renderer.instancesVbo, spikeClosedCorner, [](usize instanceCount) {
-			glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, instanceCount);
-		});
+		drawInstances(spikeClosedCornerVao, renderer.instancesVbo, spikeClosedCorner, Renderer2d::drawFullscreenQuad2dInstances);
 	}
 
 	glDisable(GL_BLEND);
@@ -423,9 +423,7 @@ void GameRenderer::renderPlayerFull(const Player& player) {
 	std::vector<PlayerInstance> instances;
 	instances.push_back(instance);
 	playerShader.use();
-	drawInstances(playerVao, renderer.instancesVbo, instances, [](usize instanceCount) {
-		glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, instanceCount);
-	});
+	drawInstances(playerVao, renderer.instancesVbo, instances, Renderer2d::drawFullscreenQuad2dInstances);
 }
 
 void GameRenderer::renderDoubleJumpOrb(const Vec2 position) {
@@ -434,6 +432,28 @@ void GameRenderer::renderDoubleJumpOrb(const Vec2 position) {
 
 void GameRenderer::renderAttractingOrb(const Vec2 position) {
 	Dbg::drawCircle(position, constants().attractingOrbRadius, Color3::CYAN, 0.1f);
+}
+
+void GameRenderer::renderAttractingOrbs(const std::vector<AttractingOrb>& attractingOrbs, Vec2 playerPos) {
+	std::vector<AttractingOrbInstance> instances;
+	for (const auto& orb : attractingOrbs) {
+		instances.push_back(AttractingOrbInstance{
+			.transform = renderer.camera.makeTransform(orb.position, 0.0f, Vec2(100.0f)),
+			.playerWorldPos = playerPos,
+			.orbWorldPos = orb.position,
+			.t = orb.animationT
+		});
+	}
+	glEnable(GL_BLEND);
+	shaderSetUniforms(attractingOrbShader, AttractingOrbFragUniforms{
+		.time = backgroundElapsed
+	});
+	shaderSetUniforms(attractingOrbShader, AttractingOrbVertUniforms{
+		.clipToWorld = renderer.camera.clipSpaceToWorldSpace(),
+	});
+	attractingOrbShader.use();
+ 	drawInstances(attractingOrbVao, renderer.instancesVbo, instances, Renderer2d::drawFullscreenQuad2dInstances);
+	glDisable(GL_BLEND);
 }
 
 void GameRenderer::renderDoubleJumpOrb(const DoubleJumpOrb& doubleJumpOrb) {

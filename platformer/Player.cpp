@@ -78,7 +78,7 @@ void Player::updateVelocity(
     if (use) {
         used = true;
         for (auto& orb : attractingOrbs) {
-            Dbg::drawCircle(orb.position, constants().cellSize * 2.0f, Vec3(1.0f, 0.0f, 0.0f));
+            //Dbg::drawCircle(orb.position, constants().cellSize * 2.0f, Vec3(1.0f, 0.0f, 0.0f));
             const auto fromPlayerToOrb = orb.position - position;
             const auto distance = fromPlayerToOrb.length();
             const auto direction = fromPlayerToOrb / distance;
@@ -87,7 +87,7 @@ void Player::updateVelocity(
                 static const f32 maximumT = sqrt(0.5f);
                 t *= maximumT;
 
-                // move the maximum to 2 * cellSize
+                // move the maximum to 3 * cellSize
                 t /= constants().cellSize * 3.0f;
 
                 f32 value = t * exp(-t * t);

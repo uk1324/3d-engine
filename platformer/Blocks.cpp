@@ -78,3 +78,10 @@ void DoubleJumpOrb::reset() {
 bool DoubleJumpOrb::isActive() const {
 	return elapsedSinceUsed > constants().doubleJumpOrbCooldown;
 }
+
+void AttractingOrb::update(bool isPlayerPressingAttractButton, f32 dt) {
+	f32 speed = 1.5f;
+
+	animationT += speed * dt * (isPlayerPressingAttractButton ? 1.0f : -1.0f);
+	animationT = std::clamp(animationT, 0.0f, 1.0f);
+}

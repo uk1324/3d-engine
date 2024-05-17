@@ -7,6 +7,7 @@
 #include <water_simulation/SpecialFunctionsDemo.hpp>
 #include <water_simulation/IntegrationDemo.hpp>
 #include <water_simulation/MatrixDemo.hpp>
+#include <water_simulation/OrthogonalDemo.hpp>
 
 struct MainLoop {
 	MainLoop();
@@ -14,6 +15,7 @@ struct MainLoop {
 	void update();
 
 	MatrixDemo matrixDemo;
+	OrthogonalDemo orthogonalDemo;
 	/*EulerianFluidDemo eulerianFluidDemo;
 	FlipPicFluidDemo flipPicFluidDemo;
 	PolynomialInterpolationDemo polynomialInterpolationDemo;*/

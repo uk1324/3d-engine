@@ -41,6 +41,8 @@ void marchingSquares3(
 	float boundaryValue, 
 	bool lerp);
 
+Vec2 rescaleMarchingSquaresPoint(Vec2 p, Vec2 gridSize, Vec2 min, Vec2 max);
 void rescaleMarchingSquaresLines(std::vector<MarchingSquares3Line>& lines, Vec2 gridSize, Vec2 min, Vec2 max);
 void marchingSquresLinesToVectorOfEndpoints(const std::vector<MarchingSquares3Line>& lines, std::vector<Vec2>& endpointsOut);
+
 void rescaleMarchingSquaresLinesAndConvertToVectorOfEndpoints(std::vector<MarchingSquares3Line>& lines, std::vector<Vec2>& endpointsOut, Vec2 gridSize, Vec2 min, Vec2 max);

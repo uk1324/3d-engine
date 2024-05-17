@@ -106,13 +106,8 @@ vec3 voronoi( in vec2 x )
 }
 
 float g(vec2 p) {
-    //float v = smoothstep(0.0, 0.2, voronoi(p).x);
     float v = smoothstep(0.0, 0.2, voronoi(p).x);
     v = min(voronoi(p).x, 0.2) / 0.2;
-    //float v = smoothstep(0.0, 0.2, abs(voronoi(p).x - 0.06));
-//    if (v > 1.0) {
-//        return 0.0;
-//    }
     return v;
 }
 
@@ -125,134 +120,19 @@ vec3 getNormal(vec2 p )
                             g(p-h.yx) - g(p+h.yx) ) );
 }
 
-void main()
-{
-//    float sc = 1.0 / 20.0;
-//    vec2 p = worldPosition / 1800.0 * sc;
-//    vec2 pos = (p - cameraPosition) / sc;
-//    p = pos;
-//
-//    vec3 c = voronoi( 8.0*p );
-//    vec2 p = worldPosition / 200.0;
-//    p = (cameraPosition * 20.0 - p);
+void main() {
+    // paralax
     vec2 p = worldPosition / 1800.0 - cameraPosition / (1800.0 * 6);
 
-	// isolines
     vec3 col = vec3(0.0);
-    //c.x*(0.5 + 0.5*sin(64.0*c.x))*vec3(1.0);
-    // borders	
-    //col = mix(vec3(1, 1, 1), col, smoothstep( 0.005, 0.05, c.x ) );
-
-
-//    c.x *= 5.0;
-//    col = vec3(1.0 / (c.x * c.x)) / 500.0;
-//    //col = vec3(1.0 / (c.x)) / 60.0;
-//    col = clamp(col, vec3(0.0), vec3(1.0));
-//    col /= 3.0;
-
-    //vec3(
-    //col = vec3(c.x * (c.y));
-    //col = vec3(c.x - 0.05) * 0.5;
-    //col = vec3(c.x * c.y);
-    // feature points   
-//	float dd = length( c.yz );
-//	col = mix( vec3(1.0,0.6,0.1), col, smoothstep( 0.0, 0.12, dd) );
-//	col += vec3(1.0,0.6,0.1)*(1.0-smoothstep( 0.0, 0.04, dd));
-
     float d = voronoi(p * 8.0).x;
 
     float g = dot(getNormal(p * 8.0), normalize(vec3(1.0, 1.0, 0.0)));
-    //float g = dot(getNormal(p * 18.0), normalize(vec3(perlin01(p * 5.0) - 0.5, perlin01(p * 5.0 + vec2(123)) - 0.5, perlin01(p * 5.0 + vec2(12)) - 0.5)));
     col = vec3(g);
 
-    //vec3 background = vec3(0, 1, 1) * vec3(1.0 / pow(octave01(p * 4, 4), 2.0)) * 0.01;
-    //vec3 background = vec3(0, 1, 1) * vec3(1.0 / pow(octave01(p * 4, 4), 2.0)) * 0.01;
-    //vec3 background = vec3(max(octave01(p * 4.0, 4) - 0.4, 0.0) * octave01(p * 8.0, 4)) * 0.5;
-    //vec3 background = vec3(octave01(p * 8.0, 1));
     vec3 background = vec3(0.0);
 
-    //col;
     col = mix(col + vec3(0.25), background, smoothstep(0.19, 0.2, d));
     col *= 0.05;
-//    if (d > 0.2) {
-//        col = vec3(0.0);
-//    }
-    //col = vec3(d);
-	//fragColor = vec4(col,1.0);
-    //col = vec3(maze(worldPosition / 20.0) * smoothstep(0.1, 0.101, simplex3d(vec3(worldPosition / 200.0, time / 50.0)) - 0));
-//    float noise = simplex3d(vec3(worldPosition / 200.0, time / 5000.0));
-//    float c = dot(getNormal2(worldPosition / 200.0), normalize(vec3(1.0, 1.0, 0.0)));
-//    c = pow(c, 20.0);
-//    vec3 ca = hsv2rgb(vec3(c, 1.0, 1.0));
-
-    //noise += 1.0;
-    //noise /= 2.0;
-    //col = vec3(maze(worldPosition / 40.0) * (clamp(noise, 0, 1) + 0.02));
-    //col = vec3(maze(worldPosition / 20.0) * voronoi(worldPosition / 200.0).x - 0.2);
-    //col = vec3(1);
     fragColor = vec4(col,1.0);
 }
-
-//vec2 random2( vec2 p ) {
-//    return fract(sin(vec2(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3))))*43758.5453);
-//}
-//
-//void main() {
-//    float t = time / 20.0;
-//    vec2 st = worldPosition / 400.0;
-//    //st.x *= u_resolution.x/u_resolution.y;
-//    vec3 color = vec3(.0);
-//
-//    // Scale
-//    st *= 3.;
-//
-//    // Tile the space
-//    vec2 i_st = floor(st);
-//    vec2 f_st = fract(st);
-//
-//    float m_dist = 1.;  // minimum distance
-//
-//    for (int y= -1; y <= 1; y++) {
-//        for (int x= -1; x <= 1; x++) {
-//            // Neighbor place in the grid
-//            vec2 neighbor = vec2(float(x),float(y));
-//
-//            // Random position from current + neighbor place in the grid
-//            vec2 point = random2(i_st + neighbor);
-//
-//			// Animate the point
-//            point = 0.5 + 0.5*sin(t + 6.2831*point);
-//
-//			// Vector between the pixel and the point
-//            vec2 diff = neighbor + point - f_st;
-//
-//            // Distance to the point
-//            float dist = length(diff);
-//
-//            // Keep the closer distance
-//            m_dist = min(m_dist, dist);
-//        }
-//    }
-//
-//    // Draw the min distance (distance field)
-//    //m_dist = smoothstep(0.9, 1.0, m_dist);
-//    color += m_dist;
-////    if (m_dist > 0.3) {
-////        color = vec3(1.0);
-////    }
-//
-//    // Draw cell center
-//    //color += 1.-step(.02, m_dist);
-//
-//    // Draw grid
-//    //color.r += step(.98, f_st.x) + step(.98, f_st.y);
-//
-//    // Show isolines
-//    // color -= step(.7,abs(sin(27.0*m_dist)))*.5;
-//
-//    fragColor = vec4(color,1.0);
-//
-//	//fragColor = vec4(worldPosition, 0.0, 1.0);
-//fragColor = vec4(1, 0, 0, 1);
-//}
-//

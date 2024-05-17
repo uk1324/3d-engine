@@ -148,6 +148,10 @@ void Renderer2d::drawImage(Span2d<const Pixel32> image, const Mat3x2& transform)
 	imageRenderer.drawImage(image, transform);
 }
 
+void Renderer2d::drawFullscreenQuad2dInstances(usize instanceCount) {
+	glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, instanceCount);
+}
+
 Vec2 Renderer2d::getQuadPixelSize(Vec2 scale) const {
 	return Vec2(getQuadPixelSizeX(scale.x), getQuadPixelSizeX(scale.y));
 }

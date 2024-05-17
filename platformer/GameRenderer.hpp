@@ -20,6 +20,7 @@ struct GameRenderer {
 	void renderPlayerFull(const Player& player);
 	void renderDoubleJumpOrb(const Vec2 position);
 	void renderAttractingOrb(const Vec2 position);
+	void renderAttractingOrbs(const std::vector<AttractingOrb>& attractingOrbs, Vec2 playerPos);
 	void renderDoubleJumpOrb(const DoubleJumpOrb& doubleJumpOrb);
 
 	void renderGrid(f32 smallCellSize);
@@ -46,6 +47,9 @@ struct GameRenderer {
 
 	Vao spikeClosedCornerVao;
 	ShaderProgram& spikeClosedCornerShader;
+
+	Vao attractingOrbVao;
+	ShaderProgram& attractingOrbShader;
 
 	f32 backgroundElapsed = 0.0f;
 };

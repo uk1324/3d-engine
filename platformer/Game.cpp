@@ -84,6 +84,10 @@ void Game::gameUpdate() {
 		for (auto& orb : activeRoom->doubleJumpOrbs) {
 			orb.elapsedSinceUsed += dt;
 		}
+		for (auto& orb : activeRoom->attractingOrbs) {
+			orb.update(Input::isKeyHeld(KeyCode::J), dt);
+		}
+
 		for (auto& block : activeRoom->movingBlocks) {
 			block.update(dt);
 		}
@@ -188,7 +192,9 @@ void Game::gameRender() {
 		if (!cameraAabb.collides(roomAabb)) {
 			continue;
 		}
-			
+		renderer.renderAttractingOrbs(room.attractingOrbs, player.position);
+
+
 		renderer.renderBlockOutlines(levelRoom.blockGrid, levelRoom.position);
 		//renderer.renderBlocks(room.blocks);
 
@@ -202,9 +208,9 @@ void Game::gameRender() {
 		for (const auto& orb : room.doubleJumpOrbs) {
 			renderer.renderDoubleJumpOrb(orb);
 		}
-		for (const auto& orb : room.attractingOrbs) {
+		/*for (const auto& orb : room.attractingOrbs) {
 			renderer.renderAttractingOrb(orb.position);
-		}
+		}*/
 		for (const auto& block : room.movingBlocks) {
 			const auto position = block.position();
 			Dbg::drawAabb(position, position + block.size, Color3::GREEN, 2.0f);
