@@ -15,6 +15,22 @@ struct Game {
 	void updateCamera();
 
 	void spawnPlayer(std::optional<i32> editorSelectedRoomIndex);
+	void respawnPlayer();
+
+	enum State {
+		ALIVE,
+		RESPAWNING,
+	};
+	f32 respawnElapsed = 0.0f;
+	State state = State::ALIVE;
+
+	void respawningUpdate();
+	/*struct RespawnAnimation {
+		f32 elapsed = 0.0f;
+
+		void update(f32 dt);
+	} screenTransitionAnimation;*/
+
 
 	Player player;
 

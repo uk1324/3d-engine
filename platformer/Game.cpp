@@ -4,6 +4,7 @@
 #include <framework/ShaderManager.hpp>
 #include <engine/Input/Input.hpp>
 #include <engine/Math/Color.hpp>
+#include <engine/Math/Utils.hpp>
 #include <glad/glad.h>
 
 Game::Game() {
@@ -35,7 +36,11 @@ void Game::update() {
 }
 #include <imgui/imgui.h>
 void Game::gameUpdate() {
-	{
+	if (Input::isKeyDown(KeyCode::R)) {
+		respawnPlayer();
+	}
+
+	if (state == State::ALIVE) {
 		std::optional<i32> roomWithBiggestOverlapIndex;
 		f32 biggestOverlap = 0.0f;
 		for (i32 i = 0; i < level.rooms.size(); i++) {
@@ -55,51 +60,53 @@ void Game::gameUpdate() {
 				activeRoomIndex = roomWithBiggestOverlapIndex;
 			}
 		}
-	}
 
-	if (auto activeRoom = activeGameRoom(); activeRoom.has_value()) {
-		player.updateVelocity(dt, activeRoom->doubleJumpOrbs, activeRoom->attractingOrbs);
-	}
-
-	// Could use an iterator instead of copying this. Could have an iterator of all the active rooms.
-	std::vector<GameRoom*> activeRooms;
-	for (i32 i = 0; i < rooms.size(); i++) {
-		auto& runtimeRoom = rooms[i];
-		const auto& levelRoom = level.rooms[i];
-		auto playerAabb = ::playerAabb(player.position);
-		const auto movement = player.velocity.applied(abs) + Vec2(constants().cellSize);
-		playerAabb.min -= movement;
-		playerAabb.max += movement;
-		const auto roomAabb = ::roomAabb(levelRoom);
-
-		if (!playerAabb.collides(roomAabb)) {
-			continue;
-		}
-		activeRooms.push_back(&runtimeRoom);
-	}
-	collisionDetection(dt, activeRooms, player);
-	//player.collision(dt, activeBlocks, activePlatforms, activeMovingBlocks);
-
-	if (auto activeRoom = activeGameRoom(); activeRoom.has_value()) {
-		for (auto& orb : activeRoom->doubleJumpOrbs) {
-			orb.elapsedSinceUsed += dt;
-		}
-		for (auto& orb : activeRoom->attractingOrbs) {
-			orb.update(Input::isKeyHeld(KeyCode::J), dt);
+		if (auto activeRoom = activeGameRoom(); activeRoom.has_value()) {
+			player.updateVelocity(dt, activeRoom->doubleJumpOrbs, activeRoom->attractingOrbs);
 		}
 
-		for (auto& block : activeRoom->movingBlocks) {
-			block.update(dt);
-		}
-	}
+		// Could use an iterator instead of copying this. Could have an iterator of all the active rooms.
+		std::vector<GameRoom*> activeRooms;
+		for (i32 i = 0; i < rooms.size(); i++) {
+			auto& runtimeRoom = rooms[i];
+			const auto& levelRoom = level.rooms[i];
+			auto playerAabb = ::playerAabb(player.position);
+			const auto movement = player.velocity.applied(abs) + Vec2(constants().cellSize);
+			playerAabb.min -= movement;
+			playerAabb.max += movement;
+			const auto roomAabb = ::roomAabb(levelRoom);
 
-	for (const auto& room : rooms) {
-		auto playerAabb = ::playerAabb(player.position);
-		for (const auto& spike : room.spikes) {
-			if (!spike.hitbox.collides(playerAabb)) {
+			if (!playerAabb.collides(roomAabb)) {
 				continue;
 			}
-			spawnPlayer(std::nullopt);
+			activeRooms.push_back(&runtimeRoom);
+		}
+		collisionDetection(dt, activeRooms, player);
+		//player.collision(dt, activeBlocks, activePlatforms, activeMovingBlocks);
+
+		if (auto activeRoom = activeGameRoom(); activeRoom.has_value()) {
+			for (auto& orb : activeRoom->doubleJumpOrbs) {
+				orb.elapsedSinceUsed += dt;
+			}
+			for (auto& orb : activeRoom->attractingOrbs) {
+				orb.update(Input::isKeyHeld(KeyCode::J), dt);
+			}
+
+			for (auto& block : activeRoom->movingBlocks) {
+				block.update(dt);
+			}
+		}
+
+		for (const auto& room : rooms) {
+			auto playerAabb = ::playerAabb(player.position);
+			for (const auto& spike : room.spikes) {
+				if (!spike.hitbox.collides(playerAabb)) {
+					continue;
+				}
+				//spawnPlayer(std::nullopt);
+				respawnPlayer();
+				return;
+			}
 		}
 	}
 }
@@ -228,6 +235,8 @@ void Game::gameRender() {
 			Dbg::drawFilledAabb(Vec2(viewAabb.min.x, roomAabb.max.y), viewAabb.max, Color3::BLACK);
 		}
 	}
+	respawningUpdate();
+
 	renderer.update();
 }
 
@@ -305,6 +314,48 @@ void Game::spawnPlayer(std::optional<i32> editorSelectedRoomIndex) {
 	}
 	for (auto& orb : gameRoom.doubleJumpOrbs) {
 		orb.reset();
+	}
+}
+
+void Game::respawnPlayer() {
+	if (state == State::RESPAWNING) {
+		ASSERT_NOT_REACHED();
+		return;
+	}
+	state = State::RESPAWNING;
+	respawnElapsed = 0.0f;
+}
+
+void Game::respawningUpdate() {
+	if (state != State::RESPAWNING) {
+		return;
+	}
+
+	const auto animationLength = 1.0f;
+	auto calculateT = [&]() {
+		return respawnElapsed / animationLength;
+	};
+	const auto oldT = calculateT();
+
+	respawnElapsed += dt;
+	const auto view = camera.aabb();
+	const auto viewSize = view.size();
+	auto start = view;
+	start.min.y -= viewSize.y;
+	start.max.y -= viewSize.y;
+	auto end = view;
+	end.min.y += viewSize.y;
+	end.max.y += viewSize.y;
+
+	auto t = calculateT();
+	if (oldT < 0.5f && t >= 0.5f) {
+		t = 0.5f;
+		spawnPlayer(std::nullopt);
+	}
+	Dbg::drawFilledAabb(lerp(start.min, end.min, t), lerp(start.max, end.max, t), Color3::BLACK);
+
+	if (respawnElapsed >= animationLength) {
+		state = State::ALIVE;
 	}
 }
 
