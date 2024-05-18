@@ -33,6 +33,7 @@ struct DoubleJumpOrb {
 	Vec2 position;
 	f32 elapsedSinceUsed;
 
+	f32 animationT() const;
 	void reset();
 	bool isActive() const;
 };

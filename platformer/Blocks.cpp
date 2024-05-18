@@ -71,6 +71,10 @@ Platform makePlatform(i64 x, i64 y, Vec2T<i32> roomOffset) {
 	return Platform{ .position = Vec2(x, y + 1) * constants().cellSize + Vec2(roomOffset) * constants().cellSize };
 }
 
+f32 DoubleJumpOrb::animationT() const {
+	return std::clamp(elapsedSinceUsed / constants().doubleJumpOrbCooldown, 0.0f, 1.0f);
+}
+
 void DoubleJumpOrb::reset() {
 	elapsedSinceUsed = std::numeric_limits<f32>::infinity();
 }
