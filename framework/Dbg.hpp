@@ -48,6 +48,11 @@ namespace Dbg {
 		Vec3 color;
 	};
 
+	struct FilledAabb {
+		Vec3 color;
+		Vec2 min, max;
+	};
+
 	//enum class EntityType {
 	//	LINE,
 	//	DISK
@@ -63,4 +68,5 @@ namespace Dbg {
 	extern std::vector<Circle> circles;
 	extern std::vector<Line> lines;
 	extern std::vector<FilledTriangle> filledTriangles;
+	extern std::vector<FilledAabb> filledAabbs;
 }

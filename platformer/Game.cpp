@@ -144,7 +144,8 @@ void Game::gameRender() {
 		glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 		glStencilFunc(GL_ALWAYS, 1, 0xFF);
 
-		renderer.renderer.drawDbgFilledTriangles();
+		//renderer.renderer.drawDbgFilledTriangles();
+		renderer.renderer.drawDbgFilledAabbs();
 
 		glStencilMask(0x00);
 		glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
@@ -165,9 +166,16 @@ void Game::gameRender() {
 		glDisable(GL_STENCIL_TEST);
 	};
 	
-	renderer.renderer.drawDbgFilledTriangles();
+	//renderer.renderer.drawDbgFilledTriangles();
+	renderer.renderer.drawDbgFilledAabbs();
 
-	for (const auto& room : rooms) {
+	for (i32 i = 0; i < rooms.size(); i++) {
+		const auto& room = rooms[i];
+		const auto& levelRoom = level.rooms[i];
+		if (!isRoomInView(levelRoom)) {
+			continue;
+		}
+
 		for (const auto& block : room.blocks) {
 			Dbg::drawFilledAabb(block.position, block.position + Vec2(constants().cellSize), Color3::WHITE / 20.0f);
 		}
@@ -190,12 +198,13 @@ void Game::gameRender() {
 		for (const auto& platform : room.platforms) {
 			renderer.renderPlatform(platform);
 		}
-		for (const auto& orb : room.doubleJumpOrbs) {
-			//renderer.renderDoubleJumpOrb(orb);
-		}
+		//for (const auto& orb : room.doubleJumpOrbs) {
+		//	//renderer.renderDoubleJumpOrb(orb);
+		//}
 		for (const auto& block : room.movingBlocks) {
 			const auto position = block.position();
-			Dbg::drawAabb(position, position + block.size, Color3::GREEN, 2.0f);
+			Dbg::drawFilledAabb(position, position + block.size, Color3::BLACK);
+			renderer.renderBlockOutline(block.position(), block.position() + block.size);
 		}
 	}
 	renderer.update();

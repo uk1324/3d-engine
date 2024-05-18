@@ -17,8 +17,11 @@ ShapeRenderer2d ShapeRenderer2d::make(Vbo& fullscreenQuad2dPtVerticesVbo, Ibo& f
 		.circleShader = MAKE_GENERATED_SHADER(CIRCLE),
 		.lineVao = createInstancingVao<LineShader>(fullscreenQuad2dPtVerticesVbo, fullscreenQuad2dPtVerticesIbo, instancesVbo),
 		.lineShader = MAKE_GENERATED_SHADER(LINE),
+		.filledAabbVao = createInstancingVao<FilledAabbShader>(fullscreenQuad2dPtVerticesVbo, fullscreenQuad2dPtVerticesIbo, instancesVbo),
+		.filledAabbShader = MAKE_GENERATED_SHADER(FILLED_AABB),
 		MOVE(filledTriangleVao),
 		.filledTriangleShader = MAKE_GENERATED_SHADER(FILLED_TRIANGLE),
+
 	};
 }
 
@@ -44,6 +47,10 @@ void ShapeRenderer2d::update(Vbo& instancesVbo) {
 	lineShader.use();
 	drawInstances(lineVao, instancesVbo, lineInstances, drawFullscreenQuad);
 	lineInstances.clear();
+
+	//filledAabbShader.use();
+	//drawInstances(filledAabbVao, instancesVbo, filledAabbInstances, drawFullscreenQuad);
+	//filledAabbInstances.clear();
 
 	//glDisable(GL_DEPTH_TEST);
 	glDisable(GL_BLEND);

@@ -165,7 +165,7 @@ float Renderer2d::getQuadPixelSizeY(float scale) const {
 }
 
 void Renderer2d::drawDbgFilledTriangles() {
-		std::vector<Vertex2Pc> triangleVertices;
+	std::vector<Vertex2Pc> triangleVertices;
 
 	GLint64 instanceBufferSize;
 	glGetBufferParameteri64v(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &instanceBufferSize);
@@ -191,6 +191,23 @@ void Renderer2d::drawDbgFilledTriangles() {
 	}
 	draw();
 	Dbg::filledTriangles.clear();
+}
+
+void Renderer2d::drawDbgFilledAabbs() {
+	const auto worldToClip = camera.clipSpaceToWorldSpace().inversed();
+	for (const auto& aabb : Dbg::filledAabbs) {
+		shapeRenderer.filledAabbInstances.push_back(FilledAabbInstance{
+			.min = aabb.min * worldToClip,
+			.max = aabb.max * worldToClip,
+			.color = aabb.color
+		});
+	}
+
+	Dbg::filledAabbs.clear();
+
+	shapeRenderer.filledAabbShader.use();
+	drawInstances(shapeRenderer.filledAabbVao, instancesVbo, shapeRenderer.filledAabbInstances, drawFullscreenQuad2dInstances);
+	shapeRenderer.filledAabbInstances.clear();
 }
 
 // TODO: make functions that allow rendering the different debug shapes when wanted.
@@ -219,6 +236,7 @@ void Renderer2d::drawDbg() {
 	- Branching in shaders is inefficient.
 	*/
 	drawDbgFilledTriangles();
+	drawDbgFilledAabbs();
 
 	const auto defaultWidth = 20.0f / Window::size().y;
 	// TODO: Could try adding the smoothing to the size so the actual size without the smoothing is solid.

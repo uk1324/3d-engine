@@ -135,6 +135,17 @@ void GameRenderer::renderBlocks(const std::vector<Block>& blocks) {
 		renderBlock(block);
 	}
 }
+void GameRenderer::renderBlockOutline(Vec2 min, Vec2 max) {
+	const auto cellBottomLeft = min;
+	const auto cellTopRight = max;
+	float b = 2.0f;
+	const auto size = max - min;
+	const auto color = Color3::WHITE / 5.0f;
+	Dbg::drawFilledAabb(cellBottomLeft, cellBottomLeft + Vec2(size.x, b), color);
+	Dbg::drawFilledAabb(cellTopRight - Vec2(size.x, b), cellTopRight, color);
+	Dbg::drawFilledAabb(cellBottomLeft, cellBottomLeft + Vec2(b, size.y), color);
+	Dbg::drawFilledAabb(cellTopRight - Vec2(b, size.y), cellTopRight, color);
+}
 void GameRenderer::renderBlockOutlines(const Array2d<BlockType>& roomBlockGrid, Vec2T<i32> roomPosition) {
 	for (i32 yi = 0; yi < roomBlockGrid.size().y; yi++) {
 		for (i32 xi = 0; xi < roomBlockGrid.size().x; xi++) {
@@ -467,8 +478,9 @@ void GameRenderer::renderAttractingOrbs() {
 void GameRenderer::addDoubleJumpOrbs(const std::vector<DoubleJumpOrb>& doubleJumpOrbs) {
 	for (const auto& orb : doubleJumpOrbs) {
 		doubleJumpOrbInstances.push_back(DoubleJumpOrbInstance{
-			.transform = renderer.camera.makeTransform(orb.position, 0.0f, Vec2(constants().doubleJumpOrbRadius * 10.0f)),
+			.transform = renderer.camera.makeTransform(orb.position, 0.0f, Vec2(constants().doubleJumpOrbRadius * 5.0f)),
 			.t = orb.animationT(),
+			.orbWorldPosition = orb.position
 		});
 	}
 }
@@ -476,9 +488,6 @@ void GameRenderer::addDoubleJumpOrbs(const std::vector<DoubleJumpOrb>& doubleJum
 void GameRenderer::renderDoubleJumpOrbs() {
 	glEnable(GL_BLEND);
 	doubleJumpOrbShader.use();
-	shaderSetUniforms(doubleJumpOrbShader, DoubleJumpOrbVertUniforms{
-		.clipToWorld = renderer.camera.clipSpaceToWorldSpace(),
-	});
 	shaderSetUniforms(doubleJumpOrbShader, DoubleJumpOrbFragUniforms{
 		.time = backgroundElapsed,
 		.cameraPosition = renderer.camera.pos,

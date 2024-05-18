@@ -14,6 +14,7 @@ struct GameRenderer {
 
 	void renderBlock(const Block& block);
 	void renderBlocks(const std::vector<Block>& blocks);
+	void renderBlockOutline(Vec2 min, Vec2 max);
 	void renderBlockOutlines(const Array2d<BlockType>& roomBlockGrid, Vec2T<i32> roomPosition);
 	void renderSpikes(const Array2d<BlockType>& roomBlockGrid, Vec2T<i32> roomPosition);
 	void renderSpike(const Spike& spike);

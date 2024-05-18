@@ -1,0 +1,10 @@
+import "../../framework/Vertex2dPt.data";
+
+shader FilledAabb {
+	vertexStruct = Vertex2dPt;
+	vertInstance = {
+		Vec2 min;
+		Vec2 max;
+		Vec3 color;
+	};
+}

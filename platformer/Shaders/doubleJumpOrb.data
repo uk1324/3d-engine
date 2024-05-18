@@ -5,15 +5,12 @@ shader DoubleJumpOrb {
 	vertInstance = {
 		Mat3x2 transform;
 	};
-	vertUniforms = {
-		Mat3x2 clipToWorld;
-	};
 	vertOut = {
-		Vec2 worldPosition;
 		Vec2 position;
 	};
 	fragInstance = {
 		float t;
+		Vec2 orbWorldPosition;
 	};
 	fragUniforms = {
 		float time;
