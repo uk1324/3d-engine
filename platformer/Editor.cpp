@@ -305,96 +305,97 @@ void Editor::updateSelectedRoom() {
 			break;
 		}
 		return std::nullopt;
-		};
+	};
 
 	const auto selectedPlacableItemBlockType = placableItemToBlockType(selectedPlacableItem);
-
-	if (selectedPlacableItemBlockType.has_value() && inBounds) {
-		if (Input::isMouseButtonHeld(MouseButton::LEFT)) {
-			selectedRoom.blockGrid(cursorGridPos.x, cursorGridPos.y) = *selectedPlacableItemBlockType;
-		}
-		if (Input::isMouseButtonHeld(MouseButton::RIGHT)) {
-			selectedRoom.blockGrid(cursorGridPos.x, cursorGridPos.y) = BlockType::EMPTY;
-		}
-
-	} else if (selectedPlacableItem == PlacableItem::SPAWN_POINT) {
-		if (Input::isMouseButtonDown(MouseButton::LEFT)) {
-			selectedRoom.spawnPoints.push_back(LevelSpawnPoint{
-				.position = alignedCursorPos
-			});
-		}
-		if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
-			removeIf(selectedRoom.spawnPoints, [&](const LevelSpawnPoint& spawnPoint) -> bool {
-				const auto position = spawnPointToPlayerSpawnPos(spawnPoint, selectedRoom.position);
-				return (playerAabb(position).contains(cursorPos));
-			});
-		}
-	} else if (selectedPlacableItem == PlacableItem::DOUBLE_JUMP_ORB) {
-		if (Input::isMouseButtonDown(MouseButton::LEFT)) {
-			selectedRoom.doubleJumpOrbs.push_back(LevelDoubleJumpOrb{
-				.position = alignedCursorPos + Vec2(constants().cellSize / 2.0f)
-			});
-		}
-		if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
-			removeIf(selectedRoom.doubleJumpOrbs, [&](const LevelDoubleJumpOrb& orb) -> bool {
-				return circleContains(
-					orb.position, 
-					constants().doubleJumpOrbRadius, 
-					roomCursorPos);
-			});
-		}
-	} else if (selectedPlacableItem == PlacableItem::ATTRACTING_ORB) {
-		if (Input::isMouseButtonDown(MouseButton::LEFT)) {
-			selectedRoom.attractingOrbs.push_back(LevelAttractingOrb{
-				.position = alignedCursorPos + Vec2(constants().cellSize / 2.0f)
-			});
-		}
-		if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
-			removeIf(selectedRoom.attractingOrbs, [&](const LevelAttractingOrb& orb) -> bool {
-				return circleContains(
-					orb.position,
-					constants().attractingOrbRadius,
-					roomCursorPos);
-			});
-		}
-	} else if (selectedPlacableItem == PlacableItem::MOVING_BLOCK) {
-		struct HoveredOver {
-			MovingBlockId id;
-			i32 index;
-		};
-		std::optional<HoveredOver> hoveredOver;
-		for (i32 i = 0; i < selectedRoom.movingBlocks.size(); i++) {
-			const auto& blockId = selectedRoom.movingBlocks[i];
-			const auto& block = movingBlocks.get(blockId);
-			const auto aabb = movingBlockAabbs(*block);
-			if (aabb.start.contains(roomCursorPos) || aabb.end.contains(roomCursorPos)) {
-				hoveredOver = HoveredOver{
-					.id = blockId,
-					.index = i
-				};
+	if (inBounds) {
+		if (selectedPlacableItemBlockType.has_value()) {
+			if (Input::isMouseButtonHeld(MouseButton::LEFT)) {
+				selectedRoom.blockGrid(cursorGridPos.x, cursorGridPos.y) = *selectedPlacableItemBlockType;
 			}
-		}
-		
-		if (Input::isMouseButtonDown(MouseButton::LEFT)) {
-			if (hoveredOver.has_value()) {
-				selectedMovingBlock = hoveredOver->id;
-			} else {
-				auto result = movingBlockPlaceState.onLeftClick(cursorPos, selectedEditorRoom->position);
-				if (result.has_value()) {
-					const auto id = movingBlocks.create(std::move(*result)).id;
-					selectedEditorRoom->movingBlocks.push_back(id);
+			if (Input::isMouseButtonHeld(MouseButton::RIGHT)) {
+				selectedRoom.blockGrid(cursorGridPos.x, cursorGridPos.y) = BlockType::EMPTY;
+			}
+
+		} else if (selectedPlacableItem == PlacableItem::SPAWN_POINT) {
+			if (Input::isMouseButtonDown(MouseButton::LEFT)) {
+				selectedRoom.spawnPoints.push_back(LevelSpawnPoint{
+					.position = alignedCursorPos
+					});
+			}
+			if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
+				removeIf(selectedRoom.spawnPoints, [&](const LevelSpawnPoint& spawnPoint) -> bool {
+					const auto position = spawnPointToPlayerSpawnPos(spawnPoint, selectedRoom.position);
+					return (playerAabb(position).contains(cursorPos));
+					});
+			}
+		} else if (selectedPlacableItem == PlacableItem::DOUBLE_JUMP_ORB) {
+			if (Input::isMouseButtonDown(MouseButton::LEFT)) {
+				selectedRoom.doubleJumpOrbs.push_back(LevelDoubleJumpOrb{
+					.position = alignedCursorPos + Vec2(constants().cellSize / 2.0f)
+					});
+			}
+			if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
+				removeIf(selectedRoom.doubleJumpOrbs, [&](const LevelDoubleJumpOrb& orb) -> bool {
+					return circleContains(
+						orb.position,
+						constants().doubleJumpOrbRadius,
+						roomCursorPos);
+					});
+			}
+		} else if (selectedPlacableItem == PlacableItem::ATTRACTING_ORB) {
+			if (Input::isMouseButtonDown(MouseButton::LEFT)) {
+				selectedRoom.attractingOrbs.push_back(LevelAttractingOrb{
+					.position = alignedCursorPos + Vec2(constants().cellSize / 2.0f)
+					});
+			}
+			if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
+				removeIf(selectedRoom.attractingOrbs, [&](const LevelAttractingOrb& orb) -> bool {
+					return circleContains(
+						orb.position,
+						constants().attractingOrbRadius,
+						roomCursorPos);
+					});
+			}
+		} else if (selectedPlacableItem == PlacableItem::MOVING_BLOCK) {
+			struct HoveredOver {
+				MovingBlockId id;
+				i32 index;
+			};
+			std::optional<HoveredOver> hoveredOver;
+			for (i32 i = 0; i < selectedRoom.movingBlocks.size(); i++) {
+				const auto& blockId = selectedRoom.movingBlocks[i];
+				const auto& block = movingBlocks.get(blockId);
+				const auto aabb = movingBlockAabbs(*block);
+				if (aabb.start.contains(roomCursorPos) || aabb.end.contains(roomCursorPos)) {
+					hoveredOver = HoveredOver{
+						.id = blockId,
+						.index = i
+					};
 				}
 			}
-		}
-		if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
-			if (selectedMovingBlock.has_value()) {
-				selectedMovingBlock = std::nullopt;
-			} else {
+
+			if (Input::isMouseButtonDown(MouseButton::LEFT)) {
 				if (hoveredOver.has_value()) {
-					movingBlocks.destroy(hoveredOver->id);
-					selectedRoom.movingBlocks.erase(selectedRoom.movingBlocks.begin() + hoveredOver->index);
+					selectedMovingBlock = hoveredOver->id;
+				} else {
+					auto result = movingBlockPlaceState.onLeftClick(cursorPos, selectedEditorRoom->position);
+					if (result.has_value()) {
+						const auto id = movingBlocks.create(std::move(*result)).id;
+						selectedEditorRoom->movingBlocks.push_back(id);
+					}
 				}
-				movingBlockPlaceState.onRightClick();
+			}
+			if (Input::isMouseButtonDown(MouseButton::RIGHT)) {
+				if (selectedMovingBlock.has_value()) {
+					selectedMovingBlock = std::nullopt;
+				} else {
+					if (hoveredOver.has_value()) {
+						movingBlocks.destroy(hoveredOver->id);
+						selectedRoom.movingBlocks.erase(selectedRoom.movingBlocks.begin() + hoveredOver->index);
+					}
+					movingBlockPlaceState.onRightClick();
+				}
 			}
 		}
 	}
