@@ -34,7 +34,9 @@ GameRenderer::GameRenderer()
 	, spikeClosedCornerVao(MAKE_VAO(SpikeClosedCorner))
 	, spikeClosedCornerShader(MAKE_GENERATED_SHADER(SPIKE_CLOSED_CORNER))
 	, attractingOrbVao(MAKE_VAO(AttractingOrb))
-	, attractingOrbShader(MAKE_GENERATED_SHADER(ATTRACTING_ORB)) {
+	, attractingOrbShader(MAKE_GENERATED_SHADER(ATTRACTING_ORB)) 
+	, doubleJumpOrbVao(MAKE_VAO(DoubleJumpOrb))
+	, doubleJumpOrbShader(MAKE_GENERATED_SHADER(DOUBLE_JUMP_ORB)) {
 }
 
 void GameRenderer::update() {
@@ -460,6 +462,37 @@ void GameRenderer::renderAttractingOrbs() {
 		Renderer2d::drawFullscreenQuad2dInstances);
 	glDisable(GL_BLEND);
 	attractingOrbInstances.clear();
+}
+
+void GameRenderer::addDoubleJumpOrbs(const std::vector<DoubleJumpOrb>& doubleJumpOrbs) {
+	for (const auto& orb : doubleJumpOrbs) {
+		doubleJumpOrbInstances.push_back(DoubleJumpOrbInstance{
+			.transform = renderer.camera.makeTransform(orb.position, 0.0f, Vec2(constants().doubleJumpOrbRadius * 10.0f)),
+			.t = 0.0f,
+		});
+	}
+}
+
+void GameRenderer::renderDoubleJumpOrbs() {
+	glEnable(GL_BLEND);
+	doubleJumpOrbShader.use();
+	//shaderSetUniforms(attractingOrbShader, AttractingOrbFragUniforms{
+	//	.time = backgroundElapsed
+	//});
+	shaderSetUniforms(doubleJumpOrbShader, DoubleJumpOrbVertUniforms{
+		.clipToWorld = renderer.camera.clipSpaceToWorldSpace(),
+	});
+	shaderSetUniforms(doubleJumpOrbShader, DoubleJumpOrbFragUniforms{
+		.time = backgroundElapsed,
+		.cameraPosition = renderer.camera.pos,
+	});
+	drawInstances(
+		doubleJumpOrbVao, 
+		renderer.instancesVbo, 
+		doubleJumpOrbInstances, 
+		Renderer2d::drawFullscreenQuad2dInstances);
+	glDisable(GL_BLEND);
+	doubleJumpOrbInstances.clear();
 }
 
 void GameRenderer::renderDoubleJumpOrb(const DoubleJumpOrb& doubleJumpOrb) {

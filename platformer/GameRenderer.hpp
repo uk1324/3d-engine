@@ -5,6 +5,7 @@
 #include <platformer/Player.hpp>
 #include <framework/Renderer2d.hpp>
 #include <platformer/Shaders/attractingOrbData.hpp>
+#include <platformer/Shaders/doubleJumpOrbData.hpp>
 
 struct GameRenderer {
 	GameRenderer();
@@ -21,9 +22,15 @@ struct GameRenderer {
 	void renderPlayerFull(const Player& player);
 	void renderDoubleJumpOrb(const Vec2 position);
 	void renderAttractingOrb(const Vec2 position);
+
 	std::vector<AttractingOrbInstance> attractingOrbInstances;
 	void addAttractingOrbs(const std::vector<AttractingOrb>& attractingOrbs, Vec2 playerPos);
 	void renderAttractingOrbs();
+
+	std::vector<DoubleJumpOrbInstance> doubleJumpOrbInstances;
+	void addDoubleJumpOrbs(const std::vector<DoubleJumpOrb>& doubleJumpOrbs);
+	void renderDoubleJumpOrbs();
+
 	void renderDoubleJumpOrb(const DoubleJumpOrb& doubleJumpOrb);
 
 	void renderGrid(f32 smallCellSize);
@@ -53,6 +60,9 @@ struct GameRenderer {
 
 	Vao attractingOrbVao;
 	ShaderProgram& attractingOrbShader;
+
+	Vao doubleJumpOrbVao;
+	ShaderProgram& doubleJumpOrbShader;
 
 	f32 backgroundElapsed = 0.0f;
 };

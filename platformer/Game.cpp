@@ -130,8 +130,10 @@ void Game::gameRender() {
 		}
 		renderer.renderSpikes(levelRoom.blockGrid, levelRoom.position);
 		renderer.addAttractingOrbs(room.attractingOrbs, player.position);
+		renderer.addDoubleJumpOrbs(room.doubleJumpOrbs);
 	}
 	renderer.renderAttractingOrbs();
+	renderer.renderDoubleJumpOrbs();
 
 	auto renderBlockShader = [&](f32 scale) {
 		glEnable(GL_STENCIL_TEST);
@@ -189,7 +191,7 @@ void Game::gameRender() {
 			renderer.renderPlatform(platform);
 		}
 		for (const auto& orb : room.doubleJumpOrbs) {
-			renderer.renderDoubleJumpOrb(orb);
+			//renderer.renderDoubleJumpOrb(orb);
 		}
 		for (const auto& block : room.movingBlocks) {
 			const auto position = block.position();

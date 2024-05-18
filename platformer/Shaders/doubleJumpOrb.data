@@ -1,0 +1,22 @@
+import "../../framework/Vertex2dPt.data";
+
+shader DoubleJumpOrb {
+	vertexStruct = Vertex2dPt;
+	vertInstance = {
+		Mat3x2 transform;
+	};
+	vertUniforms = {
+		Mat3x2 clipToWorld;
+	};
+	vertOut = {
+		Vec2 worldPosition;
+		Vec2 position;
+	};
+	fragInstance = {
+		float t;
+	};
+	fragUniforms = {
+		float time;
+		Vec2 cameraPosition;
+	};
+}
