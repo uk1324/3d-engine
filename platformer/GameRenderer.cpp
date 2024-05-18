@@ -476,18 +476,12 @@ void GameRenderer::addDoubleJumpOrbs(const std::vector<DoubleJumpOrb>& doubleJum
 void GameRenderer::renderDoubleJumpOrbs() {
 	glEnable(GL_BLEND);
 	doubleJumpOrbShader.use();
-	//shaderSetUniforms(attractingOrbShader, AttractingOrbFragUniforms{
-	//	.time = backgroundElapsed
-	//});
 	shaderSetUniforms(doubleJumpOrbShader, DoubleJumpOrbVertUniforms{
 		.clipToWorld = renderer.camera.clipSpaceToWorldSpace(),
 	});
-	static Vec3 color;
-	ImGui::ColorEdit3("col", color.data());
 	shaderSetUniforms(doubleJumpOrbShader, DoubleJumpOrbFragUniforms{
 		.time = backgroundElapsed,
 		.cameraPosition = renderer.camera.pos,
-		.color = color
 	});
 	drawInstances(
 		doubleJumpOrbVao, 

@@ -18,6 +18,5 @@ shader DoubleJumpOrb {
 	fragUniforms = {
 		float time;
 		Vec2 cameraPosition;
-		Vec3 color;
 	};
 }
