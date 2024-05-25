@@ -7,3 +7,6 @@
 [submodule "dependencies/math-compiler"]
 	path = dependencies/math-compiler
 	url = https://github.com/uk1324/math-compiler.git
+[submodule "dependencies/openal-soft"]
+	path = dependencies/openal-soft
+	url = https://github.com/kcat/openal-soft.git

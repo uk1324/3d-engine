@@ -1,0 +1,8 @@
+Could have a portal to transition to the next stage
+Could make it a vortex or maybe make everything turn black or white. A circle that is in the middle of the portal that expands to cover the whole screen.
+Could make the portal attract the player.
+
+Could make a gravity changing orb or a gravity changing by pressing some button.
+Moving obsctacles. Could do PBR saws. Could make lightning that appears toggles on and off.
+Could make the background a circut.
+Could make bullets and explosion effects.

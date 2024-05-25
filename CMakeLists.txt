@@ -12,6 +12,7 @@ include("./codeGenTool/targetAddGenerated.cmake")
 
 add_subdirectory("./dependencies/glfw")
 add_subdirectory("./dependencies/math-compiler/src")
+add_subdirectory("./dependencies/openal-soft")
 
 add_subdirectory(engine)
 

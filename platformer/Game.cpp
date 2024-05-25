@@ -7,11 +7,19 @@
 #include <engine/Math/Utils.hpp>
 #include <glad/glad.h>
 
-Game::Game() {
+#define SOUND_ASSETS "./platformer/Assets/Sounds"
+
+Game::Game()
+	: attractingOrbAudioSource(AudioSource::generate())
+	, attractingOrbSoundEffect(AudioBuffer::fromFile(SOUND_ASSETS "/hum.wav")) {
 	camera.zoom /= 280.0f;
+	stream.play();
 }
 
 void Game::update() {
+	soundGeneration.update();
+	stream.update();
+
 	ShaderManager::update();
 
 	if (Input::isKeyDown(KeyCode::TAB)) {

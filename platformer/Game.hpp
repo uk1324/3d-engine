@@ -3,8 +3,11 @@
 #include <platformer/GameRenderer.hpp>
 #include <platformer/Editor.hpp>
 #include <platformer/GameRoom.hpp>
-#include <RefOptional.hpp>
-#include <Array2d.hpp>
+#include <RefOptional.hpp> 
+#include <Array2d.hpp> 
+#include <platformer/Audio/Audio.hpp>
+#include <platformer/SoundGeneration.hpp>
+#include <platformer/Audio/AudioStream.hpp>
 
 struct Game {
 	Game();
@@ -64,4 +67,11 @@ struct Game {
 	Camera camera;
 
 	GameRenderer renderer;
+
+	Audio audio;
+	SoundGeneration soundGeneration;
+	AudioStream stream;
+
+	AudioSource attractingOrbAudioSource;
+	AudioBuffer attractingOrbSoundEffect;
 };
