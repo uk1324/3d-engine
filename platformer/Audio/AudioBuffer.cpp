@@ -4,6 +4,7 @@
 #include "LoadWav.hpp"
 #include "AL/al.h"
 #include "AudioErrorHandling.hpp"
+#include <stb_vorbis/stb_vorbis.h>
 #include "Assertions.hpp"
 
 AudioBuffer::AudioBuffer(AudioBuffer&& other) noexcept {
@@ -12,35 +13,60 @@ AudioBuffer::AudioBuffer(AudioBuffer&& other) noexcept {
 }
 
 AudioBuffer AudioBuffer::fromFile(std::string_view path) {
-    u8 channels;
-    i32 sampleRate;
-    u8 bitsPerSample;
-    std::vector<u8> soundData;
-    if (!loadWav(path, channels, sampleRate, bitsPerSample, soundData)) {
-        std::cerr << "ERROR: Could not load wav" << std::endl;
-        return AudioBuffer::generate();
+    auto getFormat = [](int channels, int bitsPerSample) -> std::optional<ALenum> {
+        if (channels == 1 && bitsPerSample == 8) {
+            return AL_FORMAT_MONO8;
+        } else if (channels == 1 && bitsPerSample == 16) {
+            return AL_FORMAT_MONO16;
+        } else if (channels == 2 && bitsPerSample == 8) {
+            return AL_FORMAT_STEREO8;
+        } else if (channels == 2 && bitsPerSample == 16) {
+            return AL_FORMAT_STEREO16;
+        } else {
+            std::cerr
+                << "ERROR: unrecognised audio format: "
+                << channels << " channels, "
+                << bitsPerSample << " bps" << std::endl;
+            return std::nullopt;
+        }
+    };
+
+    {
+        u8 channels;
+        i32 sampleRate;
+        u8 bitsPerSample;
+        std::vector<u8> soundData;
+        if (loadWav(path, channels, sampleRate, bitsPerSample, soundData)) {
+            const auto format = getFormat(channels, bitsPerSample);
+            if (!format.has_value()) {
+                return AudioBuffer::generate();
+            }
+
+            auto buffer = AudioBuffer::generate();
+            AL_TRY(alBufferData(buffer.handle(), *format, soundData.data(), soundData.size(), sampleRate));
+            return buffer;
+        }
     }
 
-    ALenum format;
-    if (channels == 1 && bitsPerSample == 8) {
-        format = AL_FORMAT_MONO8;
-    } else if (channels == 1 && bitsPerSample == 16) {
-        format = AL_FORMAT_MONO16;
-    } else if (channels == 2 && bitsPerSample == 8) {
-        format = AL_FORMAT_STEREO8;
-    } else if (channels == 2 && bitsPerSample == 16) {
-        format = AL_FORMAT_STEREO16;
-    } else {
-        std::cerr
-            << "ERROR: unrecognised wave format: "
-            << channels << " channels, "
-            << bitsPerSample << " bps" << std::endl;
-        return AudioBuffer::generate();
+    {
+        int channels, sampleRate;
+        short* output;
+        const auto size = stb_vorbis_decode_filename(std::string(path).c_str(), &channels, &sampleRate, &output);
+        if (size != -1) {
+            auto buffer = AudioBuffer::generate();
+            const auto format = getFormat(channels, 16);
+            if (!format.has_value()) {
+                return AudioBuffer::generate();
+            }
+
+            AL_TRY(alBufferData(buffer.handle(), *format, output, size * sizeof(u16) * channels, sampleRate));
+            return buffer;
+        }
     }
 
-    auto buffer = AudioBuffer::generate();
-    AL_TRY(alBufferData(buffer.handle(), format, soundData.data(), soundData.size(), sampleRate));
-    return buffer;
+
+    std::cerr << "ERROR: Could not load audio file" << std::endl;
+    return AudioBuffer::generate();
 }
 
 AudioBuffer AudioBuffer::fromSize(usize sizeBytes) {

@@ -8,7 +8,7 @@ Assets loadAssets() {
 		.doubleJumpOrbSound = AudioBuffer::fromFile(SOUND_ASSETS "/doubleJumpOrb.wav"),
 		.jumpSound = AudioBuffer::fromFile(SOUND_ASSETS "/jump1.wav"),
 		.playerDeathSound = AudioBuffer::fromFile(SOUND_ASSETS "/death.wav"),
-		.music = AudioBuffer::fromFile(SOUND_ASSETS "/perfect-beauty.wav"),
+		.music = AudioBuffer::fromFile(SOUND_ASSETS "/perfect-beauty.ogg"),
 	};
 }
 
