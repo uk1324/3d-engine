@@ -2,6 +2,7 @@
 
 #include <engine/Math/Vec2.hpp>
 #include <engine/Math/Aabb.hpp>
+#include <platformer/Audio/Audio.hpp>
 #include <Array2d.hpp>
 
 namespace BlockCollisionDirections {
@@ -33,6 +34,8 @@ struct DoubleJumpOrb {
 	Vec2 position;
 	f32 elapsedSinceUsed;
 
+	void onUse(Audio& audio);
+
 	f32 animationT() const;
 	void reset();
 	bool isActive() const;
@@ -43,6 +46,7 @@ struct AttractingOrb {
 	f32 animationT = 0.0f;
 
 	void update(bool isPlayerPressingAttractButton, f32 dt);
+	void reset();
 };
 
 enum class BlockType : u8 {

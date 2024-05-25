@@ -6,6 +6,7 @@
 #include <platformer/Blocks.hpp>
 #include <vector>
 #include <platformer/SettingsData.hpp>
+#include <platformer/GameInput.hpp>
 
 struct Player {
 	Vec2 position;
@@ -29,9 +30,11 @@ struct Player {
 
 	void update();
 	void updateVelocity(
+		const GameInput& input,
 		f32 dt, 
 		std::vector<DoubleJumpOrb>& doubleJumpOrbs,
-		std::vector<AttractingOrb>& attractingOrbs);
+		std::vector<AttractingOrb>& attractingOrbs,
+		Audio& audio);
 	//void collision(
 	//	f32 dt,
 	//	const std::vector<Block>& blocks, 

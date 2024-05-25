@@ -10,7 +10,7 @@
 #include <platformer/Audio/AudioStream.hpp>
 
 struct Game {
-	Game();
+	Game(Audio& audio);
 
 	void update();
 	void gameUpdate();
@@ -68,10 +68,8 @@ struct Game {
 
 	GameRenderer renderer;
 
-	Audio audio;
-	SoundGeneration soundGeneration;
-	AudioStream stream;
+	Audio& audio;
 
 	AudioSource attractingOrbAudioSource;
-	AudioBuffer attractingOrbSoundEffect;
+	AudioSource musicAudioSource;
 };

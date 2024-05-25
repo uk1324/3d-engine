@@ -2,9 +2,11 @@
 #include <openal-soft/include/AL/al.h>
 #include "AudioErrorHandling.hpp"
 
-Audio::Audio() 
-    : device(nullptr)
-    , context(nullptr) {
+Audio::Audio() {
+   
+}
+
+void Audio::init() {
     ALCdevice* defaultDevice = alcOpenDevice(nullptr);
     if (defaultDevice == nullptr) {
         handleAudioError();
@@ -25,18 +27,19 @@ Audio::Audio()
     }
 }
 
-Audio::~Audio() {
+void Audio::deinit() {
     if (!alcMakeContextCurrent(nullptr)) {
         handleAudioError();
         return;
     }
 
+    // ignore close errors
     alcDestroyContext(context);
-    if (checkAlError()) {
-        return;
-    }
+    alcCloseDevice(device); 
+}
 
-    const auto result = alcCloseDevice(device); // ignore close errors
+Audio::~Audio() {
+   
 }
 
 void Audio::play() {
@@ -49,3 +52,27 @@ void Audio::play() {
     //AL_TRY(alSourcePlay(source.handle()));
 }
 
+void Audio::playSound(const AudioBuffer& buffer, f32 pitchMultiplier) {
+    auto play = [&](AudioSource& source) {
+        source.setBuffer(buffer);
+        source.setPitchMultipier(pitchMultiplier);
+        source.play();
+    };
+
+    for (auto& source : sources) {
+        ALenum state;
+        AL_TRY(alGetSourcei(source.handle(), AL_SOURCE_STATE, &state));
+        if (state != AL_STOPPED) {
+            continue;
+        }
+        play(source);
+        return;
+    }
+
+    sources.emplace_back(AudioSource::generate());
+    auto& source = sources.back();
+    play(source);
+}
+
+ALCdevice* Audio::device = nullptr;
+ALCcontext* Audio::context = nullptr;

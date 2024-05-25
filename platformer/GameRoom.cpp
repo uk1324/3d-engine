@@ -109,6 +109,24 @@ void collisionDetection(f32 dt, std::vector<GameRoom*> rooms, Player& player) {
                     block.onPlayerCollision();
                 }
             }
+            for (auto& platform : room->platforms) {
+                const auto playerBottomY = player.position.y - constants().playerSize.y / 2.0f;
+                const auto platformY = platform.position.y;
+
+                if (player.velocity.y > 0.0f || playerBottomY < platformY) {
+                    continue;
+                }
+                const auto platformAabb = Aabb(
+                    Vec2(platform.position.x, platformY),
+                    Vec2(platform.position.x + constants().cellSize, platformY + 1.0f));
+
+                if (playerAabb.collides(platformAabb)) {
+                    player.position.y = platformY + constants().playerSize.y / 2.0f + 0.01f;
+                    player.velocity.y = 0.0f;
+                    movementDelta.y = 0.0f;
+                    player.isGrounded = true;
+                }
+            }
         }
     };
 

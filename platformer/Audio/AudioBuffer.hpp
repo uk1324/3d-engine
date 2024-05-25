@@ -8,6 +8,10 @@ struct AudioBuffer {
 	static AudioBuffer fromFile(std::string_view path);
 	static AudioBuffer fromSize(usize sizeBytes);
 	static AudioBuffer generate();
+	static AudioBuffer null();
+
+	AudioBuffer& operator=(AudioBuffer&& other) noexcept;
+
 	~AudioBuffer();
 
 private:

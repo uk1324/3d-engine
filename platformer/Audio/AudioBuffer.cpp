@@ -56,6 +56,17 @@ AudioBuffer AudioBuffer::generate() {
     return AudioBuffer(handle);
 }
 
+AudioBuffer AudioBuffer::null() {
+    return AudioBuffer(0);
+}
+
+AudioBuffer& AudioBuffer::operator=(AudioBuffer&& other) noexcept {
+    AL_TRY(alDeleteBuffers(1, &handle_));
+    handle_ = other.handle_;
+    other.handle_ = 0;
+    return *this;
+}
+
 AudioBuffer::~AudioBuffer() {
     AL_TRY(alDeleteBuffers(1, &handle_));
 }

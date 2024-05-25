@@ -3,20 +3,20 @@
 #include <engine/Input/Input.hpp>
 #include <RefOptional.hpp>
 #include <engine/Math/Circle.hpp>
+#include <engine/Math/Random.hpp>
 #include <engine/Math/Aabb.hpp>
 #include <platformer/Collision.hpp>
 #include <imgui/imgui.h>
+#include <platformer/Assets.hpp>
 
 #include <framework/Dbg.hpp>
 
 void Player::updateVelocity(
+    const GameInput& input,
     f32 dt, 
     std::vector<DoubleJumpOrb>& doubleJumpOrbs, 
-    std::vector<AttractingOrb>& attractingOrbs) {
-    const bool left = Input::isKeyHeld(KeyCode::A);
-    const bool right = Input::isKeyHeld(KeyCode::D);
-    const bool jump = Input::isKeyHeld(KeyCode::SPACE);
-    const bool use = Input::isKeyHeld(KeyCode::J);
+    std::vector<AttractingOrb>& attractingOrbs,
+    Audio& audio) {
 
     //ImGui::Checkbox("isGrounded", &isGrounded);
     //ImGui::InputFloat2("velocity", velocity.data());
@@ -37,10 +37,10 @@ void Player::updateVelocity(
         speed *= 0.40f;
     }
 
-    if (left) {
+    if (input.left) {
         velocity.x -= speed;
     }
-    if (right) {
+    if (input.right) {
         velocity.x += speed;
     }
 
@@ -50,11 +50,11 @@ void Player::updateVelocity(
     }
 
     elapsedSinceJumpPressed += dt;
-    if (jump && jumpReleased) {
+    if (input.jump && jumpReleased) {
         elapsedSinceJumpPressed = 0.0f;
     }
 
-    if (!jump) {
+    if (!input.jump) {
         jumpReleased = true;
     }
 
@@ -75,7 +75,7 @@ void Player::updateVelocity(
     }
 
     bool used = false;
-    if (use) {
+    if (input.use) {
         used = true;
         for (auto& orb : attractingOrbs) {
             //Dbg::drawCircle(orb.position, constants().cellSize * 2.0f, Vec3(1.0f, 0.0f, 0.0f));
@@ -114,12 +114,15 @@ void Player::updateVelocity(
     if (elapsedSinceJumpPressed < jumpPressedRememberTime && jumpReleased) {
         bool jumped = false;
 
+        bool playJumpSound = false;
+
         if (velocity.y <= 0 && elapsedSinceLastGrounded < coyoteTime) {
             jumped = true;
             jumpedOffGround = true;
             velocity.y = jumpSpeed;
+            playJumpSound = true;
         } else if (touchedDoubleJumpOrb.has_value()) {
-            touchedDoubleJumpOrb->elapsedSinceUsed = 0.0f;
+            touchedDoubleJumpOrb->onUse(audio);
             jumped = true;
             jumpedOffGround = false;
             // The orb gives a bigger jump, but doesn't allow holding space to extend it, because it the holding with the orb felt like flying.
@@ -128,10 +131,16 @@ void Player::updateVelocity(
             jumped = true;
             velocity = Vec2(jumpSpeed * 1.55f, jumpSpeed * 1.3f);
             jumpedOffGround = false;
+            playJumpSound = true;
         } else if (!isGrounded && touchingWallOnRight) {
             velocity = Vec2(-jumpSpeed * 1.55f, jumpSpeed * 1.3f);
             jumped = true;
             jumpedOffGround = false;
+            playJumpSound = true;
+        }
+
+        if (playJumpSound) {
+            audio.playSound(assets->jumpSound, randomFromRange(0.4, 1.4f));
         }
 
         if (jumped) {
@@ -145,20 +154,20 @@ void Player::updateVelocity(
     }
     elapsedSinceLastJumped += dt;
 
-    if (jump && jumpedOffGround && elapsedSinceLastJumped < 0.07f && velocity.y > 0.0f && !used) {
+    if (input.jump && jumpedOffGround && elapsedSinceLastJumped < 0.07f && velocity.y > 0.0f && !used) {
         velocity.y += 0.5f;
     }
 
     const auto gravity = 0.3f;
 
-    const auto holdingOntoLeftWall = touchingWallOnLeft && left;
-    const auto holdingOntoRightWall = touchingWallOnRight && right;
+    const auto holdingOntoLeftWall = touchingWallOnLeft && input.left;
+    const auto holdingOntoRightWall = touchingWallOnRight && input.right;
 
     /*if (!isGrounded)*/ {
         const auto jumpGravityMultiplier = 0.8f;
         const auto fallGravityMultiplier = 1.5f;
 
-        const auto jumping = (jump && velocity.y >= 0) && !holdingOntoLeftWall && !holdingOntoRightWall;
+        const auto jumping = (input.jump && velocity.y >= 0) && !holdingOntoLeftWall && !holdingOntoRightWall;
 
         const auto gravityMultiplier = jumping
             ? jumpGravityMultiplier
@@ -167,7 +176,7 @@ void Player::updateVelocity(
         velocity.y -= gravity * gravityMultiplier;
     }
 
-    if (!(jump && velocity.y >= 0) && (holdingOntoLeftWall || holdingOntoRightWall)) {
+    if (!(input.jump && velocity.y >= 0) && (holdingOntoLeftWall || holdingOntoRightWall)) {
         velocity.y *= 0.80f;
     }
 
@@ -185,33 +194,6 @@ void Player::updateVelocity(
     touchingWallOnLeft = false;
     touchingWallOnRight = false;
 }
-#include <framework/Dbg.hpp>
-
-//void Player::collision(
-//    f32 dt,
-//    const std::vector<Block>& blocks, 
-//    const std::vector<Platform>& platforms,
-//    const std::vector<MovingBlock>& movingBlocks) {
-//    
-//}
-
-//void Player::checkIfPlayerIsStandingOnMovingBlocks(const std::vector<MovingBlock>& movingBlocks) {
-//    const auto playerAabb = ::playerAabb(position);
-//    for (const auto& block : movingBlocks) {
-//        const auto position = block.position();
-//        const auto blockAabb = Aabb(position, position + block.size);
-//
-//        if (!playerAabb.collides(blockAabb)) {
-//            continue;
-//        }
-//
-//        auto distance = getDistance(playerAabb, blockAabb, velocity);
-//        if (distance.top < distance.left && distance.top < distance.right) {
-//            //blockThatIsBeingStoodOnVelocity = block.positionDelta;
-//            //blockThatIsBeingTouchedMovementDelta = 
-//        }
-//    }
-//}
 
 Aabb Player::aabb() const {
     return playerAabb(position);

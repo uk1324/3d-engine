@@ -2,7 +2,9 @@
 
 #include <platformer/Blocks.hpp>
 #include <platformer/Constants.hpp>
+#include <platformer/Assets.hpp>
 #include <engine/Math/Utils.hpp>
+#include <engine/Math/Random.hpp>
 
 BlockCollsionDirectionsBitfield getBlockCollisionDirections(const Array2d<BlockType>& blockGrid, i32 x, i32 y) {
 	struct Entry {
@@ -71,6 +73,11 @@ Platform makePlatform(i64 x, i64 y, Vec2T<i32> roomOffset) {
 	return Platform{ .position = Vec2(x, y + 1) * constants().cellSize + Vec2(roomOffset) * constants().cellSize };
 }
 
+void DoubleJumpOrb::onUse(Audio& audio) {
+	elapsedSinceUsed = 0.0f;
+	audio.playSound(assets->doubleJumpOrbSound, randomFromRange(0.9f, 1.1f));
+}
+
 f32 DoubleJumpOrb::animationT() const {
 	return std::clamp(elapsedSinceUsed / constants().doubleJumpOrbCooldown, 0.0f, 1.0f);
 }
@@ -88,4 +95,8 @@ void AttractingOrb::update(bool isPlayerPressingAttractButton, f32 dt) {
 
 	animationT += speed * dt * (isPlayerPressingAttractButton ? 1.0f : -1.0f);
 	animationT = std::clamp(animationT, 0.0f, 1.0f);
+}
+
+void AttractingOrb::reset() {
+	animationT = 0.0f;
 }

@@ -1,4 +1,4 @@
-add_executable(platformer "main.cpp" "Game.cpp" "GameRenderer.cpp" "Player.cpp" "Editor.cpp" "Blocks.cpp" "Level.cpp" "JsonUtils.cpp" "Constants.cpp" "Entities.cpp" "Collision.cpp" "GameRoom.cpp" "Audio/LoadWav.cpp" "Audio/Audio.cpp" "SoundGeneration.cpp"  "Audio/AudioErrorHandling.cpp" "Audio/AudioBuffer.cpp" "Audio/AudioSource.cpp" "Audio/AudioStream.cpp")
+add_executable(platformer "main.cpp" "Game.cpp" "GameRenderer.cpp" "Player.cpp" "Editor.cpp" "Blocks.cpp" "Level.cpp" "JsonUtils.cpp" "Constants.cpp" "Entities.cpp" "Collision.cpp" "GameRoom.cpp" "Audio/LoadWav.cpp" "Audio/Audio.cpp" "SoundGeneration.cpp"  "Audio/AudioErrorHandling.cpp" "Audio/AudioBuffer.cpp" "Audio/AudioSource.cpp" "Audio/AudioStream.cpp" "Assets.cpp")
 
 target_link_libraries(platformer engine)
 target_link_libraries(platformer glfw)

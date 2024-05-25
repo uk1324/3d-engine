@@ -2,24 +2,31 @@
 #include <platformer/Constants.hpp>
 #include <framework/Dbg.hpp>
 #include <framework/ShaderManager.hpp>
+#include <platformer/Assets.hpp>
 #include <engine/Input/Input.hpp>
 #include <engine/Math/Color.hpp>
 #include <engine/Math/Utils.hpp>
 #include <glad/glad.h>
 
-#define SOUND_ASSETS "./platformer/Assets/Sounds"
 
-Game::Game()
+Game::Game(Audio& audio)
 	: attractingOrbAudioSource(AudioSource::generate())
-	, attractingOrbSoundEffect(AudioBuffer::fromFile(SOUND_ASSETS "/hum.wav")) {
+	, audio(audio)
+	, musicAudioSource(AudioSource::generate()) {
 	camera.zoom /= 280.0f;
-	stream.play();
+
+	attractingOrbAudioSource.setBuffer(assets->attractingOrbSound);
+	attractingOrbAudioSource.play();
+	attractingOrbAudioSource.setLoop(true);
+	attractingOrbAudioSource.setGain(0.0f);
+
+	musicAudioSource.setBuffer(assets->music);
+	musicAudioSource.play();
+	musicAudioSource.setLoop(true);
+	musicAudioSource.setGain(0.0f);
 }
 
 void Game::update() {
-	soundGeneration.update();
-	stream.update();
-
 	ShaderManager::update();
 
 	if (Input::isKeyDown(KeyCode::TAB)) {
@@ -43,9 +50,54 @@ void Game::update() {
 	}
 }
 #include <imgui/imgui.h>
+#include <iostream>
 void Game::gameUpdate() {
+	const GameInput input{
+		.left = Input::isKeyHeld(KeyCode::A),
+		.right = Input::isKeyHeld(KeyCode::D),
+		.jump = Input::isKeyHeld(KeyCode::SPACE),
+		.use = Input::isKeyHeld(KeyCode::J)
+	};
+
 	if (Input::isKeyDown(KeyCode::R)) {
 		respawnPlayer();
+	}
+
+	auto attenuate = [this]() {
+		auto gain = attractingOrbAudioSource.getGain();
+		gain *= 0.9f;
+		attractingOrbAudioSource.setGain(gain);
+	};
+
+	{
+		auto gain = musicAudioSource.getGain();
+		gain += dt;
+		if (gain > 1.0f) {
+			gain = 1.0f;
+		}
+		musicAudioSource.setGain(gain);
+	}
+
+	if (input.use && state == State::ALIVE) {
+		std::optional<f32> maxT;
+
+		if (auto activeRoom = activeGameRoom(); activeRoom.has_value()) {
+			for (const auto& orb : activeRoom->attractingOrbs) {
+				auto t = smoothstep(0.0f, 1.0f, orb.animationT * 2.0f);
+				t *= smoothstep(250.0, 100.0, player.position.distanceTo(orb.position));
+				if (!maxT.has_value() || t > maxT) {
+					maxT = t;
+				}
+			}
+		}
+
+		if (maxT.has_value()) {
+			attractingOrbAudioSource.setGain(*maxT);
+		} else {
+			attenuate();
+		}
+	} else {
+		attenuate();
 	}
 
 	if (state == State::ALIVE) {
@@ -70,7 +122,7 @@ void Game::gameUpdate() {
 		}
 
 		if (auto activeRoom = activeGameRoom(); activeRoom.has_value()) {
-			player.updateVelocity(dt, activeRoom->doubleJumpOrbs, activeRoom->attractingOrbs);
+			player.updateVelocity(input, dt, activeRoom->doubleJumpOrbs, activeRoom->attractingOrbs, audio);
 		}
 
 		// Could use an iterator instead of copying this. Could have an iterator of all the active rooms.
@@ -224,16 +276,6 @@ void Game::gameRender() {
 	}
 	renderer.update();
 
-	static bool v = false;
-	ImGui::Checkbox("test", &v);
-	if (v) {
-		renderer.renderPlayer(player);
-	} else {
-		glEnable(GL_BLEND);
-		renderer.renderPlayerFull(player);
-		glDisable(GL_BLEND);
-	}
-
 	if (const auto activeRoom = activeLevelRoom(); activeRoom.has_value()) {
 		const auto min = Vec2(activeRoom->position) * constants().cellSize;
 		const auto roomAabb = ::roomAabb(*activeRoom);
@@ -243,6 +285,13 @@ void Game::gameRender() {
 			Dbg::drawFilledAabb(Vec2(viewAabb.min.x, roomAabb.max.y), viewAabb.max, Color3::BLACK);
 		}
 	}
+
+	{
+		glEnable(GL_BLEND);
+		renderer.renderPlayerFull(player);
+		glDisable(GL_BLEND);
+	}
+
 	respawningUpdate();
 
 	renderer.update();
@@ -323,9 +372,13 @@ void Game::spawnPlayer(std::optional<i32> editorSelectedRoomIndex) {
 	for (auto& orb : gameRoom.doubleJumpOrbs) {
 		orb.reset();
 	}
+	for (auto& orb : gameRoom.attractingOrbs) {
+		orb.reset();
+	}
 }
 
 void Game::respawnPlayer() {
+	audio.playSound(assets->playerDeathSound);
 	if (state == State::RESPAWNING) {
 		ASSERT_NOT_REACHED();
 		return;

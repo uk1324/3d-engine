@@ -6,3 +6,7 @@ Could make a gravity changing orb or a gravity changing by pressing some button.
 Moving obsctacles. Could do PBR saws. Could make lightning that appears toggles on and off.
 Could make the background a circut.
 Could make bullets and explosion effects.
+
+Blocks that switch on and off like celeste b side rooms.
+
+could make the title have a 3d glasses effect

@@ -24,7 +24,40 @@ AudioSource AudioSource::defaultInit() {
 }
 
 AudioSource::~AudioSource() {
+    if (handle_ == 0) {
+        return;
+    }
     AL_TRY(alDeleteSources(1, &handle_));
+}
+
+void AudioSource::setBuffer(const AudioBuffer& buffer) { 
+    setBuffer(buffer.handle());
+}
+
+void AudioSource::setBuffer(u32 bufferHandle) {
+    AL_TRY(alSourcei(handle_, AL_BUFFER, bufferHandle));
+}
+
+void AudioSource::play() {
+    AL_TRY(alSourcePlay(handle_));
+}
+
+void AudioSource::setLoop(bool loop) {
+    AL_TRY(alSourcei(handle_, AL_LOOPING, loop));
+}
+
+void AudioSource::setGain(f32 value) {
+    AL_TRY(alSourcef(handle_, AL_GAIN, value));
+}
+
+void AudioSource::setPitchMultipier(f32 value) {
+    AL_TRY(alSourcef(handle_, AL_PITCH, value));
+}
+
+f32 AudioSource::getGain() {
+    ALfloat v;
+    AL_TRY(alGetSourcef(handle_, AL_GAIN, &v));
+    return v;
 }
 
 AudioSource::AudioSource(u32 handle)
