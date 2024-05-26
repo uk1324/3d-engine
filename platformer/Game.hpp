@@ -40,6 +40,7 @@ struct Game {
 	//f32 cellSize = 20.0f;
 
 	void onSwitchFromEditor(std::optional<i32> editorSelectedRoomIndex);
+	void onSwitchToEditor();
 
 	void loadRoom(LevelRoom& room);
 

@@ -15,6 +15,10 @@ struct AudioSource {
 	void setBuffer(u32 bufferHandle);
 
 	void play();
+	void pause();
+	void stop();
+
+	bool isPaused() const;
 
 	void setLoop(bool loop);
 	void setGain(f32 value);

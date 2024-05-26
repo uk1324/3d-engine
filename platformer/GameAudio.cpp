@@ -5,8 +5,8 @@
 #include <Put.hpp>
 
 GameAudio::GameAudio() 
-	: musicStream(AudioFileStream::fromFile("./platformer/Assets/sounds/perfect-beauty.ogg"))
-	, attractingOrbSource(AudioSource::generate()) {
+	: musicStream(AudioFileStream::make())
+	, attractingOrbSource(SoundSource{ .source = AudioSource::generate() }) {
 
 	static constexpr auto SOURCE_COUNT = 64;
 	for (i32 i = 0; i < SOURCE_COUNT; i++) {
@@ -15,35 +15,46 @@ GameAudio::GameAudio()
 			break;
 		}
 		if (i % 2 == 0) {
-			soundEffectSources.push_back(std::move(*source));
+			soundEffectSourcePool.emplace_back(SoundSource{ .source = std::move(*source) });
 		} else {
-			uiSoundSources.push_back(std::move(*source));
+			uiSoundSourcePool.emplace_back(SoundSource{ .source = std::move(*source) });
 		}
 	}
+	for (auto& source : soundEffectSourcePool) {
+		soundEffectSources.push_back(&source);
+	}
+	soundEffectSources.push_back(&attractingOrbSource);
 
-	attractingOrbSource.setBuffer(assets->attractingOrbSound);
-	attractingOrbSource.play();
-	attractingOrbSource.setLoop(true);
+	musicStream.useFile("./platformer/Assets/sounds/perfect-beauty.ogg");
+	musicStream.play();
+	musicStream.loop = true;
 
 	updateSoundEffectVolumes();
-
-	musicStream.play();
 }
 
 void GameAudio::update() {
 	musicStream.update();
 }
 
+void GameAudio::initGameAudio() {
+	attractingOrbSource.source.setBuffer(assets->attractingOrbSound);
+	attractingOrbSource.source.setLoop(true);
+	attractingOrbSource.source.play();
+	setSoundEffectSourceVolume(attractingOrbSource, 0.0f);
+}
+
 void GameAudio::playSoundEffect(const AudioBuffer& buffer, f32 pitch) {
-	play(soundEffectSources, buffer, soundEffectVolume, pitch);
+	play(soundEffectSourcePool, buffer, soundEffectVolume, pitch);
 }
 
 void GameAudio::playUiSound(const AudioBuffer& buffer, f32 pitch) {
-	play(uiSoundSources, buffer, uiVolume, pitch);
+	//play(uiSoundSources, buffer, uiVolume, pitch);
 }
 
-void GameAudio::play(std::vector<AudioSource>& sources, const AudioBuffer& buffer, f32 volume, f32 pitch) {
-	for (auto& source : sources) {
+void GameAudio::play(std::vector<SoundSource>& sources, const AudioBuffer& buffer, f32 volume, f32 pitch) {
+	for (auto& soundSource : sources) {
+		auto& source = soundSource.source;
+
 		ALenum state;
 		AL_TRY(alGetSourcei(source.handle(), AL_SOURCE_STATE, &state));
 		if (state == AL_PLAYING || state == AL_PAUSED) {
@@ -62,17 +73,13 @@ void GameAudio::play(std::vector<AudioSource>& sources, const AudioBuffer& buffe
 }
 
 void GameAudio::updateSoundEffectVolumes() {
-	const auto volume = masterVolume * soundEffectVolume;
-
 	for (auto& source : soundEffectSources) {
-		source.setGain(volume);
+		source->source.setGain(masterVolume * soundEffectVolume * source->volume);
 	}
-	setAttractingOrbVolume(attractingOrbVolume);
 }
 
 void GameAudio::updateMusicVolumes() {
-	const auto volume = masterVolume * musicVolume;
-	musicStream.source.setGain(volume);
+	musicStream.source.setGain(masterVolume * musicVolume);
 }
 
 void GameAudio::updateUiVolumes() {
@@ -100,13 +107,30 @@ void GameAudio::setUiVolume(f32 value) {
 	updateUiVolumes();
 }
 
-void GameAudio::pauseSoundEffects() {
-	/*alSourcePause(attractingOrbSource.handle());*/
-	alSourceStop(attractingOrbSource.handle());
-	alSourceStop(musicStream.source.handle());
+void GameAudio::stopSoundEffects() {
+	for (const auto& source : soundEffectSources) {
+		source->source.stop();
+	}
 }
 
-void GameAudio::setAttractingOrbVolume(f32 value) {
-	attractingOrbVolume = value;
-	attractingOrbSource.setGain(masterVolume * soundEffectVolume * attractingOrbVolume);
+void GameAudio::pauseSoundEffects() {
+	for (const auto& source : soundEffectSources) {
+		source->source.pause();
+	}
+}
+
+void GameAudio::unpauseSoundEffects() {
+	for (const auto& source : soundEffectSources) {
+		if (!source->source.isPaused()) {
+			continue;
+		}
+		source->source.play();
+	}
+}
+
+#include <imgui/imgui.h>
+
+void GameAudio::setSoundEffectSourceVolume(SoundSource& source, f32 value) {
+	source.volume = value;
+	source.source.setGain(masterVolume * soundEffectVolume * value);
 }

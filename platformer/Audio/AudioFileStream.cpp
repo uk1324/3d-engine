@@ -3,26 +3,15 @@
 #include "AudioErrorHandling.hpp"
 #include <AL/al.h>
 
-AudioFileStream AudioFileStream::fromFile(const char* filename) {
+AudioFileStream AudioFileStream::make() {
     decltype(AudioFileStream::buffers) buffers;
     AL_TRY(alGenBuffers(buffers.size(), buffers.data()));
-
-	int error;
-	auto stream = stb_vorbis_open_filename(filename, &error, nullptr);
-	if (stream == nullptr) {
-		std::cout << "audio file stream error";
-        return AudioFileStream{ 
-            .buffers = buffers, 
-            .source = AudioSource::generate(),
-            .stream = nullptr, 
-        };
-	}
-	const auto info = stb_vorbis_get_info(stream);
 
     return AudioFileStream{
         .buffers = buffers,
         .source = AudioSource::generate(),
-        .stream = stream
+        .state = State::STOPPED,
+        .stream = nullptr,
     };
 }
 
@@ -30,33 +19,57 @@ AudioFileStream::~AudioFileStream() {
     AL_TRY(alSourceStop(source.handle()));
     AL_TRY(alSourcei(source.handle(), AL_BUFFER, NULL));
     AL_TRY(alDeleteBuffers(buffers.size(), buffers.data()));
+    stb_vorbis_close(stream);
     //AL_TRY(alSourceUnqueueBuffers((buffers.size(), buffers.data()));
 }
 
 
+bool AudioFileStream::useFile(const char* filename) {
+    int error;
+    stb_vorbis_close(stream);
+    stream = stb_vorbis_open_filename(filename, &error, nullptr);
+    if (stream == nullptr) {
+        return false;
+    }
+    return true;
+}
+
 void AudioFileStream::play() {
     if (stream == nullptr) {
+        // Should this path return?
         return;
     }
 
-    for (const auto& buffer : buffers) {
-        fillBuffer(buffer);
+    if (state == State::STOPPED) {
+        for (const auto& buffer : buffers) {
+            fillBuffer(buffer);
+        }
+        AL_TRY(alSourceQueueBuffers(source.handle(), buffers.size(), buffers.data()));
     }
-    AL_TRY(alSourceQueueBuffers(source.handle(), buffers.size(), buffers.data()));
-    AL_TRY(alSourcePlay(source.handle()));
+    state = State::PLAYING;
+    source.play();
+}
+
+void AudioFileStream::pause() {
+    source.pause();
+    state = State::PAUSED;
 }
 
 void AudioFileStream::update() {
     if (stream == nullptr) {
         return;
     }
+    if (state != State::PLAYING) {
+        return;
+    }
 
-    ALint state;
+    ALint streamState;
 
-    AL_TRY(alGetSourcei(source.handle(), AL_SOURCE_STATE, &state));
-    if (state != AL_PLAYING) {
-        //source.play();
-        //return;
+    AL_TRY(alGetSourcei(source.handle(), AL_SOURCE_STATE, &streamState));
+    if (streamState != AL_PLAYING) {
+        std::cout << "stream starved";
+        source.play();
+        return;
     }
 
     ALint buffersProcessed = 0;
@@ -94,8 +107,12 @@ void AudioFileStream::fillBuffer(u32 buffer) {
     auto amount = load();
 
     if (amount == 0) {
-        stb_vorbis_seek_start(stream);
-        load();
+        if (loop) {
+            stb_vorbis_seek_start(stream);
+            load();
+        } else {
+            state = State::STOPPED;
+        }
     }
 
     // TODO: Is this correct and safe?

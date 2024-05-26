@@ -9,9 +9,16 @@ struct GameAudio {
 
 	void update();
 
+	void initGameAudio();
+
+	struct SoundSource {
+		AudioSource source;
+		f32 volume = 1.0f;
+	};
+
 	void playSoundEffect(const AudioBuffer& buffer, f32 pitch = 1.0f);
 	void playUiSound(const AudioBuffer& buffer, f32 pitch = 1.0f);
-	void play(std::vector<AudioSource>& sources, const AudioBuffer& buffer, f32 volume, f32 pitch = 1.0f);
+	void play(std::vector<SoundSource>& sources, const AudioBuffer& buffer, f32 volume, f32 pitch = 1.0f);
 
 	void updateSoundEffectVolumes();
 	void updateMusicVolumes();
@@ -26,23 +33,21 @@ struct GameAudio {
 		bool isAllocated;
 	};*/
 
+	void stopSoundEffects();
 	void pauseSoundEffects();
-	struct Source {
-		AudioSource source;
-		f32 volume;
-	};
-
+	void unpauseSoundEffects();
 
 	AudioFileStream musicStream;
 
-	f32 attractingOrbVolume = 0.0f;
-	AudioSource attractingOrbSource;
-	void setAttractingOrbVolume(f32 value);
+	SoundSource attractingOrbSource;
 
-	std::vector<AudioSource> soundEffectSources;
-	std::vector<AudioSource> uiSoundSources;
+	void setSoundEffectSourceVolume(SoundSource& source, f32 value);
 
-private:
+	std::vector<SoundSource> soundEffectSourcePool;
+	std::vector<SoundSource> uiSoundSourcePool;
+
+	std::vector<SoundSource*> soundEffectSources;
+
 	f32 masterVolume = 1.0f;
 	f32 soundEffectVolume = 1.0f;
 	f32 musicVolume = 1.0f;

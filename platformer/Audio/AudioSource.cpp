@@ -51,6 +51,20 @@ void AudioSource::play() {
     AL_TRY(alSourcePlay(handle_));
 }
 
+void AudioSource::pause() {
+    AL_TRY(alSourcePause(handle_));
+}
+
+void AudioSource::stop() {
+    AL_TRY(alSourceStop(handle_));
+}
+
+bool AudioSource::isPaused() const {
+    ALenum state;
+    AL_TRY(alGetSourcei(handle_, AL_SOURCE_STATE, &state));
+    return state == AL_PAUSED;
+}
+
 void AudioSource::setLoop(bool loop) {
     AL_TRY(alSourcei(handle_, AL_LOOPING, loop));
 }

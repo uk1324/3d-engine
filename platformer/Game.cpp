@@ -24,6 +24,7 @@ void Game::update() {
 		}
 		else if (mode == Mode::GAME) {
 			editor.onSwitchFromGame();
+			onSwitchToEditor();
 			mode = Mode::EDITOR;
 		}
 	}
@@ -39,6 +40,15 @@ void Game::update() {
 #include <imgui/imgui.h>
 #include <iostream>
 void Game::gameUpdate() {
+	ImGui::Begin("audio");
+
+	float volume = audio.musicVolume;
+	if (ImGui::SliderFloat("music", &volume, 0.0f, 1.0f)) {
+		audio.setMusicVolume(volume);
+	}
+
+	ImGui::End();
+
 	const GameInput input{
 		.left = Input::isKeyHeld(KeyCode::A),
 		.right = Input::isKeyHeld(KeyCode::D),
@@ -66,9 +76,9 @@ void Game::gameUpdate() {
 	//}
 
 	auto attenuate = [this]() {
-		auto volume = audio.attractingOrbVolume;
+		auto volume = audio.attractingOrbSource.volume;
 		volume *= 0.9f;
-		audio.setAttractingOrbVolume(volume);
+		audio.setSoundEffectSourceVolume(audio.attractingOrbSource, volume);
 	};
 	if (input.use && state == State::ALIVE) {
 		std::optional<f32> maxT;
@@ -84,7 +94,7 @@ void Game::gameUpdate() {
 		}
 
 		if (maxT.has_value()) {
-			audio.setAttractingOrbVolume(*maxT);
+			audio.setSoundEffectSourceVolume(audio.attractingOrbSource, *maxT);
 		} else {
 			attenuate();
 		}
@@ -427,6 +437,9 @@ std::optional<GameRoom&> Game::activeGameRoom() {
 }
 
 void Game::onSwitchFromEditor(std::optional<i32> editorSelectedRoomIndex) {
+	audio.initGameAudio();
+	audio.musicStream.play();
+
 	if (!editor.lastLoadedLevel.has_value()) {
 		return;
 	}
@@ -441,6 +454,11 @@ void Game::onSwitchFromEditor(std::optional<i32> editorSelectedRoomIndex) {
 		loadRoom(room);
 	}
  	spawnPlayer(editorSelectedRoomIndex);
+}
+
+void Game::onSwitchToEditor() {
+	audio.stopSoundEffects();
+	audio.musicStream.pause();
 }
 
 void Game::loadRoom(LevelRoom& room) {
