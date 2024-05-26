@@ -7,6 +7,15 @@ AudioSource::AudioSource(AudioSource&& other) noexcept {
     other.handle_ = 0;
 }
 
+std::optional<AudioSource> AudioSource::tryGenerate(){
+    u32 handle;
+    alGenSources(1, &handle);
+    if (alGetError() != AL_NO_ERROR) {
+        return std::nullopt;
+    }
+    return AudioSource(handle);
+}
+
 AudioSource AudioSource::generate() {
     u32 handle;
     AL_TRY(alGenSources(1, &handle));

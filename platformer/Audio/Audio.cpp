@@ -62,7 +62,7 @@ void Audio::playSound(const AudioBuffer& buffer, f32 pitchMultiplier) {
     for (auto& source : sources) {
         ALenum state;
         AL_TRY(alGetSourcei(source.handle(), AL_SOURCE_STATE, &state));
-        if (state != AL_STOPPED) {
+        if (state == AL_PLAYING || state == AL_PAUSED) {
             continue;
         }
         play(source);

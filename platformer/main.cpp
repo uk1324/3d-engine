@@ -10,11 +10,10 @@ int main() {
 	{
 		Assets assets = loadAssets();
 		::assets = &assets;
-		Audio audio;
 		// Loading it here so they are destroyed in the correct order.
 
 		EngineUpdateLoop loop(60.0);
-		auto game = Game(audio);
+		auto game = Game();
 
 		while (loop.isRunning()) {
 			game.update();

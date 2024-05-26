@@ -28,13 +28,12 @@ struct Player {
 
 	bool dead = false;
 
-	void update();
 	void updateVelocity(
 		const GameInput& input,
 		f32 dt, 
 		std::vector<DoubleJumpOrb>& doubleJumpOrbs,
 		std::vector<AttractingOrb>& attractingOrbs,
-		Audio& audio);
+		GameAudio& audio);
 	//void collision(
 	//	f32 dt,
 	//	const std::vector<Block>& blocks, 

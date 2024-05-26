@@ -16,7 +16,7 @@ void Player::updateVelocity(
     f32 dt, 
     std::vector<DoubleJumpOrb>& doubleJumpOrbs, 
     std::vector<AttractingOrb>& attractingOrbs,
-    Audio& audio) {
+    GameAudio& audio) {
 
     //ImGui::Checkbox("isGrounded", &isGrounded);
     //ImGui::InputFloat2("velocity", velocity.data());
@@ -140,7 +140,7 @@ void Player::updateVelocity(
         }
 
         if (playJumpSound) {
-            audio.playSound(assets->jumpSound, randomFromRange(0.4, 1.4f));
+            audio.playSoundEffect(assets->jumpSound, randomFromRange(0.4, 1.4f));
         }
 
         if (jumped) {

@@ -55,7 +55,7 @@ void AudioFileStream::update() {
 
     AL_TRY(alGetSourcei(source.handle(), AL_SOURCE_STATE, &state));
     if (state != AL_PLAYING) {
-        source.play();
+        //source.play();
         //return;
     }
 

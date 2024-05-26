@@ -5,13 +5,10 @@
 #include <platformer/GameRoom.hpp>
 #include <RefOptional.hpp> 
 #include <Array2d.hpp> 
-#include <platformer/Audio/Audio.hpp>
-#include <platformer/SoundGeneration.hpp>
-#include <platformer/Audio/AudioStream.hpp>
-#include <platformer/Audio/AudioFileStream.hpp>
+#include <platformer/GameAudio.hpp>
 
 struct Game {
-	Game(Audio& audio);
+	Game();
 
 	void update();
 	void gameUpdate();
@@ -68,10 +65,5 @@ struct Game {
 	Camera camera;
 
 	GameRenderer renderer;
-
-	Audio& audio;
-
-	AudioSource attractingOrbAudioSource;
-	AudioSource musicAudioSource;
-	AudioFileStream musicAudioStream;
+	GameAudio audio;
 };

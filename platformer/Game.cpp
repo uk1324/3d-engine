@@ -9,24 +9,8 @@
 #include <glad/glad.h>
 
 
-Game::Game(Audio& audio)
-	: attractingOrbAudioSource(AudioSource::generate())
-	, audio(audio)
-	, musicAudioSource(AudioSource::generate())
-	, musicAudioStream(AudioFileStream::fromFile("./platformer/Assets/sounds/perfect-beauty.ogg")) {
+Game::Game() {
 	camera.zoom /= 280.0f;
-
-	attractingOrbAudioSource.setBuffer(assets->attractingOrbSound);
-	attractingOrbAudioSource.play();
-	attractingOrbAudioSource.setLoop(true);
-	attractingOrbAudioSource.setGain(0.0f);
-
-	/*musicAudioSource.setBuffer(assets->music);
-	musicAudioSource.play();
-	musicAudioSource.setLoop(true);
-	musicAudioSource.setGain(0.0f);*/
-
-	musicAudioStream.play();
 }
 
 void Game::update() {
@@ -62,17 +46,15 @@ void Game::gameUpdate() {
 		.use = Input::isKeyHeld(KeyCode::J)
 	};
 
-	musicAudioStream.update();
+	audio.update();
 
 	if (Input::isKeyDown(KeyCode::R)) {
 		respawnPlayer();
 	}
 
-	auto attenuate = [this]() {
-		auto gain = attractingOrbAudioSource.getGain();
-		gain *= 0.9f;
-		attractingOrbAudioSource.setGain(gain);
-	};
+	if (Input::isKeyDown(KeyCode::K)) {
+		audio.pauseSoundEffects();
+	}
 
 	//{
 	//	auto gain = musicAudioSource.getGain();
@@ -83,6 +65,11 @@ void Game::gameUpdate() {
 	//	musicAudioSource.setGain(gain);
 	//}
 
+	auto attenuate = [this]() {
+		auto volume = audio.attractingOrbVolume;
+		volume *= 0.9f;
+		audio.setAttractingOrbVolume(volume);
+	};
 	if (input.use && state == State::ALIVE) {
 		std::optional<f32> maxT;
 
@@ -97,7 +84,7 @@ void Game::gameUpdate() {
 		}
 
 		if (maxT.has_value()) {
-			attractingOrbAudioSource.setGain(*maxT);
+			audio.setAttractingOrbVolume(*maxT);
 		} else {
 			attenuate();
 		}
@@ -383,7 +370,7 @@ void Game::spawnPlayer(std::optional<i32> editorSelectedRoomIndex) {
 }
 
 void Game::respawnPlayer() {
-	audio.playSound(assets->playerDeathSound);
+	audio.playSoundEffect(assets->playerDeathSound);
 	if (state == State::RESPAWNING) {
 		ASSERT_NOT_REACHED();
 		return;

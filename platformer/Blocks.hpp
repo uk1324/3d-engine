@@ -2,7 +2,7 @@
 
 #include <engine/Math/Vec2.hpp>
 #include <engine/Math/Aabb.hpp>
-#include <platformer/Audio/Audio.hpp>
+#include <platformer/GameAudio.hpp>
 #include <Array2d.hpp>
 
 namespace BlockCollisionDirections {
@@ -34,7 +34,7 @@ struct DoubleJumpOrb {
 	Vec2 position;
 	f32 elapsedSinceUsed;
 
-	void onUse(Audio& audio);
+	void onUse(GameAudio& audio);
 
 	f32 animationT() const;
 	void reset();

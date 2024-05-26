@@ -73,9 +73,9 @@ Platform makePlatform(i64 x, i64 y, Vec2T<i32> roomOffset) {
 	return Platform{ .position = Vec2(x, y + 1) * constants().cellSize + Vec2(roomOffset) * constants().cellSize };
 }
 
-void DoubleJumpOrb::onUse(Audio& audio) {
+void DoubleJumpOrb::onUse(GameAudio& audio) {
 	elapsedSinceUsed = 0.0f;
-	audio.playSound(assets->doubleJumpOrbSound, randomFromRange(0.9f, 1.1f));
+	audio.playSoundEffect(assets->doubleJumpOrbSound, randomFromRange(0.9f, 1.1f));
 }
 
 f32 DoubleJumpOrb::animationT() const {

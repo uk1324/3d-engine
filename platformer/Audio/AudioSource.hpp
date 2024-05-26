@@ -2,9 +2,11 @@
 
 #include "Types.hpp"
 #include "AudioBuffer.hpp"
+#include <optional>
 
 struct AudioSource {
 	AudioSource(AudioSource&& other) noexcept;
+	static std::optional<AudioSource> tryGenerate();
 	static AudioSource generate();
 	static AudioSource defaultInit();
 	~AudioSource();
