@@ -7,7 +7,6 @@ struct Assets {
 	AudioBuffer doubleJumpOrbSound;
 	AudioBuffer jumpSound;
 	AudioBuffer playerDeathSound;
-	AudioBuffer music;
 };
 
 extern Assets* assets;

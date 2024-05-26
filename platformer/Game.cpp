@@ -12,7 +12,8 @@
 Game::Game(Audio& audio)
 	: attractingOrbAudioSource(AudioSource::generate())
 	, audio(audio)
-	, musicAudioSource(AudioSource::generate()) {
+	, musicAudioSource(AudioSource::generate())
+	, musicAudioStream(AudioFileStream::fromFile("./platformer/Assets/sounds/perfect-beauty.ogg")) {
 	camera.zoom /= 280.0f;
 
 	attractingOrbAudioSource.setBuffer(assets->attractingOrbSound);
@@ -20,10 +21,12 @@ Game::Game(Audio& audio)
 	attractingOrbAudioSource.setLoop(true);
 	attractingOrbAudioSource.setGain(0.0f);
 
-	musicAudioSource.setBuffer(assets->music);
+	/*musicAudioSource.setBuffer(assets->music);
 	musicAudioSource.play();
 	musicAudioSource.setLoop(true);
-	musicAudioSource.setGain(0.0f);
+	musicAudioSource.setGain(0.0f);*/
+
+	musicAudioStream.play();
 }
 
 void Game::update() {
@@ -59,6 +62,8 @@ void Game::gameUpdate() {
 		.use = Input::isKeyHeld(KeyCode::J)
 	};
 
+	musicAudioStream.update();
+
 	if (Input::isKeyDown(KeyCode::R)) {
 		respawnPlayer();
 	}
@@ -69,14 +74,14 @@ void Game::gameUpdate() {
 		attractingOrbAudioSource.setGain(gain);
 	};
 
-	{
-		auto gain = musicAudioSource.getGain();
-		gain += dt;
-		if (gain > 1.0f) {
-			gain = 1.0f;
-		}
-		musicAudioSource.setGain(gain);
-	}
+	//{
+	//	auto gain = musicAudioSource.getGain();
+	//	gain += dt;
+	//	if (gain > 1.0f) {
+	//		gain = 1.0f;
+	//	}
+	//	musicAudioSource.setGain(gain);
+	//}
 
 	if (input.use && state == State::ALIVE) {
 		std::optional<f32> maxT;

@@ -8,6 +8,7 @@
 #include <platformer/Audio/Audio.hpp>
 #include <platformer/SoundGeneration.hpp>
 #include <platformer/Audio/AudioStream.hpp>
+#include <platformer/Audio/AudioFileStream.hpp>
 
 struct Game {
 	Game(Audio& audio);
@@ -72,4 +73,5 @@ struct Game {
 
 	AudioSource attractingOrbAudioSource;
 	AudioSource musicAudioSource;
+	AudioFileStream musicAudioStream;
 };
