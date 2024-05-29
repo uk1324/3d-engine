@@ -48,6 +48,16 @@ void Player::updateVelocity(
     if (isGrounded) {
         elapsedSinceLastGrounded = 0.0f;
     }
+    
+    elapsedSinceTouchedWallOnLeft += dt;
+    if (touchingWallOnLeft) {
+        elapsedSinceTouchedWallOnLeft = 0.0f;
+    }
+
+    elapsedSinceTouchedWallOnRight += dt;
+    if (touchingWallOnRight) {
+        elapsedSinceTouchedWallOnRight = 0.0f;
+    }
 
     elapsedSinceJumpPressed += dt;
     if (input.jump && jumpReleased) {
@@ -100,9 +110,9 @@ void Player::updateVelocity(
             };
             /*velocity += direction * distance * exp(-distance * distance / 4000.0f) / 20.0f;*/
             const auto acceleration = scale(distance);
-            ImGui::Text("accleration: %g", acceleration);
+            /*ImGui::Text("accleration: %g", acceleration);
             ImGui::Text("distance: %g", distance);
-            ImGui::Text("velocity: %g, %g", velocity.x, velocity.y);
+            ImGui::Text("velocity: %g, %g", velocity.x, velocity.y);*/
             velocity += direction * acceleration;
             velocity *= 0.99f;
             /*if (isnan(position.x) || isnan(position.y)) {
@@ -110,7 +120,8 @@ void Player::updateVelocity(
             }*/
         }
     }
-
+    // Istead of having coyote time could make it so you have to be within a certain distance from a wall to wall jump. This is done in celeste.
+    const auto wallJumpCoyoteTime = 0.05f;
     if (elapsedSinceJumpPressed < jumpPressedRememberTime && jumpReleased) {
         bool jumped = false;
 
@@ -127,12 +138,12 @@ void Player::updateVelocity(
             jumpedOffGround = false;
             // The orb gives a bigger jump, but doesn't allow holding space to extend it, because it the holding with the orb felt like flying.
             velocity.y = jumpSpeed * 1.3f;
-        } else if (!isGrounded && touchingWallOnLeft && elapsedSinceLastJumped) {
+        } else if (!isGrounded && elapsedSinceTouchedWallOnLeft < wallJumpCoyoteTime) {
             jumped = true;
             velocity = Vec2(jumpSpeed * 1.55f, jumpSpeed * 1.3f);
             jumpedOffGround = false;
             playJumpSound = true;
-        } else if (!isGrounded && touchingWallOnRight) {
+        } else if (!isGrounded && elapsedSinceTouchedWallOnRight < wallJumpCoyoteTime) {
             velocity = Vec2(-jumpSpeed * 1.55f, jumpSpeed * 1.3f);
             jumped = true;
             jumpedOffGround = false;
@@ -145,7 +156,6 @@ void Player::updateVelocity(
 
         if (jumped) {
             jumpReleased = false;
-            //blockThatIsBeingStoodOnVelocity = std::nullopt;
             isGrounded = false;
             blockThatIsBeingTouchedMovementDelta = std::nullopt;
             elapsedSinceJumpPressed = 0.0f;

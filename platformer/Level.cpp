@@ -57,7 +57,8 @@ void saveLevelToFile(std::string_view path, const Level& level) {
 	put("saving level to '%'", path);
 	const auto json = toJson(level);
 	std::ofstream file(path.data());
-	Json::print(file, json);
+	/*Json::print(file, json);*/
+	Json::prettyPrint(file, json);
 }
 
 MovingBlockAabbs movingBlockAabbs(Vec2 position, Vec2 size, Vec2 endPosition) {
