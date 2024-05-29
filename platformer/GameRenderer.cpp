@@ -19,6 +19,7 @@
 
 GameRenderer::GameRenderer()
 	: renderer(Renderer2d::make())
+	, fontRenderer(renderer.fullscreenQuad2dPtVerticesVbo, renderer.fullscreenQuad2dPtVerticesIbo, renderer.instancesVbo)
 	// TODO: maybe allow the manager to take one source one path to source.
 	, gridShader(MAKE_GENERATED_SHADER(GRID))
 	, gridVao(MAKE_VAO(Grid))
@@ -36,7 +37,9 @@ GameRenderer::GameRenderer()
 	, attractingOrbVao(MAKE_VAO(AttractingOrb))
 	, attractingOrbShader(MAKE_GENERATED_SHADER(ATTRACTING_ORB)) 
 	, doubleJumpOrbVao(MAKE_VAO(DoubleJumpOrb))
-	, doubleJumpOrbShader(MAKE_GENERATED_SHADER(DOUBLE_JUMP_ORB)) {
+	, doubleJumpOrbShader(MAKE_GENERATED_SHADER(DOUBLE_JUMP_ORB))
+	, font(FontRenderer::loadFont("platformer/assets/fonts", "Orbitron-Medium")) {
+
 }
 
 void GameRenderer::update() {

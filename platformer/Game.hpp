@@ -6,9 +6,12 @@
 #include <RefOptional.hpp> 
 #include <Array2d.hpp> 
 #include <platformer/GameAudio.hpp>
+#include <platformer/Menu.hpp>
 
 struct Game {
 	Game();
+
+	Menu menu;
 
 	void update();
 	void gameUpdate();
@@ -31,6 +34,7 @@ struct Game {
 
 		void update(f32 dt);
 	} screenTransitionAnimation;*/
+
 
 
 	Player player;

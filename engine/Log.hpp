@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Put.hpp>
-#include <Utils/DebugBreak.hpp>
+#include <DebugBreak.hpp>
 
 namespace Log {
 	template<typename ...Args>

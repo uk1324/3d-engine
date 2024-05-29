@@ -8,13 +8,16 @@
 #include <engine/Math/Utils.hpp>
 #include <glad/glad.h>
 
-
-Game::Game() {
+Game::Game() 
+	: menu(renderer) {
 	camera.zoom /= 280.0f;
 }
 
 void Game::update() {
 	ShaderManager::update();
+
+	menu.update(renderer);
+	return;
 
 	if (Input::isKeyDown(KeyCode::TAB)) {
 		if (mode == Mode::EDITOR) {

@@ -4,6 +4,7 @@
 #include <platformer/Blocks.hpp>
 #include <platformer/Player.hpp>
 #include <framework/Renderer2d.hpp>
+#include <framework/FontRendering/FontRenderer.hpp>
 #include <platformer/Shaders/attractingOrbData.hpp>
 #include <platformer/Shaders/doubleJumpOrbData.hpp>
 
@@ -38,6 +39,7 @@ struct GameRenderer {
 	void renderBackground();
 
 	Renderer2d renderer;
+	FontRenderer fontRenderer;
 
 	Vao gridVao;
 	ShaderProgram& gridShader;
@@ -64,6 +66,8 @@ struct GameRenderer {
 
 	Vao doubleJumpOrbVao;
 	ShaderProgram& doubleJumpOrbShader;
+
+	Font font;
 
 	f32 backgroundElapsed = 0.0f;
 };
