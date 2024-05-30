@@ -10,3 +10,6 @@ Could make bullets and explosion effects.
 Blocks that switch on and off like celeste b side rooms.
 
 could make the title have a 3d glasses effect
+
+Could add swing orb. The player would swing on the nearest orb. The motion would be restricted to a circle.
+The player would connect to the orb using a beam. Could make the orb a different color from the player and then mix the colors in some way.

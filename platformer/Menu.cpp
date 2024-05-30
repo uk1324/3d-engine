@@ -3,31 +3,23 @@
 #include <imgui/imgui.h>
 #include <engine/Math/Utils.hpp>
 #include <engine/Window.hpp>
+#include <engine/Input/Input.hpp>
 #include <framework/Dbg.hpp>
+
+// Making a layout by calculating the total height and scaling things so that they fit would make it so that elements (like text) change size in different screens. 
+// If things don't fit on a single screen then some sort of scrolling needs to be implemented. The simplest thing is to probably just specify sizes in fractions of full screen size and just don't put too many things.
+// The layout builder could return an index into a position array. This index would be stored in the retained structs that would store things like the animationT.
 
 Menu::Menu(GameRenderer& renderer)
 	: renderer(renderer) {
 	camera.zoom /= 280.0f;
-}
-
-void Menu::update(GameRenderer& renderer) {
-	glClear(GL_COLOR_BUFFER_BIT);
-	glViewport(0, 0, Window::size().x, Window::size().y);
-	camera.aspectRatio = Window::aspectRatio();
 
 	f32 logoSize = 0.15f;
-	struct Text {
-		const char* text;
-		Vec2 position = Vec2(0.0f);
-		Vec2 size = Vec2(0.0f);
-	};
-	std::vector<Text> texts;
-	f32 totalHeight = 0.0f;
 	auto addText = [&](const char* text, f32 height) {
 		texts.push_back(Text{
 			.text = text,
 			.position = Vec2(0.0f, totalHeight),
-			.size = Vec2(0.0f, height)
+			.sizeY = height,
 		});
 		totalHeight += height;
 	};
@@ -36,7 +28,7 @@ void Menu::update(GameRenderer& renderer) {
 	};
 	addPadding(0.2f);
 	f32 buttonSize = 0.05f;
-	addText("AXOMETRIC", 0.15f);
+	addText("AXOMETRIC", logoSize);
 	addPadding(0.03f);
 	addText({ "play" }, buttonSize);
 	addPadding(0.03f);
@@ -46,36 +38,44 @@ void Menu::update(GameRenderer& renderer) {
 	addPadding(0.03f);
 	addText({ "exit" }, buttonSize);
 	addPadding(0.2f);
+}
+
+void Menu::update(GameRenderer& renderer) {
+	glClear(GL_COLOR_BUFFER_BIT);
+	glViewport(0, 0, Window::size().x, Window::size().y);
+	camera.aspectRatio = Window::aspectRatio();
 
 	const auto view = camera.aabb();
 	const auto viewSize = view.size();
-	for (const auto& text : texts) {
+	for (auto& text : texts) {
 		f32 yt = text.position.y / totalHeight;
 		f32 y = lerp(view.max.y, view.min.y, yt);
 		Vec2 position = Vec2(camera.pos.x, y);
-		f32 sizeY = text.size.y / totalHeight * viewSize.y;
-		drawTextCentered(renderer, text.text, position, sizeY);
+		f32 sizeY = text.sizeY / totalHeight * viewSize.y;
 		const auto aabb = getTextAabb(text.text, position, sizeY);
-		Dbg::drawAabb(aabb, Vec3(1.0f), 4.0f);
+		text.aabb = aabb;
+		drawTextCentered(renderer, text.text, position, sizeY);
 	}
-	//drawTextCentered(renderer, "test", camera.pos, 55.2f);
 
-	//for (auto& button : buttons) {
-	//	y += padding;
-	//	//drawTextCentered(renderer, button.text, Vec2(camera.pos.x, lerp(view.max.x, view.min.x, y)), view.size().y * buttonSize);
-	//	y += buttonSize;
-	//}
+	const auto cursorPos = Input::cursorPosClipSpace() * camera.clipSpaceToWorldSpace();
+	for (auto& text : texts) {
+		if (text.aabb.contains(cursorPos)) {
+			text.hoverAnimationT -= 0.2f;
+		} else {
+			text.hoverAnimationT += 0.2f;
+		}
+		text.hoverAnimationT = std::clamp(text.hoverAnimationT, 0.0f, 1.0f);
+	}
 
-	/*drawTextCentered(renderer, "AXOMETRIC", Vec2(camera.pos.x, lerp(view.min.x, view.max.x, y)), y - logoSize / 2.0f);*/
-	//drawTextCentered(renderer, "AXOMETRIC", Vec2(camera.pos.x, lerp(view.max.x, view.min.x, y)), view.size().y * logoSize);
-	//y += logoSize / 2.0f;
+	for (auto& text : texts) {
+		if (!text.aabb.contains(cursorPos) || !Input::isMouseButtonDown(MouseButton::LEFT)) {
+			continue;
+		}
 
-	////f32 padding = 0.02f;
-	//for (auto& button : buttons) {
-	//	y += padding;
-	//	//drawTextCentered(renderer, button.text, Vec2(camera.pos.x, lerp(view.max.x, view.min.x, y)), view.size().y * buttonSize);
-	//	y += buttonSize;
-	//}
+		if (text.text == "exit") {
+			Window::close();
+		}
+	}
 
 	renderer.renderBackground();
 	renderer.update(); // TODO: maybe make renderer.updateTime(); or maybe store local time and pass it to the function
@@ -83,9 +83,6 @@ void Menu::update(GameRenderer& renderer) {
 	renderer.renderer.camera = camera;
 
 	glEnable(GL_BLEND);
-
-	//drawTextCentered(renderer, "AXOMETRIC", camera.pos, 80.0f);
-	
 	renderer.fontRenderer.render(renderer.font, renderer.renderer.instancesVbo);
 	glDisable(GL_BLEND);
 }
@@ -110,4 +107,19 @@ Aabb Menu::getTextAabb(std::string_view text, Vec2 position, f32 height) {
 	position -= info.size / 2.0f;
 	position.y -= info.size.y / 2.0f;
 	return Aabb::fromCorners(position, position + info.size);
+}
+
+void UiLayout::addPadding(f32 sizeY) {
+	totalSizeY += sizeY;
+}
+
+i32 UiLayout::addBlock(f32 sizeY) {
+	const auto id = static_cast<i32>(blocks.size());
+	blocks.push_back(Block{
+		.yPosition = totalSizeY,
+		.sizeY = sizeY,
+		.aabb = Aabb(Vec2(0.0f), Vec2(0.0f))
+	});
+	totalSizeY += sizeY;
+	return id;
 }
