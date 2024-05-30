@@ -16,7 +16,7 @@ Game::Game()
 void Game::update() {
 	ShaderManager::update();
 
-	menu.update(renderer);
+	menu.update(dt);
 	return;
 
 	if (Input::isKeyDown(KeyCode::TAB)) {

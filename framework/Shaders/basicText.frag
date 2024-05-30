@@ -24,24 +24,10 @@ float getD(vec2 p) {
 
 void main() {
 	float smoothingWidth = min(smoothing, 0.49);
-	{
-		float d = texture(fontAtlas, texturePosition).r;
-		float smoothingWidth = min(smoothing, 0.49);
-		d -= 0.5 - smoothingWidth;
-		vec2 p = texturePosition;
-		d = smoothstep(0.0, smoothingWidth, d);
-		fragColor = vec4(vec3(d), d) * color;
-	}
-	float off = offset;
-	off = -0.002;
 	float d = getD(texturePosition).r;
-//	float d0 = getD(texturePosition - vec2(off, 0.0)).r;
-//	float d1 = getD(texturePosition + vec2(off, 0.0)).r;
-	float d0 = getD(texturePosition - vec2(off)).r;
-	float d1 = getD(texturePosition + vec2(off)).r;
-	//vec3 col = d0 * vec3(1.0, 0.0, 1.0) + d1 * vec3(0.0, 1.0, 0.0);
-	//vec3 col = d0 * vec3(0.0, 1.0, 0.0) + d1 * vec3(0.0, 0.0, 1.0) + d * vec3(1.0);
+	float d0 = getD(texturePosition - vec2(offset)).r;
+	float d1 = getD(texturePosition + vec2(offset)).r;
 	vec3 col = d0 * vec3(0.0, 1.0, 1.0) + d1 * vec3(0.0, 0.0, 1.0) + d * vec3(1.0);
-	//col = vec3(d0);
 	fragColor = vec4(col, max(d0, d1));
+	//fragColor = vec4(1.0);
 }

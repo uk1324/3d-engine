@@ -18,6 +18,7 @@ namespace Dbg {
 	void drawAabb(Vec2 min, Vec2 max, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
 	void drawAabb(const Aabb& aabb, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
 	void drawFilledAabb(Vec2 min, Vec2 max, Vec3 color = DEFAULT_COLOR);
+	void drawFilledAabb(const Aabb& aabb, Vec3 color = DEFAULT_COLOR);
 	void drawFilledTriangle(Vec2 v0, Vec2 v1, Vec2 v3, Vec3 color = DEFAULT_COLOR);
 
 	void update();

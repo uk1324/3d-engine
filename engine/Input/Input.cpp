@@ -53,6 +53,10 @@ auto Input::anyKeyPressed() -> bool {
 	return anyKeyPressed_;
 }
 
+std::optional<KeyCode> Input::lastKeycodeDownThisFrame() {
+	return lastKeycodeDownThisFrame_;
+}
+
 auto Input::update() -> void {
 	keyDown.reset();
 	keyDownWithAutoRepeat.reset();
@@ -64,6 +68,7 @@ auto Input::update() -> void {
 
 	scrollDelta_ = 0.0f;
 	anyKeyPressed_ = false;
+	lastKeycodeDownThisFrame_ = std::nullopt;
 }
 
 static auto setIfAlreadyExists(std::unordered_map<int, bool>& map, int key, bool value) -> void {
@@ -102,6 +107,8 @@ auto Input::onKeyDown(u16 virtualKeyCode, bool autoRepeat) -> void {
 		}
 		setIfAlreadyExists(buttonDownWithAutoRepeat, buttonCode, true);
 	}
+
+	lastKeycodeDownThisFrame_ = static_cast<KeyCode>(virtualKeyCode);
 }
 
 auto Input::onKeyUp(u16 virtualKeyCode) -> void {
@@ -145,3 +152,4 @@ Vec2 Input::cursorPosClipSpace_ = Vec2(0.0f);
 Vec2 Input::cursorPosWindowSpace_ = Vec2(0.0f);
 float Input::scrollDelta_ = 0.0f;
 bool Input::anyKeyPressed_ = false;
+std::optional<KeyCode> Input::lastKeycodeDownThisFrame_ = std::nullopt;

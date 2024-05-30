@@ -56,6 +56,10 @@ void Dbg::drawFilledAabb(Vec2 min, Vec2 max, Vec3 color) {
 	filledTriangles.push_back(FilledTriangle{ .v = { v[0], v[2], v[3] }, .color = color });*/
 }
 
+void Dbg::drawFilledAabb(const Aabb& aabb, Vec3 color) {
+	drawFilledAabb(aabb.min, aabb.max, color);
+}
+
 void Dbg::drawFilledTriangle(Vec2 v0, Vec2 v1, Vec2 v3, Vec3 color) {
 	//triangle
 }
