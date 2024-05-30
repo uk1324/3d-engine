@@ -1,8 +1,8 @@
 #include <engine/Engine.hpp>
 #include <engine/EngineUpdateLoop.hpp>
-#include <platformer/Game.hpp>
 #include <platformer/Audio/Audio.hpp>
 #include <platformer/Assets.hpp>
+#include <platformer/MainLoop.hpp>
 
 int main() {
 	Engine::initAll(Window::Settings{ .multisamplingSamplesPerPixel = 4 });
@@ -13,10 +13,10 @@ int main() {
 		// Loading it here so they are destroyed in the correct order.
 
 		EngineUpdateLoop loop(60.0);
-		auto game = Game();
+		MainLoop mainLoop;
 
 		while (loop.isRunning()) {
-			game.update();
+			mainLoop.update();
 		}
 	}
 	Audio::deinit();

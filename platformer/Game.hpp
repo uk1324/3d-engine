@@ -11,8 +11,6 @@
 struct Game {
 	Game();
 
-	Menu menu;
-
 	void update();
 	void gameUpdate();
 	void gameRender();

@@ -1,0 +1,17 @@
+struct [[Json]] SettingsAudio {
+	float masterVolume;
+	float soundEffectVolume;
+	float musicVolume;
+}
+
+struct [[Json]] SettingsControls {
+	i32 left;
+	i32 right;
+	i32 jump;
+	i32 activate;
+}
+
+struct [[Json]] Settings {
+	SettingsAudio audio;
+	SettingsControls controls;
+}

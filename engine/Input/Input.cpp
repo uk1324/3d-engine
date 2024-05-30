@@ -3,19 +3,35 @@
 #include <imgui.h>
 
 auto Input::isKeyDown(KeyCode key) -> bool {
-	return keyDown[static_cast<size_t>(key)];
+	const auto code = static_cast<size_t>(key);
+	if (code >= keyDown.size()) {
+		return false;
+	}
+	return keyDown[code];
 }
 
 auto Input::isKeyDownWithAutoRepeat(KeyCode key) -> bool {
-	return keyDownWithAutoRepeat[static_cast<usize>(key)];
+	const auto code = static_cast<usize>(key);
+	if (code >= keyDownWithAutoRepeat.size()) {
+		return false;
+	}
+	return keyDownWithAutoRepeat[code];
 }
 
 auto Input::isKeyUp(KeyCode key) -> bool {
-	return keyUp[static_cast<usize>(key)];
+	const auto code = static_cast<usize>(key);
+	if (code >= keyUp.size()) {
+		return false;
+	}
+	return keyUp[code];
 }
 
 auto Input::isKeyHeld(KeyCode key) -> bool {
-	return keyHeld[static_cast<usize>(key)];
+	const auto code = static_cast<usize>(key);
+	if (code >= keyHeld.size()) {
+		return false;
+	}
+	return keyHeld[code];
 }
 
 auto Input::isMouseButtonDown(MouseButton button) -> bool {

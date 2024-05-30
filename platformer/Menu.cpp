@@ -23,6 +23,11 @@ static constexpr const char* playButtonName = "play";
 static constexpr const char* soundSettingsButtonName = "sound settings";
 static constexpr const char* controlsButtonName = "controls";
 static constexpr const char* exitButtonName = "exit";
+static constexpr const char* saveButtonName = "save";
+static constexpr const char* cancelButtonName = "cancel";
+static constexpr const char* masterVolumeSliderName = "master";
+static constexpr const char* soundEffectVolumeSliderName = "sound effect";
+static constexpr const char* musicVolumeSliderName = "music";
 
 static constexpr f32 buttonSize = 0.05f;
 static constexpr f32 soundSettingsTitleSize = buttonSize * 1.5f;
@@ -52,48 +57,57 @@ Menu::Menu(GameRenderer& renderer)
 	}
 
 	{
-		auto addKeycodeInput = [&](std::string_view name, KeyCode keycode) {
+		auto addKeycodeInput = [&](std::string_view name, KeyCode keycode) -> i32 {
+			i32 index = controlsUi.keycodeInputs.size();
 			controlsUi.keycodeInputs.push_back(KeycodeInput{
 				.name = name,
 				.id = controlsUi.layout.addBlock(buttonSize),
 				.selectionId = controlsUi.selection.add(),
 				.keycode = keycode,
 			});
+			return index;
 		};
 		controlsUi.titleId = controlsUi.layout.addBlock(controlsTitleSize);
 		controlsUi.layout.addPadding(padding);
-		addKeycodeInput("left", KeyCode::A);
+		controlsUi.leftKeycodeInputIndex = addKeycodeInput("left", KeyCode::A);
 		controlsUi.layout.addPadding(padding);
-		addKeycodeInput("right", KeyCode::D);
+		controlsUi.rightKeycodeInputIndex = addKeycodeInput("right", KeyCode::D);
 		controlsUi.layout.addPadding(padding);
-		addKeycodeInput("jump", KeyCode::SPACE);
+		controlsUi.jumpKeycodeInputIndex = addKeycodeInput("jump", KeyCode::SPACE);
 		controlsUi.layout.addPadding(padding);
-		addKeycodeInput("activate", KeyCode::J);
+		controlsUi.activateKeycodeInputIndex = addKeycodeInput("activate", KeyCode::J);
 		controlsUi.layout.addPadding(padding);
-		addButton(controlsUi.buttons, controlsUi.layout, controlsUi.selection, "save", buttonSize);
+		addButton(controlsUi.buttons, controlsUi.layout, controlsUi.selection, saveButtonName, buttonSize);
 		controlsUi.layout.addPadding(padding);
-		addButton(controlsUi.buttons, controlsUi.layout, controlsUi.selection, "cancel", buttonSize);
+		addButton(controlsUi.buttons, controlsUi.layout, controlsUi.selection, cancelButtonName, buttonSize);
 	}
 
 	{
-		auto addSliderInput = [&](std::string_view name) {
+		auto addSliderInput = [&](std::string_view name) -> i32 {
+			i32 index = soundSettingsUi.sliderInputs.size();
 			soundSettingsUi.sliderInputs.push_back(SliderInput{
 				.name = name,
 				.id = soundSettingsUi.layout.addBlock(buttonSize),
 				.selectionId = soundSettingsUi.selection.add(),
 			});
+			return index;
 		};
 		soundSettingsUi.titleId = soundSettingsUi.layout.addBlock(soundSettingsTitleSize);
 		soundSettingsUi.layout.addPadding(padding);
-		addSliderInput("master");
+
+		soundSettingsUi.masterVolumeSliderIndex = addSliderInput(masterVolumeSliderName);
 		soundSettingsUi.layout.addPadding(padding);
-		addSliderInput("sound effect");
+
+		soundSettingsUi.soundEffectVolumeSliderIndex = addSliderInput(soundEffectVolumeSliderName);
 		soundSettingsUi.layout.addPadding(padding);
-		addSliderInput("music");
+
+		soundSettingsUi.musicVolumeSliderIndex = addSliderInput(musicVolumeSliderName);
 		soundSettingsUi.layout.addPadding(padding);
-		addButton(soundSettingsUi.buttons, soundSettingsUi.layout, soundSettingsUi.selection, "save", buttonSize);
+
+		addButton(soundSettingsUi.buttons, soundSettingsUi.layout, soundSettingsUi.selection, saveButtonName, buttonSize);
 		soundSettingsUi.layout.addPadding(padding);
-		addButton(soundSettingsUi.buttons, soundSettingsUi.layout, soundSettingsUi.selection, "cancel", buttonSize);
+
+		addButton(soundSettingsUi.buttons, soundSettingsUi.layout, soundSettingsUi.selection, cancelButtonName, buttonSize);
 	}
 }
 
@@ -118,29 +132,24 @@ static f32 hoverAnimationTToOffset(f32 animationT) {
 	return -animationT * 0.0035f;
 }
 
-void Menu::update(f32 dt) {
+Menu::Event Menu::update(f32 dt) {
 	glClear(GL_COLOR_BUFFER_BIT);
 	glViewport(0, 0, Window::size().x, Window::size().y);
 	camera.aspectRatio = Window::aspectRatio();
 
-
-
-	//{
-	//	
-	//}
-	//{
-	//	const char* text = "W";
-	//	const auto info = renderer.fontRenderer.getTextInfo(renderer.font, height, text);
-	//	Vec2 position = camera.pos;
-	//	position.y -= info.size.y / 2.0f;
-	//	position.x += 40.0f;
-	//	drawText(text, position, height, 0.0f);
-	//}
-
-	
-	updateControlsUi(dt);
-	//updateSoundSettingsUi(dt);
-	//updateMainMenuUi(dt);
+	Event result = Event::NONE;
+	switch (currentScreen) {
+		using enum UiScreen;
+	case MAIN:
+		result = updateMainMenuUi(dt);
+		break;
+	case SOUND_SETTINGS:
+		result = updateSoundSettingsUi(dt);
+		break;
+	case CONTROLS:
+		result = updateControlsUi(dt);
+		break;
+	}
 
 	renderer.renderBackground();
 	renderer.update(); // TODO: maybe make renderer.updateTime(); or maybe store local time and pass it to the function
@@ -150,6 +159,7 @@ void Menu::update(f32 dt) {
 	glEnable(GL_BLEND);
 	renderer.fontRenderer.render(renderer.font, renderer.renderer.instancesVbo);
 	glDisable(GL_BLEND);
+	return result;
 }
 
 void Menu::drawTextCentered(std::string_view text, Vec2 position, f32 height, f32 offset) {
@@ -182,7 +192,8 @@ Aabb Menu::getTextAabb(std::string_view text, Vec2 position, f32 height) {
 	return Aabb::fromCorners(position, position + info.size);
 }
 
-void Menu::updateMainMenuUi(f32 dt) {
+Menu::Event Menu::updateMainMenuUi(f32 dt) {
+	Event result = Event::NONE;
 	mainMenuUi.layout.update(camera);
 	mainMenuUi.selection.update();
 
@@ -200,13 +211,45 @@ void Menu::updateMainMenuUi(f32 dt) {
 			continue;
 		}
 
-		if (button.text == exitButtonName) {
+		if (button.text == playButtonName) {
+			result = Event::TRANSITION_TO_GAME;
+		} else if (button.text == soundSettingsButtonName) {
+			currentScreen = UiScreen::SOUND_SETTINGS;
+		} else if (button.text == controlsButtonName) {
+			currentScreen = UiScreen::CONTROLS;
+		} else if (button.text == exitButtonName) {
 			Window::close();
 		}
 	}
+	return result;
 }
 
-void Menu::updateSoundSettingsUi(f32 dt) {
+void Menu::setControlsSettings(const SettingsControls& settings) {
+	auto& c = controlsUi;
+	auto set = [&](i32 index, i32 value) {
+		c.keycodeInputs[index].keycode = static_cast<KeyCode>(value);
+	};
+	set(c.leftKeycodeInputIndex, settings.left);
+	set(c.rightKeycodeInputIndex, settings.right);
+	set(c.jumpKeycodeInputIndex, settings.jump);
+	set(c.activateKeycodeInputIndex, settings.activate);
+}
+
+SettingsControls Menu::getControlsSettings() const {
+	auto& c = controlsUi;
+	auto get = [&](i32 index) -> i32 {
+		return static_cast<i32>(c.keycodeInputs[index].keycode);
+	};
+	return SettingsControls{
+		.left = get(c.leftKeycodeInputIndex),
+		.right = get(c.rightKeycodeInputIndex),
+		.jump = get(c.jumpKeycodeInputIndex),
+		.activate = get(c.activateKeycodeInputIndex),
+	};
+}
+
+Menu::Event Menu::updateSoundSettingsUi(f32 dt) {
+	Event result = Event::NONE;
 	soundSettingsUi.layout.update(camera);
 	soundSettingsUi.selection.update();
 
@@ -230,10 +273,23 @@ void Menu::updateSoundSettingsUi(f32 dt) {
 	}
 
 	for (auto& button : soundSettingsUi.buttons) {
+		const auto isSelected = soundSettingsUi.selection.isSelected(button.selectionId);
 		updateHoverAnimation(
 			button.hoverAnimationT,
-			soundSettingsUi.selection.isSelected(button.selectionId),
+			isSelected,
 			dt);
+
+		const auto pressed = Input::isKeyDown(KeyCode::ENTER);
+		if (!isSelected || !pressed) {
+			continue;
+		}
+
+		if (button.text == saveButtonName) {
+			currentScreen = UiScreen::MAIN;
+			result = Event::SAVE_SOUND_SETTINGS;
+		} else if (button.text == cancelButtonName) {
+			currentScreen = UiScreen::MAIN;
+		}
 	}
 
 	drawTitle("volume", soundSettingsUi.layout.blocks[soundSettingsUi.titleId]);
@@ -267,6 +323,7 @@ void Menu::updateSoundSettingsUi(f32 dt) {
 	for (const auto& button : soundSettingsUi.buttons) {
 		drawButton(button, soundSettingsUi.layout);
 	}
+	return result;
 }
 
 void Menu::drawTitle(const char* text, const UiLayout::Block& block) {
@@ -278,7 +335,30 @@ void Menu::drawTitle(const char* text, const UiLayout::Block& block) {
 	drawText(text, position, height, 0.0f);
 }
 
-void Menu::updateControlsUi(f32 dt) {
+void Menu::setAudioSettings(const SettingsAudio& settings) {
+	auto& u = soundSettingsUi;
+	auto set = [&](i32 index, f32 value) {
+		u.sliderInputs[index].value = value;
+	};
+	set(u.masterVolumeSliderIndex, settings.masterVolume);
+	set(u.musicVolumeSliderIndex, settings.musicVolume);
+	set(u.soundEffectVolumeSliderIndex, settings.soundEffectVolume);
+}
+
+SettingsAudio Menu::getAudioSettings() const {
+	auto& u = soundSettingsUi;
+	auto get = [&](i32 index) -> f32 {
+		return u.sliderInputs[index].value;
+	};
+	return SettingsAudio {
+		.masterVolume = get(u.masterVolumeSliderIndex),
+		.soundEffectVolume = get(u.soundEffectVolumeSliderIndex),
+		.musicVolume = get(u.musicVolumeSliderIndex),
+	};
+}
+
+Menu::Event Menu::updateControlsUi(f32 dt) {
+	Event result = Event::NONE;
 	controlsUi.layout.update(camera);
 
 	bool inInputMode = false;
@@ -308,10 +388,23 @@ void Menu::updateControlsUi(f32 dt) {
 	}
 
 	for (auto& button : controlsUi.buttons) {
+		const auto isSelected = controlsUi.selection.isSelected(button.selectionId);
 		updateHoverAnimation(
 			button.hoverAnimationT,
-			controlsUi.selection.isSelected(button.selectionId),
+			isSelected,
 			dt);
+
+		const auto pressed = Input::isKeyDown(KeyCode::ENTER);
+		if (!isSelected || !pressed) {
+			continue;
+		}
+
+		if (button.text == saveButtonName) {
+			currentScreen = UiScreen::MAIN;
+			result = Event::SAVE_CONTROLS;
+		} else if (button.text == cancelButtonName) {
+			currentScreen = UiScreen::MAIN;
+		}
 	}
 
 	drawTitle("controls", controlsUi.layout.blocks[controlsUi.titleId]);
@@ -343,6 +436,8 @@ void Menu::updateControlsUi(f32 dt) {
 	for (const auto& button : controlsUi.buttons) {
 		drawButton(button, controlsUi.layout);
 	}
+
+	return result;
 }
 
 void Menu::drawButton(const Button& button, const UiLayout& layout) {
