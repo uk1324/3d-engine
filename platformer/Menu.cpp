@@ -168,7 +168,7 @@ static f32 hoverAnimationTToOffset(f32 animationT) {
 //	return result;
 //}
 
-Menu::Event Menu::updateMainMenu(f32 dt) {
+Menu::Event Menu::updateMainMenu(f32 dt, const Settings& settings) {
 	glClear(GL_COLOR_BUFFER_BIT);
 	glViewport(0, 0, Window::size().x, Window::size().y);
 	camera.aspectRatio = Window::aspectRatio();
@@ -179,7 +179,7 @@ Menu::Event Menu::updateMainMenu(f32 dt) {
 	switch (currentScreen) {
 		using enum UiScreen;
 	case MAIN:
-		result = updateMainMenuUi(dt);
+		result = updateMainMenuUi(dt, settings);
 		break;
 	case SOUND_SETTINGS:
 		result = updateSoundSettingsUi(dt);
@@ -193,12 +193,12 @@ Menu::Event Menu::updateMainMenu(f32 dt) {
 	return result;
 }
 
-Menu::Event Menu::updateGamePaused(f32 dt) {
+Menu::Event Menu::updateGamePaused(f32 dt, const Settings& settings) {
 	Event result = Event::NONE;
 	switch (currentScreen) {
 		using enum UiScreen;
 	case MAIN:
-		result = updateGamePausedUi(dt);
+		result = updateGamePausedUi(dt, settings);
 		break;
 	case SOUND_SETTINGS:
 		result = updateSoundSettingsUi(dt);
@@ -219,6 +219,16 @@ void Menu::renderUpdate() {
 	glEnable(GL_BLEND);
 	renderer.fontRenderer.render(renderer.font, renderer.renderer.instancesVbo);
 	glDisable(GL_BLEND);
+}
+
+void Menu::changeToControlsUi(const Settings& settings) {
+	currentScreen = UiScreen::CONTROLS;
+	setControlsSettings(settings.controls);
+}
+
+void Menu::changeToAudioSettingsUi(const Settings& settings) {
+	currentScreen = UiScreen::SOUND_SETTINGS;
+	setAudioSettings(settings.audio);
 }
 
 void Menu::drawTextCentered(std::string_view text, Vec2 position, f32 height, f32 offset) {
@@ -251,7 +261,7 @@ Aabb Menu::getTextAabb(std::string_view text, Vec2 position, f32 height) {
 	return Aabb::fromCorners(position, position + info.size);
 }
 
-Menu::Event Menu::updateMainMenuUi(f32 dt) {
+Menu::Event Menu::updateMainMenuUi(f32 dt, const Settings& settings) {
 	Event result = Event::NONE;
 	mainMenuUi.layout.update(camera);
 	mainMenuUi.selection.update();
@@ -273,9 +283,9 @@ Menu::Event Menu::updateMainMenuUi(f32 dt) {
 		if (button.text == playButtonName) {
 			result = Event::TRANSITION_TO_GAME;
 		} else if (button.text == soundSettingsButtonName) {
-			currentScreen = UiScreen::SOUND_SETTINGS;
+			changeToAudioSettingsUi(settings);
 		} else if (button.text == controlsButtonName) {
-			currentScreen = UiScreen::CONTROLS;
+			changeToControlsUi(settings);
 		} else if (button.text == exitButtonName) {
 			Window::close();
 		}
@@ -499,7 +509,7 @@ Menu::Event Menu::updateControlsUi(f32 dt) {
 	return result;
 }
 
-Menu::Event Menu::updateGamePausedUi(f32 dt) {
+Menu::Event Menu::updateGamePausedUi(f32 dt, const Settings& settings) {
 	Event result = Event::NONE;
 	gamePausedUi.layout.update(camera);
 	gamePausedUi.selection.update();
@@ -521,9 +531,9 @@ Menu::Event Menu::updateGamePausedUi(f32 dt) {
 		if (button.text == resumeButtonName) {
 			result = Event::RESUME_GAME;
 		} else if (button.text == soundSettingsButtonName) {
-			currentScreen = UiScreen::SOUND_SETTINGS;
+			changeToAudioSettingsUi(settings);
 		} else if (button.text == controlsButtonName) {
-			currentScreen = UiScreen::CONTROLS;
+			changeToControlsUi(settings);
 		} else if (button.text == mainMenuButtonName) {
 			result = Event::TRANSITON_TO_MAIN_MENU;
 		} else if (button.text == exitButtonName) {

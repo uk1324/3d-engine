@@ -114,11 +114,11 @@ void MainLoop::gamePausedUpdate() {
 		state = State::GAME;
 	}
 
-	handleMenuEvent(menu.updateGamePaused(dt));
+	handleMenuEvent(menu.updateGamePaused(dt, settings.settings));
 }
 
 void MainLoop::menuUpdate() {
-	handleMenuEvent(menu.updateMainMenu(dt));
+	handleMenuEvent(menu.updateMainMenu(dt, settings.settings));
 }
 
 void MainLoop::handleMenuEvent(Menu::Event event) {
@@ -149,6 +149,7 @@ void MainLoop::handleMenuEvent(Menu::Event event) {
 		settings.settings.controls = menu.getControlsSettings();
 		settings.saveSettings();
 		break;
+
 	}
 }
 

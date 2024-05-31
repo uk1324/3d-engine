@@ -139,8 +139,8 @@ struct Menu {
 	SettingsAudio getAudioSettings() const;
 
 	Event updateControlsUi(f32 dt);
-	Event updateGamePausedUi(f32 dt);
-	Event updateMainMenuUi(f32 dt);
+	Event updateGamePausedUi(f32 dt, const Settings& settings);
+	Event updateMainMenuUi(f32 dt, const Settings& settings);
 	Event updateSoundSettingsUi(f32 dt);
 
 	void drawText(std::string_view text, const UiLayout& layout, i32 id, f32 offset);
@@ -149,9 +149,12 @@ struct Menu {
 	std::vector<Text> texts;
 
 	//Event update(f32 dt);
-	Event updateMainMenu(f32 dt);
-	Event updateGamePaused(f32 dt);
+	Event updateMainMenu(f32 dt, const Settings& settings);
+	Event updateGamePaused(f32 dt, const Settings& settings);
 	void renderUpdate();
+
+	void changeToControlsUi(const Settings& settings);
+	void changeToAudioSettingsUi(const Settings& settings);
 
 	void drawTextCentered(std::string_view text, Vec2 position, f32 height, f32 offset);
 	void drawText(std::string_view text, Vec2 bottomLeftPosition, f32 height, f32 offset);

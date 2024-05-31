@@ -58,9 +58,13 @@ Settings SettingsManager::defaultSettings = Settings{
 		.musicVolume = 0.5f,
 	},
 	.controls = {
-		.left = static_cast<i32>(KeyCode::LEFT),
+	/*	.left = static_cast<i32>(KeyCode::LEFT),
 		.right = static_cast<i32>(KeyCode::RIGHT),
 		.jump = static_cast<i32>(KeyCode::Z),
-		.activate = static_cast<i32>(KeyCode::X),
+		.activate = static_cast<i32>(KeyCode::X),*/
+		.left = static_cast<i32>(KeyCode::A),
+		.right = static_cast<i32>(KeyCode::D),
+		.jump = static_cast<i32>(KeyCode::SPACE),
+		.activate = static_cast<i32>(KeyCode::J),
 	}
 };
