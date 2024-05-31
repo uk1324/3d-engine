@@ -35,7 +35,7 @@ Texture::Texture(std::string_view path) {
 	static constexpr int REQUIRED_CHANNEL_COUNT = 4;
 	void* data = stbi_load(path.data(), &width, &height, &channelCount, REQUIRED_CHANNEL_COUNT);
 	if (data == nullptr) {
-		LOG_FATAL("failed to read texture file %", path);
+		Log::fatal("failed to read texture file %", path);
 	}
 
 	glGenTextures(1, &handle_);

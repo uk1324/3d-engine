@@ -22,7 +22,7 @@ ShaderProgram ShaderProgram::compile(std::string_view vertexPath, std::string_vi
 	}
 	std::stringstream s;
 	s << shader.error();
-	LOG_FATAL("failed to compile vert = '%' frag = '%': %", vertexPath.data(), fragmentPath.data(), s.str().c_str());
+	Log::fatal("failed to compile vert = '%' frag = '%': %", vertexPath.data(), fragmentPath.data(), s.str().c_str());
 }
 
 ShaderProgram::~ShaderProgram() {
@@ -170,7 +170,7 @@ int ShaderProgram::getUniformLocation(std::string_view name) {
 	{
 		int location = glGetUniformLocation(handle_, uniformName.c_str());
 		if (location == -1)
-			LOG_WARNING("trying to set variable '%', which doesn't exist", name);
+			Log::warning("trying to set variable '%', which doesn't exist", name);
 
 		m_cachedUniformLocations[std::move(uniformName)] = location;
 		return location;

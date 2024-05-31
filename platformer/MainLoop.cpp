@@ -2,7 +2,9 @@
 #include <framework/Dbg.hpp>
 #include <glad/glad.h>
 #include <engine/Math/Utils.hpp>
+#include <platformer/Paths.hpp>
 #include <Put.hpp>
+#include <Timer.hpp>
 
 // Assumes points sorted.
 f32 piecewiseLinearSample(std::span<Vec2> points, f32 x);
@@ -18,6 +20,8 @@ MainLoop::MainLoop()
 }
 
 void MainLoop::update() {
+	//Timer timer;
+
 	audio.update(settings.settings.audio);
 
 	switch (state) {
@@ -49,7 +53,7 @@ void MainLoop::update() {
 			if (previousT < t1 && transitioningState.t >= t1) {
 				game.onTransitionFromMenu(settings.gameSave);
 				audio.musicStream.stop();
-				audio.musicStream.useFile("./platformer/Assets/sounds/perfect-beauty.ogg");
+				audio.musicStream.useFile(ASSETS_PATH "sounds/perfect-beauty.ogg");
 				audio.musicStream.play();
 				audio.musicStream.loop = true;
 			}
@@ -70,6 +74,8 @@ void MainLoop::update() {
 		}
 		break;
 	}
+
+	//timer.guiTookMiliseconds("update");
 }
 
 void MainLoop::gameUpdate() {

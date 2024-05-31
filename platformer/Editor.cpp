@@ -814,7 +814,7 @@ Editor::GenerateLevel2Result Editor::generateLevel2() {
 	std::optional<i32> selectedRoomIndex;
 	for (const auto& room : rooms) {
 		if (room.id == selectedRoomId) {
-			selectedRoomIndex = level.rooms.size();
+			selectedRoomIndex = static_cast<i32>(level.rooms.size());
 		}
 
 		level.rooms.emplace_back(LevelRoom{
@@ -838,7 +838,7 @@ Editor::GenerateLevel2Result Editor::generateLevel2() {
 			}
 		}
 	}
-	return GenerateLevel2Result{ .level = std::move(level), .selectedRoomIndex = selectedRoomIndex};
+	return GenerateLevel2Result{ .level = std::move(level), .selectedRoomIndex = selectedRoomIndex };
 }
 
 const char* createNewLevelModalName = "new level";

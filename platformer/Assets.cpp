@@ -1,6 +1,7 @@
 #include "Assets.hpp"
+#include <platformer/Paths.hpp>
 
-#define SOUND_ASSETS "./platformer/Assets/Sounds"
+#define SOUND_ASSETS ASSETS_PATH "sounds"
 
 Assets loadAssets() {
 	return Assets{

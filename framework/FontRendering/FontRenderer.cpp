@@ -51,7 +51,7 @@ Font FontRenderer::loadFont(std::string_view directory, std::string_view fontNam
 	if (font.has_value()) {
 		return std::move(*font);
 	}
-	LOG_FATAL("failed to load font: \n %s", font.error().message.c_str());
+	Log::fatal("failed to load font: %", font.error().message.c_str());
 }
 
 Vec2 FontRenderer::addCharacterToDraw(

@@ -5,6 +5,7 @@
 #include <platformer/Assets.hpp>
 #include <engine/Input/Input.hpp>
 #include <engine/Math/Color.hpp>
+#include <platformer/Paths.hpp>
 #include <engine/Math/Utils.hpp>
 #include <glad/glad.h>
 
@@ -15,7 +16,7 @@ Game::Game(GameAudio& audio, GameRenderer& renderer)
 }
 
 void Game::onTransitionFromMenu(const GameSave& save) {
-	loadLevel("platformer/assets/levels/level0", save.roomIndex);
+	loadLevel(ASSETS_PATH "levels/level0", save.roomIndex);
 }
 
 void Game::onPause() {
@@ -36,13 +37,16 @@ void Game::update(const GameInput& input, const SettingsControls& controlsSettin
 		thisFrameEvents.push_back(Event::PAUSE);
 	}
 
+	#ifdef FINAL_RELEASE
+	gameUpdate(input);
+	gameRender(controlsSettings);
+	#else
 	if (Input::isKeyDown(KeyCode::TAB)) {
 		if (mode == Mode::EDITOR) {
 			const auto result = editor.onSwitchToGame();
 			onSwitchFromEditor(result.selectedRoomIndex);
 			mode = Mode::GAME;
-		}
-		else if (mode == Mode::GAME) {
+		} else if (mode == Mode::GAME) {
 			editor.onSwitchFromGame();
 			onSwitchToEditor();
 			mode = Mode::EDITOR;
@@ -56,6 +60,7 @@ void Game::update(const GameInput& input, const SettingsControls& controlsSettin
 		editor.update(dt, renderer);
 		editor.render(renderer);
 	}
+	#endif
 }
 #include <imgui/imgui.h>
 #include <iostream>
@@ -163,8 +168,11 @@ void Game::gameUpdate(const GameInput& input) {
 }
 
 #include <platformer/Shaders/blocksData.hpp>
+#include <engine/Window.hpp>
 
 void Game::gameRender(const SettingsControls& controlsSettings) {
+	glViewport(0, 0, Window::size().x, Window::size().y);
+	camera.aspectRatio = Window::aspectRatio();
 	glClear(GL_COLOR_BUFFER_BIT);
  	updateCamera();
 	renderer.renderer.camera = camera;

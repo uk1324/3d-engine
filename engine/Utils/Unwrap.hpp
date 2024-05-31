@@ -1,6 +1,6 @@
 #pragma once
 
-#include <engine/Log/Log.hpp>
+#include <engine/Log.hpp>
 #include <expected>
 #include <sstream>
 
@@ -9,7 +9,7 @@ T unwrap(std::expected<T, E>&& v) {
 	if (!v.has_value()) {
 		std::stringstream s;
 		s << v.error();
-		LOG_FATAL("%", s.str());
+		Log::fatal("%", s.str());
 	}
 
 	auto e = std::move(*v);

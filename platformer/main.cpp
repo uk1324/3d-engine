@@ -4,8 +4,10 @@
 #include <platformer/Assets.hpp>
 #include <platformer/MainLoop.hpp>
 
+#include <iostream>
 int main() {
-	Engine::initAll(Window::Settings{ .multisamplingSamplesPerPixel = 4 });
+	/*Engine::initAll(Window::Settings{ .multisamplingSamplesPerPixel = 4 });*/
+	Engine::initAll(Window::Settings{});
 	Audio::init();
 	{
 		Assets assets = loadAssets();
@@ -22,3 +24,14 @@ int main() {
 	Audio::deinit();
 	Engine::terminateAll();
 }
+
+#ifdef FINAL_RELEASE
+
+#ifdef WIN32
+#include <Windows.h>
+int WINAPI WinMain(_In_ HINSTANCE, _In_opt_ HINSTANCE, _In_ LPSTR, _In_ int) {
+	return main();
+}
+#endif
+
+#endif

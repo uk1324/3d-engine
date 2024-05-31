@@ -52,7 +52,7 @@ void Window::init(const Settings& settings) {
 
 	windowHandle = glfwCreateWindow(settings.width, settings.height, settings.title, nullptr, nullptr);
 	if (windowHandle == nullptr) {
-		LOG_FATAL("failed to create window");
+		Log::fatal("failed to create window");
 	}
 	glfwMakeContextCurrent(windowHandle);
 

@@ -115,13 +115,13 @@ Renderer2d Renderer2d::make() {
 	fullscreenQuad2dPtVerticesIbo.bind();
 	Vao::unbind();
 
-	auto source = tryLoadStringFromFile("framework/Shaders/fullscreenQuad.vert");
-	std::string fullscreenQuadVertSource;
-	if (source.has_value()) {
-		fullscreenQuadVertSource = std::move(*source);
-	} else {
-		ASSERT_NOT_REACHED();
-	}
+	//auto source = tryLoadStringFromFile("framework/Shaders/fullscreenQuad.vert");
+	//std::string fullscreenQuadVertSource;
+	//if (source.has_value()) {
+	//	fullscreenQuadVertSource = std::move(*source);
+	//} else {
+	//	ASSERT_NOT_REACHED();
+	//}
 
 	return Renderer2d{
 		MOVE(imageRenderer),
@@ -130,7 +130,7 @@ Renderer2d Renderer2d::make() {
 		MOVE(fullscreenQuad2dPtVerticesIbo),
 		MOVE(fullscreenQuad2dPtVerticesVao),
 		MOVE(instancesVbo),
-		MOVE(fullscreenQuadVertSource),
+		//MOVE(fullscreenQuadVertSource),
 	};
 }
 

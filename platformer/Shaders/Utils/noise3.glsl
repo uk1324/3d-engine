@@ -28,7 +28,7 @@ float perlin01(vec3 p) {
 	return (perlin(p) + 1.0) * 0.5;
 }
 
-float octave01(vec3 p, int octaves, float amplitudeScale = 0.5, float frequencyScale = 2.0) {
+float octave01(vec3 p, int octaves, float amplitudeScale, float frequencyScale) {
     float amplitude = 1.0;
 	float value = 0.0;
     for (int i = 0; i < octaves; i++) {
@@ -43,4 +43,12 @@ float octave01(vec3 p, int octaves, float amplitudeScale = 0.5, float frequencyS
 	value /= (1.0 - amplitude) / (1.0 - amplitudeScale);
 
 	return value;
+}
+
+float octave01(vec3 p, int octaves) {
+	return octave01(p, octaves, 0.5, 2.0);
+}
+
+float octave01(vec3 p, int octaves, float amplitudeScale) {
+	return octave01(p, octaves, amplitudeScale, 2.0);
 }

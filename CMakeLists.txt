@@ -8,6 +8,12 @@ set(CODEGEN_TOOL_WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 set(GENERATED_PATH "${CMAKE_CURRENT_SOURCE_DIR}/generated")
 set(EXECUTABLE_WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
 
+set(FINAL_RELEASE TRUE)
+
+if (FINAL_RELEASE)
+	add_definitions(-DFINAL_RELEASE)
+endif()
+
 include("./codeGenTool/targetAddGenerated.cmake")
 
 add_subdirectory("./dependencies/glfw")
@@ -29,6 +35,10 @@ add_subdirectory(water_simulation)
 add_subdirectory(electromagnetism)
 
 add_subdirectory(platformer)
+
+add_subdirectory(buildTool)
+
+add_subdirectory(embedTool)
 
 set(gtest_force_shared_crt True)
 add_subdirectory("./dependencies/googletest")

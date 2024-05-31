@@ -514,7 +514,7 @@ Menu::Event Menu::updateGamePausedUi(f32 dt, const Settings& settings) {
 	gamePausedUi.layout.update(camera);
 	gamePausedUi.selection.update();
 
-	drawText("game paused", gamePausedUi.layout, gamePausedUi.titleId, -0.002f);
+	drawText("game paused", gamePausedUi.layout, gamePausedUi.titleId, 0.0f);
 	for (const auto& button : gamePausedUi.buttons) {
 		drawText(button.text, gamePausedUi.layout, button.id, -button.hoverAnimationT * 0.0035f);
 	}

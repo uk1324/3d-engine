@@ -35,6 +35,6 @@ namespace Log {
 	}
 }
 
-#define LOG_WARNING(format, ...) Log::warning(format, ##__VA_ARGS__)
-#define LOG_ERROR(format, ...) Log::error(format, ##__VA_ARGS__)
-#define LOG_FATAL(format, ...) Log::fatal(format, ##__VA_ARGS__)
+//#define LOG_WARNING(format, ...) Log::warning(format, ##__VA_ARGS__)
+//#define LOG_ERROR(format, ...) Log::error(format, ##__VA_ARGS__)
+//#define LOG_FATAL(format, ...) Log::fatal(format, ##__VA_ARGS__)

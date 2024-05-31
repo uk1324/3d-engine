@@ -13,6 +13,7 @@
 #include <platformer/Shaders/spikeClosedCornerData.hpp>
 #include <engine/Math/Color.hpp>
 #include <FileIo.hpp>
+#include <platformer/Paths.hpp>
 
 #define MAKE_VAO(Type) \
 	createInstancingVao<Type##Shader>(renderer.fullscreenQuad2dPtVerticesVbo, renderer.fullscreenQuad2dPtVerticesIbo, renderer.instancesVbo)
@@ -38,7 +39,7 @@ GameRenderer::GameRenderer()
 	, attractingOrbShader(MAKE_GENERATED_SHADER(ATTRACTING_ORB)) 
 	, doubleJumpOrbVao(MAKE_VAO(DoubleJumpOrb))
 	, doubleJumpOrbShader(MAKE_GENERATED_SHADER(DOUBLE_JUMP_ORB))
-	, font(FontRenderer::loadFont("platformer/assets/fonts", "Orbitron-Medium")) {
+	, font(FontRenderer::loadFont(ASSETS_PATH "fonts", "Orbitron-Medium")) {
 
 }
 

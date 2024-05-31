@@ -7,7 +7,7 @@ Json::Value jsonFromFile(std::string_view path) {
 	if (optJson.has_value()) {
 		return std::move(*optJson);
 	}
-	LOG_FATAL("couldn't parse json file \"%s\"", path.data());
+	Log::fatal("couldn't parse json file \"%s\"", path.data());
 	return Json::Value::null();
 }
 

@@ -24,8 +24,8 @@ struct MainLoop {
 		GAME_PAUSED,
 		TRANSITIONING
 	};
-	/*State state = State::MENU;*/
-	State state = State::GAME;
+	State state = State::MENU;
+	//State state = State::GAME;
 
 	enum class TransitionType {
 		MENU_TO_GAME

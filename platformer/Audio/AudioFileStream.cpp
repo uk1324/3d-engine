@@ -29,6 +29,7 @@ bool AudioFileStream::useFile(const char* filename) {
     stb_vorbis_close(stream);
     stream = stb_vorbis_open_filename(filename, &error, nullptr);
     if (stream == nullptr) {
+        std::cout << "failed to load " << filename << '\n';
         return false;
     }
     return true;
