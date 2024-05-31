@@ -80,7 +80,7 @@ void MainLoop::gameUpdate() {
 		.jump = Input::isKeyHeld(static_cast<KeyCode>(controls.jump)),
 		.use = Input::isKeyHeld(static_cast<KeyCode>(controls.activate))
 	};
-	game.update(input);
+	game.update(input, controls);
 	for (const auto& event : game.thisFrameEvents) {
 		switch (event) {
 			using enum Game::Event;
@@ -104,7 +104,7 @@ void MainLoop::gameUpdate() {
 }
 
 void MainLoop::gamePausedUpdate() {
-	game.gameRender();
+	game.gameRender(settings.settings.controls);
 	glEnable(GL_BLEND);
 	Dbg::drawFilledAabb(renderer.renderer.camera.aabb(), Vec4(Vec3(0.0f), 0.5f));
 	renderer.renderer.update();

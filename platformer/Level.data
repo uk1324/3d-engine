@@ -23,6 +23,11 @@ struct [[Json]] LevelMovingBlock {
 	bool stopAtEnd = `false`;
 }
 
+struct [[Json]] LevelText {
+	Vec2 position;
+	$std::string$ text;
+}
+
 struct [[Json]] LevelRoom {
 	`// position and size in grid`
 	$Vec2T<i32>$ position = `Vec2T<i32>()`;
@@ -31,6 +36,7 @@ struct [[Json]] LevelRoom {
 	vector<LevelDoubleJumpOrb> doubleJumpOrbs = `std::vector<LevelDoubleJumpOrb>()`;
 	vector<LevelAttractingOrb> attractingOrbs = `std::vector<LevelAttractingOrb>()`;
 	vector<LevelMovingBlock> movingBlocks = `std::vector<LevelMovingBlock>()`;
+	vector<LevelText> texts = `std::vector<LevelText>()`;
 }
 
 struct [[Json]] Level {

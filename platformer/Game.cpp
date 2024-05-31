@@ -28,7 +28,7 @@ void Game::onUnpause() {
 	audio.unpauseSoundEffects();
 }
 
-void Game::update(const GameInput& input) {
+void Game::update(const GameInput& input, const SettingsControls& controlsSettings) {
 	ShaderManager::update();
 	thisFrameEvents.clear();
 
@@ -51,9 +51,9 @@ void Game::update(const GameInput& input) {
 
 	if (mode == Mode::GAME) {
 		gameUpdate(input);
-		gameRender();
+		gameRender(controlsSettings);
 	} else if (mode == Mode::EDITOR) {
-		editor.update(dt);
+		editor.update(dt, renderer);
 		editor.render(renderer);
 	}
 }
@@ -164,7 +164,7 @@ void Game::gameUpdate(const GameInput& input) {
 
 #include <platformer/Shaders/blocksData.hpp>
 
-void Game::gameRender() {
+void Game::gameRender(const SettingsControls& controlsSettings) {
 	glClear(GL_COLOR_BUFFER_BIT);
  	updateCamera();
 	renderer.renderer.camera = camera;
@@ -272,6 +272,11 @@ void Game::gameRender() {
 			Dbg::drawFilledAabb(viewAabb.min, Vec2(viewAabb.max.x, roomAabb.min.y), Color3::BLACK);
 			Dbg::drawFilledAabb(Vec2(viewAabb.min.x, roomAabb.max.y), viewAabb.max, Color3::BLACK);
 		}
+
+		for (const auto& text : activeRoom->texts) {
+			renderer.addText(renderer.processText(text.text, controlsSettings), text.position, min);
+		}
+		renderer.renderText();
 	}
 
 	{

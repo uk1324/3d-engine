@@ -23,9 +23,9 @@ struct Game {
 	void onPause();
 	void onUnpause();
 
-	void update(const GameInput& input);
+	void update(const GameInput& input, const SettingsControls& controlsSettings);
 	void gameUpdate(const GameInput& input);
-	void gameRender();
+	void gameRender(const SettingsControls& controlsSettings);
 	void updateCamera();
 
 	void spawnPlayer(std::optional<i32> editorSelectedRoomIndex);

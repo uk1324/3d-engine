@@ -30,6 +30,8 @@ public:
 	static auto isKeyUp(KeyCode key) -> bool;
 	static auto isKeyHeld(KeyCode key) -> bool;
 
+	static bool ignoreKeyboardInputs();
+
 	static auto isMouseButtonDown(MouseButton button) -> bool;
 	static auto isMouseButtonUp(MouseButton button) -> bool;
 	static auto isMouseButtonHeld(MouseButton button) -> bool;

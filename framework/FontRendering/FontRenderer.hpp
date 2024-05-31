@@ -44,5 +44,5 @@ struct FontRenderer {
 		Vec2 size;
 		float bottomY;
 	};
-	TextInfo getTextInfo(const Font& font, float height, std::string_view utf8Text);
+	TextInfo getTextInfo(const Font& font, float height, std::string_view utf8Text) const;
 };

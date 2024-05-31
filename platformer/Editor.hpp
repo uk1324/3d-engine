@@ -27,10 +27,12 @@ struct Editor {
 		SPIKE_TOP_LEFT_CLOSED,
 		SPIKE_BOTTOM_RIGHT_CLOSED,
 		SPIKE_BOTTOM_LEFT_CLOSED,
+		TEXT,
 	};
 
 	// Remember to update the entity arrays.
 	using MovingBlockId = EntityArray<LevelMovingBlock>::Id;
+	using TextId = EntityArray<LevelText>::Id;
 	struct EditorRoom {
 		Vec2T<i32> position;
 		Array2d<BlockType> blockGrid;
@@ -38,6 +40,7 @@ struct Editor {
 		std::vector<LevelDoubleJumpOrb> doubleJumpOrbs;
 		std::vector<LevelAttractingOrb> attractingOrbs;
 		std::vector<MovingBlockId> movingBlocks;
+		std::vector<TextId> texts;
 	};
 	using RoomId = EntityArray<EditorRoom>::Id;
 	/*
@@ -45,8 +48,8 @@ struct Editor {
 	If some level are static like block in the game loop then it probably doesn't make sense to try to manage them using ids. 
 	*/
 
-	void update(f32 dt);
-	void updateSelectedRoom();
+	void update(f32 dt, const GameRenderer& renderer);
+	void updateSelectedRoom(const GameRenderer& renderer);
 	void render(GameRenderer& renderer);
 	void renderRoom(const EditorRoom& room, GameRenderer& renderer);
 	i32 increaseOrDecreaseSize = 1;
@@ -105,6 +108,8 @@ struct Editor {
 	} movingBlockPlaceState;
 	std::optional<MovingBlockId> selectedMovingBlock;
 
+	std::optional<TextId> selectedText;
+
 	std::optional<Vec2> moveGrabStartWorldPos;
 	std::optional<RoomId> selectedRoomId;
 
@@ -114,6 +119,7 @@ struct Editor {
 
 	EntityArray<LevelMovingBlock> movingBlocks;
 	EntityArray<EditorRoom> rooms;
+	EntityArray<LevelText> texts;
 
 	void loadLevel(Level&& level);
 	Level generateLevel();

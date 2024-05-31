@@ -107,7 +107,7 @@ void FontRenderer::addTextToDraw(
 	}
 }
 
-FontRenderer::TextInfo FontRenderer::getTextInfo(const Font& font, float maxHeight, std::string_view utf8Text) {
+FontRenderer::TextInfo FontRenderer::getTextInfo(const Font& font, float maxHeight, std::string_view utf8Text) const {
 	const auto scale = maxHeight * (1.0f / font.pixelHeight);
 
 	float width = 0.0f;

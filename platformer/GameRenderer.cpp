@@ -451,6 +451,90 @@ void GameRenderer::renderAttractingOrb(const Vec2 position) {
 	Dbg::drawCircle(position, constants().attractingOrbRadius, Color3::CYAN, 0.1f);
 }
 
+// https://stackoverflow.com/questions/3418231/replace-part-of-a-string-with-another-string
+void replaceAll(std::string& str, const std::string_view& from, const std::string_view& to) {
+	if (from.empty())
+		return;
+	size_t start_pos = 0;
+	while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
+		str.replace(start_pos, from.length(), to);
+		start_pos += to.length(); // In case 'to' contains 'from', like replacing 'x' with 'yx'
+	}
+}
+
+#include <engine/Input/InputUtils.hpp>
+
+std::string GameRenderer::processText(std::string_view text, const SettingsControls& controlsSettings) {
+	auto out = std::string(text);
+	
+	replaceAll(out, "`jumpKey`", toString(static_cast<KeyCode>(controlsSettings.jump)));
+	replaceAll(out, "`activateKey`", toString(static_cast<KeyCode>(controlsSettings.activate)));
+	return out;
+	/*std::string out;
+	i32 currentCharIndex = 0;
+
+	auto isAtEnd = [&]() {
+		return currentCharIndex < text.size();
+	};
+	auto currentChar = [&]() {
+		return text[currentCharIndex];
+	};
+	for (;;) {
+		
+
+		if (currentChar() == '`') {
+			while (!isAtEnd() && currentChar() != '`') {
+
+				currentCharIndex++;
+			}
+		} else {
+			out += 
+			currentChar++;
+		}
+
+		if (isAtEnd()) {
+			break;
+		}
+	}*/
+
+	return out;
+}
+
+const auto textSizeY = 20.0f;
+
+void GameRenderer::addText(std::string_view text, Vec2 positionInRoom, Vec2 roomOffset) {
+	const auto info = fontRenderer.getTextInfo(font, textSizeY, text);
+	Vec2 position = positionInRoom + roomOffset;
+	position.y -= info.bottomY;
+	position -= info.size / 2.0f;
+	
+	i32 startIndex = fontRenderer.basicTextInstances.size();
+	fontRenderer.addTextToDraw(
+		font,
+		position,
+		renderer.camera.worldToCameraToNdc(),
+		textSizeY,
+		text
+	);
+	for (i32 i = startIndex; i < fontRenderer.basicTextInstances.size(); i++) {
+		fontRenderer.basicTextInstances[i].offset = 0.0f;
+	}
+}
+
+Aabb GameRenderer::textAabb(std::string_view text, Vec2 positionInRoom, Vec2 roomOffset) const {
+	const auto info = fontRenderer.getTextInfo(font, textSizeY, text);
+	Vec2 position = positionInRoom + roomOffset;
+	position.y -= info.bottomY;
+	position -= info.size / 2.0f;
+	return Aabb(position, position + info.size);
+}
+
+void GameRenderer::renderText() {
+	glEnable(GL_BLEND);
+	fontRenderer.render(font, renderer.instancesVbo);
+	glDisable(GL_BLEND);
+}
+
 void GameRenderer::addAttractingOrbs(const std::vector<AttractingOrb>& attractingOrbs, Vec2 playerPos) {
 	for (const auto& orb : attractingOrbs) {
 		attractingOrbInstances.push_back(AttractingOrbInstance{

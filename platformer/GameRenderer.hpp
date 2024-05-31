@@ -25,6 +25,10 @@ struct GameRenderer {
 	void renderPlayerFull(const Player& player);
 	void renderDoubleJumpOrb(const Vec2 position);
 	void renderAttractingOrb(const Vec2 position);
+	std::string processText(std::string_view text, const SettingsControls& controlsSettings);
+	void addText(std::string_view text, Vec2 positionInRoom, Vec2 roomOffset);
+	Aabb textAabb(std::string_view text, Vec2 positionInRoom, Vec2 roomOffset) const;
+	void renderText();
 
 	std::vector<AttractingOrbInstance> attractingOrbInstances;
 	void addAttractingOrbs(const std::vector<AttractingOrb>& attractingOrbs, Vec2 playerPos);

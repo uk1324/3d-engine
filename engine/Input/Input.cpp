@@ -3,6 +3,8 @@
 #include <imgui.h>
 
 auto Input::isKeyDown(KeyCode key) -> bool {
+	if (ignoreKeyboardInputs())
+		return false;
 	const auto code = static_cast<size_t>(key);
 	if (code >= keyDown.size()) {
 		return false;
@@ -11,6 +13,8 @@ auto Input::isKeyDown(KeyCode key) -> bool {
 }
 
 auto Input::isKeyDownWithAutoRepeat(KeyCode key) -> bool {
+	if (ignoreKeyboardInputs())
+		return false;
 	const auto code = static_cast<usize>(key);
 	if (code >= keyDownWithAutoRepeat.size()) {
 		return false;
@@ -19,6 +23,8 @@ auto Input::isKeyDownWithAutoRepeat(KeyCode key) -> bool {
 }
 
 auto Input::isKeyUp(KeyCode key) -> bool {
+	if (ignoreKeyboardInputs())
+		return false;
 	const auto code = static_cast<usize>(key);
 	if (code >= keyUp.size()) {
 		return false;
@@ -27,11 +33,17 @@ auto Input::isKeyUp(KeyCode key) -> bool {
 }
 
 auto Input::isKeyHeld(KeyCode key) -> bool {
+	if (ignoreKeyboardInputs())
+		return false;
 	const auto code = static_cast<usize>(key);
 	if (code >= keyHeld.size()) {
 		return false;
 	}
 	return keyHeld[code];
+}
+
+bool Input::ignoreKeyboardInputs() {
+	return !ignoreImGuiWantCapture && ImGui::GetIO().WantCaptureKeyboard;
 }
 
 auto Input::isMouseButtonDown(MouseButton button) -> bool {
