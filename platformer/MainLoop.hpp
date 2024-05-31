@@ -7,7 +7,10 @@ struct MainLoop {
 	MainLoop();
 	void update();
 	void gameUpdate();
+	void gamePausedUpdate();
 	void menuUpdate();
+
+	void handleMenuEvent(Menu::Event event);
 
 	Game game;
 	Menu menu;

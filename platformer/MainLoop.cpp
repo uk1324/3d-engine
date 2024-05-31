@@ -29,15 +29,7 @@ void MainLoop::update() {
 		gameUpdate();
 		break;
 	case GAME_PAUSED: {
-		game.gameRender();
-		glEnable(GL_BLEND);
-		Dbg::drawFilledAabb(renderer.renderer.camera.aabb(), Vec4(Vec3(0.0f), 0.5f));
-		renderer.renderer.update();
-		glDisable(GL_BLEND);
-		if (Input::isKeyDown(KeyCode::ESCAPE)) {
-			game.onUnpause();
-			state = State::GAME;
-		}
+		gamePausedUpdate();
 		break;
 	}
 		
@@ -104,31 +96,59 @@ void MainLoop::gameUpdate() {
 
 		case PAUSE:
 			state = State::GAME_PAUSED;
+			menu.currentScreen = Menu::UiScreen::MAIN;
 			game.onPause();
 			break;
 		}
 	}
 }
 
+void MainLoop::gamePausedUpdate() {
+	game.gameRender();
+	glEnable(GL_BLEND);
+	Dbg::drawFilledAabb(renderer.renderer.camera.aabb(), Vec4(Vec3(0.0f), 0.5f));
+	renderer.renderer.update();
+	glDisable(GL_BLEND);
+	if (Input::isKeyDown(KeyCode::ESCAPE)) {
+		game.onUnpause();
+		state = State::GAME;
+	}
+
+	handleMenuEvent(menu.updateGamePaused(dt));
+}
+
 void MainLoop::menuUpdate() {
-	const auto event = menu.update(dt);
+	handleMenuEvent(menu.updateMainMenu(dt));
+}
+
+void MainLoop::handleMenuEvent(Menu::Event event) {
 	switch (event) {
 		using enum Menu::Event;
-		case NONE: break;
-		case TRANSITION_TO_GAME:
-			state = State::TRANSITIONING;
-			transitioningState.reset(TransitionType::MENU_TO_GAME);
-			break;
+	case NONE: break;
+	case TRANSITION_TO_GAME:
+		state = State::TRANSITIONING;
+		transitioningState.reset(TransitionType::MENU_TO_GAME);
+		break;
 
-		case SAVE_SOUND_SETTINGS:
-			settings.settings.audio = menu.getAudioSettings();
-			settings.saveSettings();
-			break;
+	case TRANSITON_TO_MAIN_MENU:
+		state = State::MENU;
+		menu.currentScreen = Menu::UiScreen::MAIN;
+		break;
 
-		case SAVE_CONTROLS:
-			settings.settings.controls = menu.getControlsSettings();
-			settings.saveSettings();
-			break;
+	case RESUME_GAME:
+		game.onUnpause();
+		state = State::GAME;
+		break;
+
+	case SAVE_SOUND_SETTINGS:
+		settings.settings.audio = menu.getAudioSettings();
+		settings.saveSettings();
+		break;
+
+	case SAVE_CONTROLS:
+		settings.settings.controls = menu.getControlsSettings();
+		settings.saveSettings();
+		break;
 	}
 }
 

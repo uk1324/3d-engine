@@ -23,6 +23,8 @@ static constexpr const char* playButtonName = "play";
 static constexpr const char* soundSettingsButtonName = "sound settings";
 static constexpr const char* controlsButtonName = "controls";
 static constexpr const char* exitButtonName = "exit";
+static constexpr const char* resumeButtonName = "resume";
+static constexpr const char* mainMenuButtonName = "main menu";
 static constexpr const char* saveButtonName = "save";
 static constexpr const char* cancelButtonName = "cancel";
 static constexpr const char* masterVolumeSliderName = "master";
@@ -30,8 +32,7 @@ static constexpr const char* soundEffectVolumeSliderName = "sound effect";
 static constexpr const char* musicVolumeSliderName = "music";
 
 static constexpr f32 buttonSize = 0.05f;
-static constexpr f32 soundSettingsTitleSize = buttonSize * 1.5f;
-static constexpr f32 controlsTitleSize = soundSettingsTitleSize;
+static constexpr f32 smallTitleSize = buttonSize * 1.5f;
 
 Menu::Menu(GameRenderer& renderer)
 	: renderer(renderer) {
@@ -57,6 +58,22 @@ Menu::Menu(GameRenderer& renderer)
 	}
 
 	{
+		gamePausedUi.titleId = gamePausedUi.layout.addBlock(smallTitleSize);
+
+		std::string_view buttonNames[]{
+			resumeButtonName,
+			soundSettingsButtonName,
+			controlsButtonName,
+			mainMenuButtonName,
+			exitButtonName
+		};
+		for (const auto& name : buttonNames) {
+			gamePausedUi.layout.addPadding(padding);
+			addButton(gamePausedUi.buttons, gamePausedUi.layout, gamePausedUi.selection, name, buttonSize);
+		}
+	}
+
+	{
 		auto addKeycodeInput = [&](std::string_view name, KeyCode keycode) -> i32 {
 			i32 index = controlsUi.keycodeInputs.size();
 			controlsUi.keycodeInputs.push_back(KeycodeInput{
@@ -67,7 +84,7 @@ Menu::Menu(GameRenderer& renderer)
 			});
 			return index;
 		};
-		controlsUi.titleId = controlsUi.layout.addBlock(controlsTitleSize);
+		controlsUi.titleId = controlsUi.layout.addBlock(smallTitleSize);
 		controlsUi.layout.addPadding(padding);
 		controlsUi.leftKeycodeInputIndex = addKeycodeInput("left", KeyCode::A);
 		controlsUi.layout.addPadding(padding);
@@ -92,7 +109,7 @@ Menu::Menu(GameRenderer& renderer)
 			});
 			return index;
 		};
-		soundSettingsUi.titleId = soundSettingsUi.layout.addBlock(soundSettingsTitleSize);
+		soundSettingsUi.titleId = soundSettingsUi.layout.addBlock(smallTitleSize);
 		soundSettingsUi.layout.addPadding(padding);
 
 		soundSettingsUi.masterVolumeSliderIndex = addSliderInput(masterVolumeSliderName);
@@ -132,10 +149,31 @@ static f32 hoverAnimationTToOffset(f32 animationT) {
 	return -animationT * 0.0035f;
 }
 
-Menu::Event Menu::update(f32 dt) {
+//Menu::Event Menu::update(f32 dt) {
+//	Event result = Event::NONE;
+//	switch (currentScreen) {
+//		using enum UiScreen;
+//	case MAIN:
+//		result = updateMainMenuUi(dt);
+//		break;
+//	case SOUND_SETTINGS:
+//		result = updateSoundSettingsUi(dt);
+//		break;
+//	case CONTROLS:
+//		result = updateControlsUi(dt);
+//		break;
+//	}
+//
+//	renderUpdate();
+//	return result;
+//}
+
+Menu::Event Menu::updateMainMenu(f32 dt) {
 	glClear(GL_COLOR_BUFFER_BIT);
 	glViewport(0, 0, Window::size().x, Window::size().y);
 	camera.aspectRatio = Window::aspectRatio();
+	renderer.renderBackground();
+	renderer.update(); // TODO: maybe make renderer.updateTime(); or maybe store local time and pass it to the function
 
 	Event result = Event::NONE;
 	switch (currentScreen) {
@@ -151,15 +189,36 @@ Menu::Event Menu::update(f32 dt) {
 		break;
 	}
 
-	renderer.renderBackground();
-	renderer.update(); // TODO: maybe make renderer.updateTime(); or maybe store local time and pass it to the function
+	renderUpdate();
+	return result;
+}
 
+Menu::Event Menu::updateGamePaused(f32 dt) {
+	Event result = Event::NONE;
+	switch (currentScreen) {
+		using enum UiScreen;
+	case MAIN:
+		result = updateGamePausedUi(dt);
+		break;
+	case SOUND_SETTINGS:
+		result = updateSoundSettingsUi(dt);
+		break;
+	case CONTROLS:
+		result = updateControlsUi(dt);
+		break;
+	}
+
+	renderUpdate();
+	renderer.update();
+	return result;
+}
+
+void Menu::renderUpdate() {
 	renderer.renderer.camera = camera;
 
 	glEnable(GL_BLEND);
 	renderer.fontRenderer.render(renderer.font, renderer.renderer.instancesVbo);
 	glDisable(GL_BLEND);
-	return result;
 }
 
 void Menu::drawTextCentered(std::string_view text, Vec2 position, f32 height, f32 offset) {
@@ -440,6 +499,39 @@ Menu::Event Menu::updateControlsUi(f32 dt) {
 	return result;
 }
 
+Menu::Event Menu::updateGamePausedUi(f32 dt) {
+	Event result = Event::NONE;
+	gamePausedUi.layout.update(camera);
+	gamePausedUi.selection.update();
+
+	drawText("game paused", gamePausedUi.layout, gamePausedUi.titleId, -0.002f);
+	for (const auto& button : gamePausedUi.buttons) {
+		drawText(button.text, gamePausedUi.layout, button.id, -button.hoverAnimationT * 0.0035f);
+	}
+
+	for (auto& button : gamePausedUi.buttons) {
+		const auto isSelected = gamePausedUi.selection.isSelected(button.selectionId);
+		updateHoverAnimation(button.hoverAnimationT, isSelected, dt);
+
+		const auto pressed = Input::isKeyDown(KeyCode::ENTER);
+		if (!isSelected || !pressed) {
+			continue;
+		}
+
+		if (button.text == resumeButtonName) {
+			result = Event::RESUME_GAME;
+		} else if (button.text == soundSettingsButtonName) {
+			currentScreen = UiScreen::SOUND_SETTINGS;
+		} else if (button.text == controlsButtonName) {
+			currentScreen = UiScreen::CONTROLS;
+		} else if (button.text == mainMenuButtonName) {
+			result = Event::TRANSITON_TO_MAIN_MENU;
+		} else if (button.text == exitButtonName) {
+			Window::close();
+		}
+	}
+	return result;
+}
 void Menu::drawButton(const Button& button, const UiLayout& layout) {
 	auto& block = layout.blocks[button.id];
 	const auto height = block.worldSize();

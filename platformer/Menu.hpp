@@ -34,6 +34,7 @@ struct SelectionLayout {
 	bool isSelected(i32 selectionId);
 };
 
+// TODO: To make the ui more flexible could use a stack to keep track of the current screen.
 struct Menu {
 	// Setting this to a big number so if accessed it hopefully crashes.
 	static constexpr i32 INVALID = 0xFFFFFF;
@@ -43,6 +44,8 @@ struct Menu {
 	enum class Event {
 		NONE,
 		TRANSITION_TO_GAME,
+		TRANSITON_TO_MAIN_MENU,
+		RESUME_GAME,
 		SAVE_SOUND_SETTINGS,
 		SAVE_CONTROLS,
 	};
@@ -76,6 +79,14 @@ struct Menu {
 		std::vector<Button> buttons;
 	};
 	MainMenuUi mainMenuUi;
+
+	struct GamePausedUi {
+		UiLayout layout;
+		SelectionLayout selection;
+		i32 titleId = INVALID;
+		std::vector<Button> buttons;
+	};
+	GamePausedUi gamePausedUi;
 
 	struct KeycodeInput {
 		std::string_view name;
@@ -128,6 +139,7 @@ struct Menu {
 	SettingsAudio getAudioSettings() const;
 
 	Event updateControlsUi(f32 dt);
+	Event updateGamePausedUi(f32 dt);
 	Event updateMainMenuUi(f32 dt);
 	Event updateSoundSettingsUi(f32 dt);
 
@@ -136,7 +148,11 @@ struct Menu {
 	f32 totalHeight = 0.0f;
 	std::vector<Text> texts;
 
-	Event update(f32 dt);
+	//Event update(f32 dt);
+	Event updateMainMenu(f32 dt);
+	Event updateGamePaused(f32 dt);
+	void renderUpdate();
+
 	void drawTextCentered(std::string_view text, Vec2 position, f32 height, f32 offset);
 	void drawText(std::string_view text, Vec2 bottomLeftPosition, f32 height, f32 offset);
 	Aabb getTextAabb(std::string_view text, Vec2 position, f32 height);
