@@ -55,6 +55,12 @@ void AudioFileStream::pause() {
     state = State::PAUSED;
 }
 
+void AudioFileStream::stop() {
+    source.stop();
+    source.setBuffer(0);
+    state = State::STOPPED;
+}
+
 void AudioFileStream::update() {
     if (stream == nullptr) {
         return;
@@ -105,7 +111,6 @@ void AudioFileStream::fillBuffer(u32 buffer) {
             BUFFER_SIZE);
     };
     auto amount = load();
-
     if (amount == 0) {
         if (loop) {
             stb_vorbis_seek_start(stream);

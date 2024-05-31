@@ -2,12 +2,13 @@
 
 #include <platformer/Audio/AudioBuffer.hpp>
 #include <platformer/Audio/AudioFileStream.hpp>
+#include <platformer/SettingsData.hpp>
 #include <vector>
 
 struct GameAudio {
 	GameAudio();
 
-	void update();
+	void update(const SettingsAudio& settings);
 
 	void initGameAudio();
 
@@ -37,7 +38,9 @@ struct GameAudio {
 	void pauseSoundEffects();
 	void unpauseSoundEffects();
 
+	void setMusicStreamVolume(f32 volume);
 	AudioFileStream musicStream;
+	f32 musicStreamVolume = 1.0f;
 
 	SoundSource attractingOrbSource;
 

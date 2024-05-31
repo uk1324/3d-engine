@@ -12,6 +12,7 @@ struct GameRenderer {
 	GameRenderer();
 
 	void update();
+	void updateAnimatitons();
 
 	void renderBlock(const Block& block);
 	void renderBlocks(const std::vector<Block>& blocks);

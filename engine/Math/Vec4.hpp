@@ -10,7 +10,7 @@ struct Vec4T {
 	constexpr Vec4T() {};
 	explicit constexpr Vec4T(const T& v);
 	constexpr Vec4T(const T& x, const T& y, const T& z, const T& w = 1);
-	constexpr Vec4T(Vec3T<T> v, const T& w = 1);
+	explicit constexpr Vec4T(Vec3T<T> v, const T& w = 1);
 
 	Vec4T operator+(const Vec4T<T>& v) const;
 	Vec4T operator*(const T& s) const;

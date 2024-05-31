@@ -11,6 +11,7 @@ struct AudioFileStream {
 	bool useFile(const char* filename);
 	void play();
 	void pause();
+	void stop();
 	void update();
 
 	void fillBuffer(u32 buffer);

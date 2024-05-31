@@ -43,9 +43,11 @@ GameRenderer::GameRenderer()
 }
 
 void GameRenderer::update() {
-	
 	renderer.update();
-	backgroundElapsed += 1.0f / 60.0f;
+}
+
+void GameRenderer::updateAnimatitons() {
+	backgroundElapsed += 1.0f / 60.0f * 2.0f; // * 2, because I accidentally put 2 update calls in the render function (before this code was in update) and all animations relly on this being at this speed. TODO: Fix.
 }
 
 const auto BLOCK_COLOR = Color3::WHITE / 10.0f;

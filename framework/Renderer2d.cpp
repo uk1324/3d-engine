@@ -186,7 +186,7 @@ void Renderer2d::drawDbgFilledTriangles() {
 		}
 
 		for (const auto& v : triangle.v) {
-			triangleVertices.push_back(Vertex2Pc{ .position = v, .color = triangle.color });
+			triangleVertices.push_back(Vertex2Pc{ .position = v, .color = Vec4(triangle.color) });
 		}
 	}
 	draw();

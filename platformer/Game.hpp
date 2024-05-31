@@ -9,10 +9,22 @@
 #include <platformer/Menu.hpp>
 
 struct Game {
-	Game();
+	Game(GameAudio& audio, GameRenderer& renderer);
+	GameAudio& audio;
+	GameRenderer& renderer;
 
-	void update();
-	void gameUpdate();
+	enum class Event {
+		PREFORM_GAME_SAVE,
+		PAUSE,
+	};
+	std::vector<Event> thisFrameEvents;
+
+	void onTransitionFromMenu(const GameSave& save);
+	void onPause();
+	void onUnpause();
+
+	void update(const GameInput& input);
+	void gameUpdate(const GameInput& input);
 	void gameRender();
 	void updateCamera();
 
@@ -23,27 +35,23 @@ struct Game {
 		ALIVE,
 		RESPAWNING,
 	};
+	static constexpr auto respawnAnimationLength = 1.0f;
 	f32 respawnElapsed = 0.0f;
+	f32 respawnT() const;
+	bool respawningUpdateGame() const;
 	State state = State::ALIVE;
 
 	void respawningUpdate();
-	/*struct RespawnAnimation {
-		f32 elapsed = 0.0f;
-
-		void update(f32 dt);
-	} screenTransitionAnimation;*/
-
-
+	void respawningRender();
 
 	Player player;
 
 	f32 dt = 1.0f / 60.0f;
-	//PlayerSettings playerSettings;
-	//f32 cellSize = 20.0f;
 
 	void onSwitchFromEditor(std::optional<i32> editorSelectedRoomIndex);
 	void onSwitchToEditor();
 
+	void loadLevel(std::string_view path, std::optional<i32> roomIndex);
 	void loadRoom(LevelRoom& room);
 
 	std::optional<std::string> enteredFromLevelName;
@@ -52,7 +60,6 @@ struct Game {
 		EDITOR,
 		GAME,
 	};
-
 
 	std::vector<GameRoom> rooms;
 
@@ -66,7 +73,4 @@ struct Game {
 	Editor editor;
 
 	Camera camera;
-
-	GameRenderer renderer;
-	GameAudio audio;
 };

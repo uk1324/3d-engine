@@ -15,3 +15,7 @@ struct [[Json]] Settings {
 	SettingsAudio audio;
 	SettingsControls controls;
 }
+
+struct [[Json]] GameSave {
+	i32 roomIndex;
+}

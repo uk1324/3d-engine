@@ -8,12 +8,33 @@
 #include <engine/Math/Utils.hpp>
 #include <glad/glad.h>
 
-Game::Game() {
+Game::Game(GameAudio& audio, GameRenderer& renderer)
+	: audio(audio)
+	, renderer(renderer) {
 	camera.zoom /= 280.0f;
 }
 
-void Game::update() {
+void Game::onTransitionFromMenu(const GameSave& save) {
+	loadLevel("platformer/assets/levels/level0", save.roomIndex);
+}
+
+void Game::onPause() {
+	audio.musicStream.pause();
+	audio.pauseSoundEffects();
+}
+
+void Game::onUnpause() {
+	audio.musicStream.play();
+	audio.unpauseSoundEffects();
+}
+
+void Game::update(const GameInput& input) {
 	ShaderManager::update();
+	thisFrameEvents.clear();
+
+	if (state == State::ALIVE && Input::isKeyDown(KeyCode::ESCAPE)) {
+		thisFrameEvents.push_back(Event::PAUSE);
+	}
 
 	if (Input::isKeyDown(KeyCode::TAB)) {
 		if (mode == Mode::EDITOR) {
@@ -29,7 +50,7 @@ void Game::update() {
 	}
 
 	if (mode == Mode::GAME) {
-		gameUpdate();
+		gameUpdate(input);
 		gameRender();
 	} else if (mode == Mode::EDITOR) {
 		editor.update(dt);
@@ -38,48 +59,15 @@ void Game::update() {
 }
 #include <imgui/imgui.h>
 #include <iostream>
-void Game::gameUpdate() {
-	ImGui::Begin("audio");
-
-	float volume = audio.musicVolume;
-	if (ImGui::SliderFloat("music", &volume, 0.0f, 1.0f)) {
-		audio.setMusicVolume(volume);
-	}
-
-	ImGui::End();
-
-	const GameInput input{
-		.left = Input::isKeyHeld(KeyCode::A),
-		.right = Input::isKeyHeld(KeyCode::D),
-		.jump = Input::isKeyHeld(KeyCode::SPACE),
-		.use = Input::isKeyHeld(KeyCode::J)
-	};
-
-	audio.update();
-
-	if (Input::isKeyDown(KeyCode::R)) {
-		respawnPlayer();
-	}
-
-	if (Input::isKeyDown(KeyCode::K)) {
-		audio.pauseSoundEffects();
-	}
-
-	//{
-	//	auto gain = musicAudioSource.getGain();
-	//	gain += dt;
-	//	if (gain > 1.0f) {
-	//		gain = 1.0f;
-	//	}
-	//	musicAudioSource.setGain(gain);
-	//}
-
+void Game::gameUpdate(const GameInput& input) {
 	auto attenuate = [this]() {
 		auto volume = audio.attractingOrbSource.volume;
 		volume *= 0.9f;
 		audio.setSoundEffectSourceVolume(audio.attractingOrbSource, volume);
 	};
-	if (input.use && state == State::ALIVE) {
+	const auto updateGame = (state == State::ALIVE) || (state == State::RESPAWNING && respawningUpdateGame());
+
+	if (input.use && updateGame) {
 		std::optional<f32> maxT;
 
 		if (auto activeRoom = activeGameRoom(); activeRoom.has_value()) {
@@ -101,7 +89,7 @@ void Game::gameUpdate() {
 		attenuate();
 	}
 
-	if (state == State::ALIVE) {
+	if (updateGame) {
 		std::optional<i32> roomWithBiggestOverlapIndex;
 		f32 biggestOverlap = 0.0f;
 		for (i32 i = 0; i < level.rooms.size(); i++) {
@@ -119,6 +107,7 @@ void Game::gameUpdate() {
 		if (activeRoomIndex.has_value() && roomWithBiggestOverlapIndex.has_value()) {
 			if (activeRoomIndex != roomWithBiggestOverlapIndex) {
 				activeRoomIndex = roomWithBiggestOverlapIndex;
+				thisFrameEvents.push_back(Event::PREFORM_GAME_SAVE);
 			}
 		}
 
@@ -150,7 +139,7 @@ void Game::gameUpdate() {
 				orb.elapsedSinceUsed += dt;
 			}
 			for (auto& orb : activeRoom->attractingOrbs) {
-				orb.update(Input::isKeyHeld(KeyCode::J), dt);
+				orb.update(input.use, dt);
 			}
 
 			for (auto& block : activeRoom->movingBlocks) {
@@ -164,12 +153,13 @@ void Game::gameUpdate() {
 				if (!spike.hitbox.collides(playerAabb)) {
 					continue;
 				}
-				//spawnPlayer(std::nullopt);
 				respawnPlayer();
 				return;
 			}
 		}
 	}
+	renderer.updateAnimatitons();
+	respawningUpdate();
 }
 
 #include <platformer/Shaders/blocksData.hpp>
@@ -266,9 +256,6 @@ void Game::gameRender() {
 		for (const auto& platform : room.platforms) {
 			renderer.renderPlatform(platform);
 		}
-		//for (const auto& orb : room.doubleJumpOrbs) {
-		//	//renderer.renderDoubleJumpOrb(orb);
-		//}
 		for (const auto& block : room.movingBlocks) {
 			const auto position = block.position();
 			Dbg::drawFilledAabb(position, position + block.size, Color3::BLACK);
@@ -293,7 +280,7 @@ void Game::gameRender() {
 		glDisable(GL_BLEND);
 	}
 
-	respawningUpdate();
+	respawningRender();
 
 	renderer.update();
 }
@@ -388,18 +375,35 @@ void Game::respawnPlayer() {
 	respawnElapsed = 0.0f;
 }
 
+f32 Game::respawnT() const {
+	return respawnElapsed / respawnAnimationLength;
+}
+
+bool Game::respawningUpdateGame() const {
+	return respawnT() > 0.55f;
+}
+
 void Game::respawningUpdate() {
 	if (state != State::RESPAWNING) {
 		return;
 	}
 
-	const auto animationLength = 1.0f;
-	auto calculateT = [&]() {
-		return respawnElapsed / animationLength;
-	};
-	const auto oldT = calculateT();
+	const auto oldT = respawnT();
 
 	respawnElapsed += dt;
+
+	auto t = respawnT();
+	if (oldT < 0.5f && t >= 0.5f) {
+		t = 0.5f;
+		spawnPlayer(std::nullopt);
+	}
+
+	if (respawnElapsed >= respawnAnimationLength) {
+		state = State::ALIVE;
+	}
+}
+
+void Game::respawningRender() {
 	const auto view = camera.aabb();
 	const auto viewSize = view.size();
 	auto start = view;
@@ -408,17 +412,8 @@ void Game::respawningUpdate() {
 	auto end = view;
 	end.min.y += viewSize.y;
 	end.max.y += viewSize.y;
-
-	auto t = calculateT();
-	if (oldT < 0.5f && t >= 0.5f) {
-		t = 0.5f;
-		spawnPlayer(std::nullopt);
-	}
+	auto t = respawnT();
 	Dbg::drawFilledAabb(lerp(start.min, end.min, t), lerp(start.max, end.max, t), Color3::BLACK);
-
-	if (respawnElapsed >= animationLength) {
-		state = State::ALIVE;
-	}
 }
 
 std::optional<LevelRoom&> Game::activeLevelRoom() {
@@ -436,13 +431,22 @@ std::optional<GameRoom&> Game::activeGameRoom() {
 }
 
 void Game::onSwitchFromEditor(std::optional<i32> editorSelectedRoomIndex) {
-	audio.initGameAudio();
-	audio.musicStream.play();
-
 	if (!editor.lastLoadedLevel.has_value()) {
 		return;
 	}
-	auto level = tryLoadLevelFromFile(*editor.lastLoadedLevel);
+	loadLevel(*editor.lastLoadedLevel, editorSelectedRoomIndex);
+	audio.musicStream.play();
+}
+
+void Game::onSwitchToEditor() {
+	audio.stopSoundEffects();
+	audio.musicStream.pause();
+}
+
+void Game::loadLevel(std::string_view path, std::optional<i32> roomIndex) {
+	audio.initGameAudio();
+
+	auto level = tryLoadLevelFromFile(path);
 	if (!level.has_value()) {
 		return;
 	}
@@ -452,12 +456,7 @@ void Game::onSwitchFromEditor(std::optional<i32> editorSelectedRoomIndex) {
 	for (auto& room : this->level.rooms) {
 		loadRoom(room);
 	}
- 	spawnPlayer(editorSelectedRoomIndex);
-}
-
-void Game::onSwitchToEditor() {
-	audio.stopSoundEffects();
-	audio.musicStream.pause();
+	spawnPlayer(roomIndex);
 }
 
 void Game::loadRoom(LevelRoom& room) {

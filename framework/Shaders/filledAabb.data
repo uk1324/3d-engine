@@ -5,6 +5,6 @@ shader FilledAabb {
 	vertInstance = {
 		Vec2 min;
 		Vec2 max;
-		Vec3 color;
+		Vec4 color;
 	};
 }

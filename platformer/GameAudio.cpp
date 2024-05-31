@@ -25,18 +25,28 @@ GameAudio::GameAudio()
 	}
 	soundEffectSources.push_back(&attractingOrbSource);
 
-	musicStream.useFile("./platformer/Assets/sounds/perfect-beauty.ogg");
+	/*musicStream.useFile("./platformer/Assets/sounds/perfect-beauty.ogg");
 	musicStream.play();
-	musicStream.loop = true;
+	musicStream.loop = true;*/
 
 	updateSoundEffectVolumes();
 }
 
-void GameAudio::update() {
+void GameAudio::update(const SettingsAudio& settings) {
+	if (masterVolume != settings.masterVolume) {
+		setMasterVolume(settings.masterVolume);
+	}
+	if (soundEffectVolume != settings.soundEffectVolume) {
+		setSoundEffectVolume(settings.soundEffectVolume);
+	}
+	if (musicVolume != settings.musicVolume) {
+		setMusicVolume(settings.musicVolume);
+	}
 	musicStream.update();
 }
 
 void GameAudio::initGameAudio() {
+	attractingOrbSource.source.stop();
 	attractingOrbSource.source.setBuffer(assets->attractingOrbSound);
 	attractingOrbSource.source.setLoop(true);
 	attractingOrbSource.source.play();
@@ -79,7 +89,7 @@ void GameAudio::updateSoundEffectVolumes() {
 }
 
 void GameAudio::updateMusicVolumes() {
-	musicStream.source.setGain(masterVolume * musicVolume);
+	musicStream.source.setGain(masterVolume * musicVolume * musicStreamVolume);
 }
 
 void GameAudio::updateUiVolumes() {
@@ -126,6 +136,11 @@ void GameAudio::unpauseSoundEffects() {
 		}
 		source->source.play();
 	}
+}
+
+void GameAudio::setMusicStreamVolume(f32 volume) {
+	musicStreamVolume = volume;
+	updateMusicVolumes();
 }
 
 #include <imgui/imgui.h>
