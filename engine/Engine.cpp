@@ -127,7 +127,7 @@ void Engine::initOpenGl() {
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 		glDebugMessageCallback(openGlErrorCallback, nullptr);
 	} else {
-		Log::fatal("failed to initialize debug output");
+		Log::error("failed to initialize debug output");
 	}
 }
 

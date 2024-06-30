@@ -80,9 +80,11 @@ float PerlinNoise::accumulatedValueMax(int octaves, float persistence)
 
 float PerlinNoise::smoothstep(float t)
 {
-    return t * t * (3 - 2 * t);
+    //return t * t * (3 - 2 * t);
+    const auto x = t;
+    return x * x * x * x * (x * (x * (-20.0f * x + 70.0f) - 84.0f) + 35.0f);
 }
-
+#include <engine/Math/Utils.hpp>
 float PerlinNoise::at(const Vec3& p) const
 {
     static const unsigned int tableSizeMask = GRADIENT_TABLE_SIZE - 1;
@@ -138,6 +140,17 @@ float PerlinNoise::at(const Vec3& p) const
     float f = lerp(c, d, v);
 
     float g = lerp(e, f, w);
+
+    //float a = ::smoothstep(dot(c000, p000), dot(c100, p100), u);
+    //float b = ::smoothstep(dot(c010, p010), dot(c110, p110), u);
+    //float c = ::smoothstep(dot(c001, p001), dot(c101, p101), u);
+    //float d = ::smoothstep(dot(c011, p011), dot(c111, p111), u);
+
+    //float e = ::smoothstep(a, b, v);
+    //float f = ::smoothstep(c, d, v);
+
+    //float g = ::smoothstep(e, f, w);
+
 
     return g;
 }

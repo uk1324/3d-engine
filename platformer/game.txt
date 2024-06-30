@@ -13,3 +13,36 @@ could make the title have a 3d glasses effect
 
 Could add swing orb. The player would swing on the nearest orb. The motion would be restricted to a circle.
 The player would connect to the orb using a beam. Could make the orb a different color from the player and then mix the colors in some way.
+
+Movement
+All possible movements are curves in space (if there is teleportation then the curves can be disconnected).
+What possible trajectories are there?
+Parabolic (jump)
+Upside down parabolic (geometry dash green orb)
+Straight line (dash, cannon, geometry dash black orb)
+Jump then gravity reverse (geometry dash blue orb)
+Pursuit curve
+Spiral (spring force)
+Movement while being attached to a shape (roulletes for example cycloid)
+Gravity in different metrics
+Rolling on a half circle then moving up
+Sliding off a ramp
+Mid air gravity 
+
+Flying
+Minecraft creative mode
+Super mario world cape boosts
+Celeste feather
+
+The velocity also matters. A dash will be instantenous, but a cannot might have a delay letting you aim.
+Fast fall (ground pound)
+Slow fall (super mario world cape)
+
+Combos for example super mario 64 jumps
+
+Changing hitbox
+Crouch
+
+Interacting with world
+Ground pound destroys blocks (super mario)
+Dash activates moving platforms (celeste)

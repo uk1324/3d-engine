@@ -52,10 +52,14 @@ OrthogonalDemo::OrthogonalDemo()
 }
 
 #include "PlotUtils.hpp"
+#include <glad/glad.h>
 
 void OrthogonalDemo::update() {
-	update2();
+	glClear(GL_COLOR_BUFFER_BIT);
+	ImGui::ShowDemoWindow();
 	return;
+	/*update2();
+	return;*/
 	//ImPlot::ShowDemoWindow();
 	if (ImPlot::BeginPlot("plot", Vec2(-1.0f))) {
 		ImPlot::PushColormap(ImPlotColormap_Greys);
@@ -156,6 +160,12 @@ void OrthogonalDemo::update2() {
 	// The solution isn't perfect, because not every function has a harmonic conjugate (and also probably, beucase I don't know what I am doing). For example x^2 doesn't have a harmonic conjugate beucase it doesn't satisfy laplace's equation. I guess you could make a function that does satisfy it by finding the steady state solution to the heat equation.
 	// https://math.stackexchange.com/questions/2852574/does-every-function-has-a-harmonic-conjugate
 
+	// This might not actually be possible, because
+	/*
+	Harmonic functions satisfy the following maximum principle: if K is a nonempty compact subset of U, then f restricted to K attains its maximum and minimum on the boundary of K. If U is connected, this means that f cannot have local maxima or minima, other than the exceptional case where f is constant. Similar properties can be shown for subharmonic functions. 
+	https://en.wikipedia.org/wiki/Harmonic_function#Maximum_principle
+	*/
+
 	//for (i32 yi = 0; yi < grid.size().y; yi++) {
 	//	for (i32 xi = 0; xi < grid.size().x; xi++) {
 	//		const auto dx = cellSize.x;
@@ -252,7 +262,8 @@ void OrthogonalDemo::update2() {
 		for (i32 xi = 0; xi < grid.size().x; xi++) {
 		/*for (i32 xi = i64(grid.size().x) - 1; xi >= 0; xi--) {*/
 			/*data.push_back(grid(xi, yi).y);*/
-			data.push_back(grid(xi, yi).x);
+			//data.push_back(grid(xi, yi).x);
+			data.push_back(grid(xi, yi).y);
 		}
 	}
 
@@ -277,6 +288,7 @@ void OrthogonalDemo::update2() {
 
 	if (ImPlot::BeginPlot("plot", Vec2(-1.0f))) {
 		ImPlot::PushColormap(ImPlotColormap_Greys);
+		/*ImPlot::PlotHeatmap("heatmap", data.data(), grid.size().x, grid.size().y, 0.0f, 0.0f, nullptr, ImPlotPoint(min.x, min.y), ImPlotPoint(max.x, max.y));*/
 		ImPlot::PlotHeatmap("heatmap", data.data(), grid.size().x, grid.size().y, 0.0f, 0.0f, nullptr, ImPlotPoint(min.x, min.y), ImPlotPoint(max.x, max.y));
 		ImPlot::PopColormap();
 

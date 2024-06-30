@@ -112,7 +112,7 @@ const char* toString(KeyCode keycode) {
 	case KEYPAD_ADD: return "KeypadAdd";
 	case KEYPAD_ENTER: return "KeypadEnter";
 	case KEYPAD_EQUALS: return "KeypadEquals";
-	case SHIFT: return "Shift";
+	case LEFT_SHIFT: return "LeftShift";
 	case LEFT_CONTROL: return "LeftControl";
 	case LEFT_ALT: return "LeftAlt";
 	case LEFT_SUPER: return "LeftSuper";

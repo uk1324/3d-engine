@@ -9,8 +9,8 @@ SoundGeneration::SoundGeneration()
 }
 
 void SoundGeneration::update() {
-	if (Input::isKeyDown(KeyCode::L)) {
+	/*if (Input::isKeyDown(KeyCode::L)) {
 		AL_TRY(alSourcei(source.handle(), AL_BUFFER, buffer.handle()));
 		AL_TRY(alSourcePlay(source.handle()));
-	}
+	}*/
 }
