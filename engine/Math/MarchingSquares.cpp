@@ -523,6 +523,13 @@ void marchingSquares3(
 	}
 }
 
+Vec2 rescaleMarchingSquaresPoint(Vec2 p, Vec2 gridSize, Vec2 min, Vec2 max) {
+	p /= gridSize;
+	p.x = lerp(min.x, max.x, p.x);
+	p.y = lerp(min.y, max.y, p.y);
+	return p;
+}
+
 void rescaleMarchingSquaresLines(std::vector<MarchingSquares3Line>& lines, Vec2 gridSize, Vec2 min, Vec2 max) {
 	for (auto& segment : lines) {
 		auto scale = [&](Vec2 pos) -> Vec2 {

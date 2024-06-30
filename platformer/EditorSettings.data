@@ -1,0 +1,5 @@
+struct [[Json]] EditorSettings {
+	$std::string$ lastLoadedLevel = `""`;
+	Vec2 lastLoadedCameraPosition = `Vec2(0.0f)`;
+	float lastLoadedCameraZoom = `1.0f / 500.0f`;
+}

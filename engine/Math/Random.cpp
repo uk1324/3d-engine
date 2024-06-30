@@ -9,6 +9,10 @@ float random01() {
 	return dist(e);
 }
 
+float randomFromRange(f32 min, f32 max) {
+	return min + (max - min) * random01();
+}
+
 Vec3 random01Vec3() {
 	return Vec3(random01(), random01(), random01());
 }

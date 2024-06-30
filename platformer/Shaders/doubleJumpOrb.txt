@@ -1,0 +1,6 @@
+Could when trigger make it split into 3 parts that quickly disapperar then slowly move back.
+The shape could be done using operations on sdfs.
+
+Could have a orb that transitions the player into a circle and maybe have flying or some other movement. Could have temporary gravity switching. Could have the orb disappear completly.
+
+Could have an orb that is 3d.

@@ -1,0 +1,11 @@
+struct Vertex2Pc {
+	Vec2 position;
+	Vec4 color;
+}
+
+shader FilledTriangle {
+	vertexStruct = Vertex2Pc;
+	vertUniforms = {
+		Mat3x2 transform;
+	};
+}

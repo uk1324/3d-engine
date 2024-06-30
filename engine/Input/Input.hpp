@@ -30,6 +30,8 @@ public:
 	static auto isKeyUp(KeyCode key) -> bool;
 	static auto isKeyHeld(KeyCode key) -> bool;
 
+	static bool ignoreKeyboardInputs();
+
 	static auto isMouseButtonDown(MouseButton button) -> bool;
 	static auto isMouseButtonUp(MouseButton button) -> bool;
 	static auto isMouseButtonHeld(MouseButton button) -> bool;
@@ -40,6 +42,7 @@ public:
 	// Number of times scrolled this frame. If normal scrolling then 1 if fast then more.
 	static auto scrollDelta() -> float;
 	static auto anyKeyPressed() -> bool;
+	static std::optional<KeyCode> lastKeycodeDownThisFrame();
 
 	static auto update() -> void;
 
@@ -71,6 +74,7 @@ private:
 	static Vec2 cursorPosWindowSpace_;
 	static float scrollDelta_;
 	static bool anyKeyPressed_;
+	static std::optional<KeyCode> lastKeycodeDownThisFrame_;
 };
 
 template<typename ButtonEnum>

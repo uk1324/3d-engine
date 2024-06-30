@@ -309,6 +309,11 @@ Json::Value& Json::Value::at(const StringType& key)
 
 bool Json::Value::contains(const StringType& key) const
 {
+	// should this throw?
+	if (m_type != Type::Object) 
+	{
+		return false;
+	}
 	return m_value.object.count(key) > 0;
 }
 

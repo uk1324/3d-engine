@@ -19,6 +19,8 @@ void MainLoop::update() {
 	//specialFunctionsDemo.update();
 	//eulerianFluidDemo.update();
 	//integrationDemo.update();
-	graphDemo.update();
+	//graphDemo.update();
+
 	//matrixDemo.update();
+	orthogonalDemo.update();
 }

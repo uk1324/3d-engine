@@ -1,0 +1,21 @@
+import "../../framework/Vertex2dPt.data";
+
+shader SpikeCenter {
+	vertexStruct = Vertex2dPt;
+	vertInstance = {
+		Mat3x2 transform;
+	};
+	vertUniforms = {
+		Mat3x2 clipToWorld;
+	};
+	fragInstance = {
+		Vec2 normal;
+	};
+	fragUniforms = {
+		float time;
+	};
+	vertOut = {
+		Vec2 position;
+		Vec2 worldPosition;
+	};
+}

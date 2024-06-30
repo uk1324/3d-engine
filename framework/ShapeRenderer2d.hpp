@@ -6,6 +6,7 @@
 #include <framework/Shaders/diskShaderData.hpp>
 #include <framework/Shaders/circleShaderData.hpp>
 #include <framework/Shaders/lineShaderData.hpp>
+#include <framework/Shaders/filledAabbData.hpp>
 
 struct ShapeRenderer2d {
 	static ShapeRenderer2d make(Vbo& fullscreenQuad2dPtVerticesVbo, Ibo& fullscreenQuad2dPtVerticesIbo, Vbo& instancesVbo);
@@ -23,4 +24,11 @@ struct ShapeRenderer2d {
 	Vao lineVao;
 	ShaderProgram& lineShader;
 	std::vector<LineInstance> lineInstances;
+
+	Vao filledAabbVao;
+	ShaderProgram& filledAabbShader;
+	std::vector<FilledAabbInstance> filledAabbInstances;
+
+	Vao filledTriangleVao;
+	ShaderProgram& filledTriangleShader;
 };

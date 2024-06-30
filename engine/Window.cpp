@@ -12,6 +12,8 @@ static void keyboardCallback(GLFWwindow* window, int key, int scancode, int acti
 		Input::onKeyDown(key, false);
 	} else if (action == GLFW_RELEASE) {
 		Input::onKeyUp(key);
+	} else if (action == GLFW_REPEAT) {
+		Input::onKeyDown(key, true);
 	}
 }
 
@@ -50,7 +52,7 @@ void Window::init(const Settings& settings) {
 
 	windowHandle = glfwCreateWindow(settings.width, settings.height, settings.title, nullptr, nullptr);
 	if (windowHandle == nullptr) {
-		LOG_FATAL("failed to create window");
+		Log::fatal("failed to create window");
 	}
 	glfwMakeContextCurrent(windowHandle);
 

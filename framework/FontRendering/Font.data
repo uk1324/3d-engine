@@ -1,0 +1,13 @@
+struct [[Json]] Glyph {
+	$Vec2T<int>$ offsetInAtlas;
+	// The sizeInAtlas can be bigger than visibleSize, because options like SDFs rendering create an outline. Same with bearing.
+	$Vec2T<int>$ sizeInAtlas;
+	$Vec2T<int>$ visibleSize;
+	$Vec2T<int>$ bearingRelativeToOffsetInAtlas;
+	$Vec2T<int>$ visibleBearing;
+	$Vec2T<int>$ advance;
+
+	`
+	bool isVisible() const;
+	`
+}

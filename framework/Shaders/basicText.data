@@ -1,0 +1,20 @@
+import "../Vertex2dPt.data";
+
+shader BasicText {
+	vertexStruct = Vertex2dPt;
+	vertInstance = {
+		Mat3x2 transform;
+		Vec2 offsetInAtlas;
+		Vec2 sizeInAtlas;
+	};
+	fragInstance = {
+		float smoothing;
+		color color;
+		float offset;
+	};
+	vertOut = {
+		Vec2 texturePosition;
+		Vec2 atlasMin;
+		Vec2 atlasMax;
+	};
+}

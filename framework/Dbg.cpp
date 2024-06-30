@@ -1,4 +1,5 @@
 #include "Dbg.hpp"
+#include <engine/Math/Triangle.hpp>
 
 void Dbg::drawDisk(Vec2 pos, float radius, Vec3 color) {
 	//entityDrawOrder.push_back(Entity{ EntityType::DISK, static_cast<i32>(disks.size()) });
@@ -35,6 +36,37 @@ void Dbg::drawPolyline(Span<const Vec2> vertices, Vec3 color, std::optional<floa
 	}
 }
 
+void Dbg::drawAabb(Vec2 min, Vec2 max, Vec3 color, std::optional<float> lineWidth) {
+	Vec2 vertices[] = {
+		min, Vec2(min.x, max.y), max, Vec2(max.x, min.y)
+	};
+	drawPolygon(vertices, color, lineWidth);
+}
+
+void Dbg::drawAabb(const Aabb& aabb, Vec3 color, std::optional<float> lineWidth) {
+	drawAabb(aabb.min, aabb.max, color, lineWidth);
+}
+
+void Dbg::drawFilledAabb(Vec2 min, Vec2 max, Vec3 color) {
+	drawFilledAabb(min, max, Vec4(color));
+}
+
+void Dbg::drawFilledAabb(Vec2 min, Vec2 max, Vec4 color) {
+	filledAabbs.push_back(FilledAabb{ .color = color, .min = min, .max = max });
+}
+
+void Dbg::drawFilledAabb(const Aabb& aabb, Vec3 color) {
+	drawFilledAabb(aabb.min, aabb.max, color);
+}
+
+void Dbg::drawFilledAabb(const Aabb& aabb, Vec4 color) {
+	drawFilledAabb(aabb.min, aabb.max, color);
+}
+
+void Dbg::drawFilledTriangle(Vec2 v0, Vec2 v1, Vec2 v3, Vec3 color) {
+	//triangle
+}
+
 void Dbg::update() {
 	disks.clear();
 	circles.clear();
@@ -45,5 +77,7 @@ void Dbg::update() {
 std::vector<Dbg::Disk> Dbg::disks;
 std::vector<Dbg::Circle> Dbg::circles;
 std::vector<Dbg::Line> Dbg::lines;
+std::vector<Dbg::FilledTriangle> Dbg::filledTriangles;
+std::vector<Dbg::FilledAabb> Dbg::filledAabbs;
 
 //std::vector<Dbg::Entity> Dbg::entityDrawOrder;

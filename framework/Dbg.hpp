@@ -2,6 +2,8 @@
 
 #include <engine/Math/Vec2.hpp>
 #include <engine/Math/Vec3.hpp>
+#include <engine/Math/Vec4.hpp>
+#include <engine/Math/Aabb.hpp>
 #include <Span.hpp>
 #include <vector>
 
@@ -14,6 +16,13 @@ namespace Dbg {
 	void drawLine(Vec2 pos, Vec2 end, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
 	void drawPolygon(Span<const Vec2> vertices, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
 	void drawPolyline(Span<const Vec2> vertices, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
+	void drawAabb(Vec2 min, Vec2 max, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
+	void drawAabb(const Aabb& aabb, Vec3 color = DEFAULT_COLOR, std::optional<float> lineWidth = std::nullopt);
+	void drawFilledAabb(Vec2 min, Vec2 max, Vec3 color = DEFAULT_COLOR);
+	void drawFilledAabb(Vec2 min, Vec2 max, Vec4 color);
+	void drawFilledAabb(const Aabb& aabb, Vec3 color = DEFAULT_COLOR);
+	void drawFilledAabb(const Aabb& aabb, Vec4 color);
+	void drawFilledTriangle(Vec2 v0, Vec2 v1, Vec2 v3, Vec3 color = DEFAULT_COLOR);
 
 	void update();
 
@@ -37,6 +46,17 @@ namespace Dbg {
 		Vec3 color;
 	};
 
+	struct FilledTriangle {
+		// counterclockwise
+		Vec2 v[3];
+		Vec3 color;
+	};
+
+	struct FilledAabb {
+		Vec4 color;
+		Vec2 min, max;
+	};
+
 	//enum class EntityType {
 	//	LINE,
 	//	DISK
@@ -51,4 +71,6 @@ namespace Dbg {
 	extern std::vector<Disk> disks;
 	extern std::vector<Circle> circles;
 	extern std::vector<Line> lines;
+	extern std::vector<FilledTriangle> filledTriangles;
+	extern std::vector<FilledAabb> filledAabbs;
 }

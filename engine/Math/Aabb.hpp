@@ -16,6 +16,8 @@ struct Aabb {
 	auto combined(const Aabb& aabb) const -> Aabb;
 	auto extended(Vec2 point) const -> Aabb;
 	auto addedPadding(float padding) const -> Aabb;
+	Aabb translated(Vec2 translation) const;
+	Aabb intersection(const Aabb& aabb) const;
 	auto area() const -> float;
 	auto collides(const Aabb& other) const -> bool;
 	auto rayHits(Vec2 start, Vec2 end) const -> bool;

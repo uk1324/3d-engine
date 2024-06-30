@@ -1,0 +1,28 @@
+You could tesselate the region to simulate the differential equation on it. 
+One issues is that if there are dynamic objects then how to convert the old values to the new values?
+
+You could use a default tesselation being just a grid. And the if there are additional boundary conditions then you tesslete the grid cells. You can calculate the partial derivatives by calculating the directional derivatives. You can calculate the directional derivatives in the directions of the boundary then you get the system of equations
+
+a f_x + b f_y = d1
+c f_x + d f_y = d2
+where d1, d2 are the directional derivatives and [a, b] [c, d] are the directions in the directional derivatives. If the directions are linearly independent then the system has a solution.
+
+This only holds if there is a single additional boundary in a cell.
+If there are multiplie boundries there a cases like a V shape where you can only compute one directional derivative. To deal with that you could just assume that the directional derivatives are equal in all directions which also includes partial derivatives. For simplicity I guess there could be 3 states. No boundary in cell, 1 boundary in cell (then you would store a normal vectors of the open direction), more than 1 boundaries in cell (just set a flag and assume derivatives equal in all directions)
+
+Things that can change the speed of the wave in medium. 
+Create lensens
+What methods to specifiy geometry?
+CSG
+Simplex representation
+Boundary representation
+
+If you use a simplex representation then checking if a point is inside a circle turns into checking if a point is inside a triangle tens of times.
+
+What happens when a shape is cut into 2 parts? Should it fall apart or stay together
+If you try to represent a ring using a simple polygon then it's going to be in 2 parts when cut, but it probably shouldn't fall apart. 
+
+Planar emmiters.
+
+When moving only the swept aabb needs to be recomputed.
+

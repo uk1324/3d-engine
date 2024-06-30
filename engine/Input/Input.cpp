@@ -3,19 +3,47 @@
 #include <imgui.h>
 
 auto Input::isKeyDown(KeyCode key) -> bool {
-	return keyDown[static_cast<size_t>(key)];
+	if (ignoreKeyboardInputs())
+		return false;
+	const auto code = static_cast<size_t>(key);
+	if (code >= keyDown.size()) {
+		return false;
+	}
+	return keyDown[code];
 }
 
 auto Input::isKeyDownWithAutoRepeat(KeyCode key) -> bool {
-	return keyDownWithAutoRepeat[static_cast<usize>(key)];
+	if (ignoreKeyboardInputs())
+		return false;
+	const auto code = static_cast<usize>(key);
+	if (code >= keyDownWithAutoRepeat.size()) {
+		return false;
+	}
+	return keyDownWithAutoRepeat[code];
 }
 
 auto Input::isKeyUp(KeyCode key) -> bool {
-	return keyUp[static_cast<usize>(key)];
+	if (ignoreKeyboardInputs())
+		return false;
+	const auto code = static_cast<usize>(key);
+	if (code >= keyUp.size()) {
+		return false;
+	}
+	return keyUp[code];
 }
 
 auto Input::isKeyHeld(KeyCode key) -> bool {
-	return keyHeld[static_cast<usize>(key)];
+	if (ignoreKeyboardInputs())
+		return false;
+	const auto code = static_cast<usize>(key);
+	if (code >= keyHeld.size()) {
+		return false;
+	}
+	return keyHeld[code];
+}
+
+bool Input::ignoreKeyboardInputs() {
+	return !ignoreImGuiWantCapture && ImGui::GetIO().WantCaptureKeyboard;
 }
 
 auto Input::isMouseButtonDown(MouseButton button) -> bool {
@@ -53,6 +81,10 @@ auto Input::anyKeyPressed() -> bool {
 	return anyKeyPressed_;
 }
 
+std::optional<KeyCode> Input::lastKeycodeDownThisFrame() {
+	return lastKeycodeDownThisFrame_;
+}
+
 auto Input::update() -> void {
 	keyDown.reset();
 	keyDownWithAutoRepeat.reset();
@@ -64,6 +96,7 @@ auto Input::update() -> void {
 
 	scrollDelta_ = 0.0f;
 	anyKeyPressed_ = false;
+	lastKeycodeDownThisFrame_ = std::nullopt;
 }
 
 static auto setIfAlreadyExists(std::unordered_map<int, bool>& map, int key, bool value) -> void {
@@ -102,6 +135,8 @@ auto Input::onKeyDown(u16 virtualKeyCode, bool autoRepeat) -> void {
 		}
 		setIfAlreadyExists(buttonDownWithAutoRepeat, buttonCode, true);
 	}
+
+	lastKeycodeDownThisFrame_ = static_cast<KeyCode>(virtualKeyCode);
 }
 
 auto Input::onKeyUp(u16 virtualKeyCode) -> void {
@@ -145,3 +180,4 @@ Vec2 Input::cursorPosClipSpace_ = Vec2(0.0f);
 Vec2 Input::cursorPosWindowSpace_ = Vec2(0.0f);
 float Input::scrollDelta_ = 0.0f;
 bool Input::anyKeyPressed_ = false;
+std::optional<KeyCode> Input::lastKeycodeDownThisFrame_ = std::nullopt;

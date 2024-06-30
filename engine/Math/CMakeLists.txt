@@ -1,7 +1,7 @@
 add_library(
 	math
 	"Aabb.cpp" "Line.cpp" "LineSegment.cpp"  "Polygon.cpp" "Transform.cpp" "Triangulate.cpp" "Triangle.cpp" "Utils.cpp"
- "Color.cpp" "Random.cpp" "Frustum.cpp" "Plane.cpp" "Aabb3.cpp" "FourierTransform.cpp" "MarchingSquares.cpp" "IntersectLineSegments.cpp")
+ "Color.cpp" "Random.cpp" "Frustum.cpp" "Plane.cpp" "Aabb3.cpp" "FourierTransform.cpp" "MarchingSquares.cpp" "IntersectLineSegments.cpp" "Circle.cpp" "PerlinNoise.cpp")
 
 target_sources(math PUBLIC "math.natvis")
 

@@ -2,6 +2,7 @@
 #include <filesystem>
 #include <string_view>
 #include <engine/Utils/Put.hpp>
+#include <engine/Utils/Unwrap.hpp>
 
 struct ShaderEntry {
 	std::string_view vertPath;
@@ -34,6 +35,7 @@ struct ShaderEntry {
 
 // To prevent pointers from invalidating.
 std::list<ShaderEntry> shaderEntries;
+std::list<ShaderProgram> nonReloadableShaders;
 
 void ShaderManager::update() {
 	for (auto& shader : shaderEntries) {
@@ -94,4 +96,10 @@ ShaderProgram& ShaderManager::makeShader(const char* vertPath, const char* fragP
 	});
 	auto& shader = shaderEntries.back();
  	return shader.program;
+}
+
+ShaderProgram& ShaderManager::makeShaderFromSource(const char* vertSource, const char* fragSource) {
+	auto shader = unwrap(ShaderProgram::fromSource(vertSource, fragSource));
+	nonReloadableShaders.push_back(std::move(shader));
+	return nonReloadableShaders.back();
 }

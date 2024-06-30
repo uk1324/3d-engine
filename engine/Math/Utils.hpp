@@ -23,6 +23,10 @@ auto cubicHermite(T a, T va, T b, T vb, U t) -> T {
 		+ (t3 - t2) * vb;
 }
 
+//template<>
+//Vec3 std::clamp()
+// Use the compare argument in clamp.
+
 template<typename T>
 T smoothstep(T x) {
 	if (x > 1.0f) {
@@ -31,6 +35,12 @@ T smoothstep(T x) {
 		x = 0.0f;
 	}
 	return x * x * (3.0f - 2.0f * x);
+}
+
+template<typename Edge, typename T>
+Edge smoothstep(const Edge& edge0, const Edge& edge1, const T& x) {
+	const auto t = std::clamp((x - edge0) / (edge1 - edge0), Edge(0.0), Edge(1.0));
+	return t * t * (Edge(3.0) - Edge(2.0) * t);
 }
 
 struct PosAndZoom {

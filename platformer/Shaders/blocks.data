@@ -1,0 +1,15 @@
+import "../../framework/Vertex2dPt.data";
+
+shader Blocks {
+	vertexStruct = Vertex2dPt;
+	vertOut = {
+		vec2 worldPosition;
+	};
+	vertUniforms = {
+		Mat3x2 clipToWorld;
+	};
+	fragUniforms = {
+		float time;
+		float scale;
+	};
+}

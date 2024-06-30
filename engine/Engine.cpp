@@ -10,7 +10,7 @@
 #include <imgui/implot.h>
 
 static void glfwErrorCallback(int errorCode, const char* errorMessage) {
-	LOG_FATAL("glfw error % %", errorCode, errorMessage);
+	Log::fatal("glfw error % %", errorCode, errorMessage);
 }
 
 static void openGlErrorCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const char* message, const void* userParam) {
@@ -74,9 +74,9 @@ static void openGlErrorCallback(GLenum source, GLenum type, GLuint id, GLenum se
 	errorMessage += '\n';
 
 	if (id == 1286 || severity == GL_DEBUG_SEVERITY_NOTIFICATION) {
-		LOG_ERROR("OpenGL error %", errorMessage);
+		Log::fatal("OpenGL error %", errorMessage);
 	} else {
-		LOG_FATAL("OpenGL error %", errorMessage);
+		Log::fatal("OpenGL error %", errorMessage);
 	}
 
 	
@@ -106,7 +106,7 @@ void Engine::terminateAll() {
 
 void Engine::initGlfw() {
 	if (glfwInit() == GLFW_FALSE) {
-		LOG_FATAL("failed to initialize GLFW");
+		Log::fatal("failed to initialize GLFW");
 	}
 	glfwSetErrorCallback(glfwErrorCallback);
 }
@@ -117,7 +117,7 @@ void Engine::terminateGlfw() {
 
 void Engine::initOpenGl() {
 	if (gladLoadGLLoader(reinterpret_cast<GLADloadproc>(glfwGetProcAddress)) == false) {
-		LOG_FATAL("failed to initialize OpenGL");
+		Log::fatal("failed to initialize OpenGL");
 	}
 
 	int flags;
@@ -127,7 +127,7 @@ void Engine::initOpenGl() {
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 		glDebugMessageCallback(openGlErrorCallback, nullptr);
 	} else {
-		LOG_ERROR("failed to initialize debug output");
+		Log::error("failed to initialize debug output");
 	}
 }
 

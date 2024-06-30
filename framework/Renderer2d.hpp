@@ -45,6 +45,8 @@ struct Renderer2d {
 	Vao fullscreenQuad2dPtVerticesVao;
 	static constexpr int fullscreenQuad2dPtVerticesIndexCount = 6;
 
+	static void drawFullscreenQuad2dInstances(usize instanceCount);
+
 	Vbo instancesVbo;
 
 	Camera camera;
@@ -54,6 +56,9 @@ struct Renderer2d {
 	Vec2 getQuadPixelSize(Vec2 scale) const;
 	float getQuadPixelSizeX(float scale) const;
 	float getQuadPixelSizeY(float scale) const;
+
+	void drawDbgFilledTriangles();
+	void drawDbgFilledAabbs();
 
 private:
 	void drawDbg();

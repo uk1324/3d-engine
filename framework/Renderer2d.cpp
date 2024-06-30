@@ -7,6 +7,7 @@
 #include <glad/glad.h>
 #include <engine/Window.hpp>
 #include <framework/Shaders/fullscreenQuadData.hpp>
+#include <framework/Shaders/filledTriangleData.hpp>
 
 ImageRenderer ImageRenderer::make(Vbo& fullscreenQuad2dPtVerticesVbo, Ibo& fullscreenQuad2dPtVerticesIbo, Vbo& instancesVbo) {
 	auto texturedQuadVao = Vao::generate();
@@ -100,7 +101,7 @@ void ImageRenderer::drawImage(Span2d<const Pixel32> data, const Mat3x2& transfor
 Renderer2d Renderer2d::make() {
 	auto fullscreenQuad2dPtVerticesVbo = Vbo(fullscreenQuad2dPtVertices, sizeof(fullscreenQuad2dPtVertices));
 	auto fullscreenQuad2dPtVerticesIbo = Ibo(fullscreenQuad2dPtIndices, sizeof(fullscreenQuad2dPtIndices));
-	auto instancesVbo = Vbo(4 * 1024ull);
+	auto instancesVbo = Vbo(10 * 1024ull);
 
 	auto imageRenderer = ImageRenderer::make(fullscreenQuad2dPtVerticesVbo, fullscreenQuad2dPtVerticesIbo, instancesVbo);
 	auto shapeRenderer = ShapeRenderer2d::make(fullscreenQuad2dPtVerticesVbo, fullscreenQuad2dPtVerticesIbo, instancesVbo);
@@ -114,13 +115,13 @@ Renderer2d Renderer2d::make() {
 	fullscreenQuad2dPtVerticesIbo.bind();
 	Vao::unbind();
 
-	auto source = tryLoadStringFromFile("framework/Shaders/fullscreenQuad.vert");
-	std::string fullscreenQuadVertSource;
-	if (source.has_value()) {
-		fullscreenQuadVertSource = std::move(*source);
-	} else {
-		ASSERT_NOT_REACHED();
-	}
+	//auto source = tryLoadStringFromFile("framework/Shaders/fullscreenQuad.vert");
+	//std::string fullscreenQuadVertSource;
+	//if (source.has_value()) {
+	//	fullscreenQuadVertSource = std::move(*source);
+	//} else {
+	//	ASSERT_NOT_REACHED();
+	//}
 
 	return Renderer2d{
 		MOVE(imageRenderer),
@@ -129,7 +130,7 @@ Renderer2d Renderer2d::make() {
 		MOVE(fullscreenQuad2dPtVerticesIbo),
 		MOVE(fullscreenQuad2dPtVerticesVao),
 		MOVE(instancesVbo),
-		MOVE(fullscreenQuadVertSource),
+		//MOVE(fullscreenQuadVertSource),
 	};
 }
 
@@ -147,6 +148,10 @@ void Renderer2d::drawImage(Span2d<const Pixel32> image, const Mat3x2& transform)
 	imageRenderer.drawImage(image, transform);
 }
 
+void Renderer2d::drawFullscreenQuad2dInstances(usize instanceCount) {
+	glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr, instanceCount);
+}
+
 Vec2 Renderer2d::getQuadPixelSize(Vec2 scale) const {
 	return Vec2(getQuadPixelSizeX(scale.x), getQuadPixelSizeX(scale.y));
 }
@@ -159,6 +164,53 @@ float Renderer2d::getQuadPixelSizeY(float scale) const {
 	return scale * camera.zoom * Window::size().y;
 }
 
+void Renderer2d::drawDbgFilledTriangles() {
+	std::vector<Vertex2Pc> triangleVertices;
+
+	GLint64 instanceBufferSize;
+	glGetBufferParameteri64v(GL_ARRAY_BUFFER, GL_BUFFER_SIZE, &instanceBufferSize);
+
+	auto draw = [&]() {
+		instancesVbo.setData(0, triangleVertices.data(), triangleVertices.size() * sizeof(Vertex2Pc));
+		glDrawArrays(GL_TRIANGLES, 0, triangleVertices.size());
+		triangleVertices.clear();
+	};
+	shapeRenderer.filledTriangleVao.bind();
+	shapeRenderer.filledTriangleShader.use();
+	shaderSetUniforms(shapeRenderer.filledTriangleShader, FilledTriangleVertUniforms{
+		.transform = camera.worldToCameraToNdc()
+	});
+	for (const auto& triangle : Dbg::filledTriangles) {
+		if ((triangleVertices.size() + 3) * sizeof(Vertex2Pc) > instanceBufferSize) {
+			draw();
+		}
+
+		for (const auto& v : triangle.v) {
+			triangleVertices.push_back(Vertex2Pc{ .position = v, .color = Vec4(triangle.color) });
+		}
+	}
+	draw();
+	Dbg::filledTriangles.clear();
+}
+
+void Renderer2d::drawDbgFilledAabbs() {
+	const auto worldToClip = camera.clipSpaceToWorldSpace().inversed();
+	for (const auto& aabb : Dbg::filledAabbs) {
+		shapeRenderer.filledAabbInstances.push_back(FilledAabbInstance{
+			.min = aabb.min * worldToClip,
+			.max = aabb.max * worldToClip,
+			.color = aabb.color
+		});
+	}
+
+	Dbg::filledAabbs.clear();
+
+	shapeRenderer.filledAabbShader.use();
+	drawInstances(shapeRenderer.filledAabbVao, instancesVbo, shapeRenderer.filledAabbInstances, drawFullscreenQuad2dInstances);
+	shapeRenderer.filledAabbInstances.clear();
+}
+
+// TODO: make functions that allow rendering the different debug shapes when wanted.
 void Renderer2d::drawDbg() {
 	// TODO: How to properly handle transparency and rendering the instances object in order. Just using the depth buffer won't work, because then the transparent parts overrite the z buffer. Would either need to sort or do addative blending and discard the depth value on non opaque pixels.
 	/*auto calculateDepth = [](i32 drawIndex) -> float {
@@ -183,6 +235,8 @@ void Renderer2d::drawDbg() {
 	- Have to pass the data to each instance. Could just pass the type of rendered object and an index to an array containing instances of that type. Another option would to to use a union type, but decoding it inside of the shader would probably be a pain.
 	- Branching in shaders is inefficient.
 	*/
+	drawDbgFilledTriangles();
+	drawDbgFilledAabbs();
 
 	const auto defaultWidth = 20.0f / Window::size().y;
 	// TODO: Could try adding the smoothing to the size so the actual size without the smoothing is solid.

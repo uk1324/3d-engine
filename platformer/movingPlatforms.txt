@@ -1,0 +1,28 @@
+How should moving platforms work?
+
+When a platform moves into the player the player should be pushed by the platform.
+
+When the player is standing on the player the player is moved with the platform, but the players velocity isn't modified so when the player is standing still on a platform that is moving horizontally and jumps then the platform will move under them.
+
+One issue is that the moving blocks change direction discontinously so for example not move at all if after half a move it get's to the end and the changes direction and uses the other half of the move to move back.
+
+To do collision between 2 swept aabbs do the collision relative to one of them. That is subtract the velocity of one from the other. Then this can be treated as subtracting the velocity from both objects, which makes one of the static.
+
+In what order should thing be updated in?
+
+- update player velocity
+- move the player right before a collision happens
+
+Detect swept player position with swept box.
+Then the player is already in the right position and doesn't need to be moved to be in the position right before collision.
+The player will get inside the box because they didn't get moved.
+The player still need to be moved when standing on the box.
+
+Detect swept player with static box.
+Then the player needs to be moved by the same amount the box moved.
+The issue is that if the player is standing then the collision won't be detected so the box will move into the player. 
+
+Not sure how to make the moving platform work with swept collision checking so I will just use normal collision checking for them. That is if the platform collides with the player the player gets moved out of the platform.
+
+Physically the moving platform could be modelled as having infinite mass.
+When standing on an object that starts moving the friciton allows to stand on the object.

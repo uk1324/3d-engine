@@ -1,0 +1,44 @@
+`
+#include <platformer/JsonUtils.hpp>
+`
+
+struct [[Json]] LevelSpawnPoint {
+	Vec2 position;
+}
+
+struct [[Json]] LevelDoubleJumpOrb {
+	Vec2 position;
+}
+
+struct [[Json]] LevelAttractingOrb {
+	Vec2 position;
+}
+
+struct [[Json]] LevelMovingBlock {
+	Vec2 position = `Vec2(0.0f)`;
+	Vec2 size = `Vec2(0.0f)`;
+	Vec2 endPosition = `Vec2(0.0f)`;
+	float speedBlockPerSecond = `1.0f`;
+	bool activateOnCollision = `false`;
+	bool stopAtEnd = `false`;
+}
+
+struct [[Json]] LevelText {
+	Vec2 position;
+	$std::string$ text;
+}
+
+struct [[Json]] LevelRoom {
+	`// position and size in grid`
+	$Vec2T<i32>$ position = `Vec2T<i32>()`;
+	$Array2d<BlockType>$ blockGrid = `Array2d<BlockType>(0, 0)`;
+	vector<LevelSpawnPoint> spawnPoints = `std::vector<LevelSpawnPoint>()`;
+	vector<LevelDoubleJumpOrb> doubleJumpOrbs = `std::vector<LevelDoubleJumpOrb>()`;
+	vector<LevelAttractingOrb> attractingOrbs = `std::vector<LevelAttractingOrb>()`;
+	vector<LevelMovingBlock> movingBlocks = `std::vector<LevelMovingBlock>()`;
+	vector<LevelText> texts = `std::vector<LevelText>()`;
+}
+
+struct [[Json]] Level {
+	vector<LevelRoom> rooms;	
+}
