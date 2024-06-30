@@ -56,7 +56,8 @@ static constexpr auto VARIABLE_R_INDEX_IN_BLOCK = VARIABLE_1_INDEX_IN_BLOCK;
 Continous2dSystemVisualization::Continous2dSystemVisualization()
 	: formulaInput0(*plotCompiler.allocateFormulaInput())
 	, formulaInput1(*plotCompiler.allocateFormulaInput())
-	, surfacePlotRenderer(SurfacePlotRenderer::make()) {
+	, surfacePlotRenderer(SurfacePlotRenderer::make())
+	, lineRenderer(LineRenderer::make(surfacePlotRenderer.instancesVbo)) {
 
 	plotCompiler.variables.push_back(Variable{ .name = "x" });
 	plotCompiler.variables.push_back(Variable{ .name = "y" });
@@ -92,7 +93,7 @@ void Continous2dSystemVisualization::update(Renderer2d& renderer2d) {
 	ImGui::End();
 
 	for (auto& window : surfacePlotWindows) {
-		window.display(surfacePlotRenderer);
+		window.display(surfacePlotRenderer, lineRenderer, testPoints);
 	}
 
 	const auto& modifiedFormulaInputs = plotCompiler.updateEndOfFrame();
@@ -1230,7 +1231,9 @@ void Continous2dSystemVisualization::BasinOfAttractionState::render(
 	ImPlot::PopPlotClipRect();
 }
 
-void Continous2dSystemVisualization::SurfacePlotWindow::display(SurfacePlotRenderer& plotter) {
+#include <engine/Math/Random.hpp>
+
+void Continous2dSystemVisualization::SurfacePlotWindow::display(SurfacePlotRenderer& plotter, LineRenderer& lineRenderer, const std::vector<TestPoint>& testPoints) {
 	ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, Vec2(0.0f));
 
 	const auto& io = ImGui::GetIO();
@@ -1252,7 +1255,26 @@ void Continous2dSystemVisualization::SurfacePlotWindow::display(SurfacePlotRende
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glEnable(GL_DEPTH_TEST);
-	plotter.render(plotSceneCamera, sceneWindowSize.xOverY(), heightmap.span2d().asConst(), plotSettings);
+	const auto aspectRatio = sceneWindowSize.xOverY();
+	//plotter.render(plotSceneCamera, aspectRatio, heightmap.span2d().asConst(), plotSettings);
+	//lineRenderer.addLine(Vec3(1.0f), Vec3(0.0f), Color3::WHITE);
+
+	for (i32 testPointIndex = 0; testPointIndex < testPoints.size(); testPointIndex++) {
+		auto& testPoint = testPoints[testPointIndex];
+		auto getPosition = [&testPoint](i32 i) -> Vec3 {
+			const auto space = testPoint.history[i];
+			const auto time = i * (1.0f / 60.0f);
+			return Vec3(space.x, space.y, time);
+		};
+
+		for (i32 i = 1; i < testPoint.history.size(); i++) {
+			const auto newPosition = getPosition(i);
+			const auto lastPosition = getPosition(i - 1);
+			lineRenderer.addLine(newPosition, lastPosition, Color3::fromHsv(testPointIndex / float(testPoints.size()), 1.0f, 1.0f));
+		}
+	}
+	const auto perspective = Mat4::perspective(degToRad(90.0f), aspectRatio, 0.1f, 1000.0f);
+	lineRenderer.render(perspective * plotSceneCamera.viewMatrix());
 	Fbo::unbind();
 
 	const auto windowClicked = ImGui::ImageButton(
@@ -1283,7 +1305,6 @@ void Continous2dSystemVisualization::SurfacePlotWindow::display(SurfacePlotRende
 	if (Input::isKeyDown(KeyCode::ESCAPE) && !Window::isCursorEnabled()) {
 		ImGui::GetIO().ConfigFlags &= ~flags;
 		Window::enableCursor();
-		//ImGui::SetWindowFocus(nullptr);
 	}
 
 	ImGui::End();
@@ -1311,24 +1332,6 @@ void Continous2dSystemVisualization::SurfacePlotWindow::updateArray(Continous2dS
 	for (i32 i = 0; i < output.blockCount(); i++) {
 		heightmap.data()[i] = output(i, 0);
 	}
-
-	//for (i32 xi = 0; xi < heightmap.size().x; xi++) {
-	//	for (i32 yi = 0; yi < heightmap.size().y; yi++) {
-	//		float xt = float(xi) / float(heightmap.size().x - 1);
-	//		float yt = float(yi) / float(heightmap.size().y - 1);
-	//		float x = lerp(plotSettings.graphMin.x, plotSettings.graphMax.x, xt);
-	//		float y = lerp(plotSettings.graphMin.y, plotSettings.graphMax.y, yt);
-	//		//float z = 1.5f * sin(x + 0.2f) + cos(y);
-	//		/*float z = x*y;*/
-	//		float z = 1.0f / 2.0f * y * y - 0.5f * x * x + 0.25f * x * x * x * x;
-	//		//float z = x * x * x + x * y;
-	//		//float z = x * x - y * y * y;
-	//		//float z = y * y - x * x * (x + 1.0f);
-	//		//float z = x * x * x * x * x - y * y;
-	//		//float z = y * y - x * x * x * x;
-	//		heightmap(xi, yi) = z;
-	//	}
-	//}
 }
 
 void Continous2dSystemVisualization::CalculateIndexTool::update() {
@@ -1365,36 +1368,6 @@ void Continous2dSystemVisualization::CalculateIndexTool::settings(Continous2dSys
 	ImGui::SliderFloat("radius", &radius, 0.0f, 100.0f);
 	radius = std::clamp(radius, 0.0f, 100.0f);
 
-	/*
-	da = (xdy - ydx)/(x^2 + y^2)
-	da = (xy'dt - yx'dt)/(x^2 + y^2)
-	da = ((xy' - yx')/(x^2 + y^2)) dt
-	*/
-
-	//float integral = 0.0f;
-	//i32 sampleCount = 1000;
-	//abc.clear();
-	//Vec2 oldPos = s.sampleVectorField(Vec2(radius, 0.0f));
-	//for (i32 i = 1; i < sampleCount; i++) {
-	//	const auto t = float(i) / float(sampleCount - 1);
-	//	const auto dt = (1.0f / float(sampleCount - 1)) * TAU<float>;
-	//	const auto a = lerp(0.0f, TAU<float>, t);
-	//	const auto pos = positionInPlotSpace + Vec2::fromPolar(a, radius);
-
-	//	const auto f = s.sampleVectorField(pos);
-	//	const auto df = (pos - oldPos) / dt;
-
-	//	integral += (f.x * df.y - f.y * df.x) / f.lengthSq() * dt;
-
-	//	oldPos = pos;
-	//	//const auto f = (formulaInput0)
-
-	//	abc.push_back(pos);
-	//}
-	if (Input::isKeyDown(KeyCode::K)) {
-		int x = 5;
-	}
-
 	float integral = 0.0f;
 	i32 sampleCount = 100;
 	abc.clear();
@@ -1411,7 +1384,6 @@ void Continous2dSystemVisualization::CalculateIndexTool::settings(Continous2dSys
 		const auto a = lerp(0.0f, TAU<float>, t);
 
 		const auto f = sample(Vec2::fromPolar(a, radius));
-		/*const auto angleDifference = f.angle() - oldF.angle();*/
 
 		auto angleBetween = [](Vec2 a, Vec2 b) {
 			// https://wumbo.net/formulas/angle-between-two-vectors-2d/
@@ -1419,8 +1391,6 @@ void Continous2dSystemVisualization::CalculateIndexTool::settings(Continous2dSys
 		};
 		const auto angleDifference = angleBetween(f, oldF);
 
-		/*integral += acos(std::clamp(dot(f.normalized(), oldF.normalized()), 0.0f, 1.0f));*/
-		//integral += asin(std::clamp(cross(f.normalized(), oldF.normalized()), 0.0f, 1.0f));
 		integral += angleDifference;
 		oldF = f;
 

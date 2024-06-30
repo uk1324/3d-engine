@@ -22,4 +22,12 @@ struct GraphDemo {
 	Continous2dSystemVisualization secondOrderSystem;
 
 	Renderer2d renderer2d;
+
+	LineRenderer lineRenderer;
+	Camera3d camera;
+	struct Loop {
+		std::vector<Vec3> points;
+	};
+	std::vector<Loop> loops;
+	bool paused = true;
 };

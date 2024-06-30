@@ -19,7 +19,7 @@ add_subdirectory(engine/json)
 
 add_subdirectory(framework)
  
-add_subdirectory(game)
+# add_subdirectory(game)
 
 add_subdirectory(water_rendering)
 

@@ -8,9 +8,16 @@
 #include <engine/Graphics/ShaderProgram.hpp>
 #include <water_simulation/RenderWindow.hpp>
 #include <water_simulation/SurfacePlotRenderer.hpp>
+#include <water_simulation/LineRenderer.hpp>
 #include <framework/Renderer2d.hpp>
 
 struct Continous2dSystemVisualization {
+	struct TestPoint {
+		// TODO: Maybe add a way to integrate backwards and forwards in time.
+		Vec2 pos;
+		std::vector<Vec2> history;
+	};
+
 	enum class FormulaType {
 		CARTESIAN_LINEAR,
 		CARTESIAN,
@@ -76,7 +83,7 @@ struct Continous2dSystemVisualization {
 		SurfacePlotSettings plotSettings;
 		Array2d<float> heightmap = Array2d<float>(SurfacePlotRenderer::SAMPLES_PER_SIDE, SurfacePlotRenderer::SAMPLES_PER_SIDE);
 
-		void display(SurfacePlotRenderer& plotter);
+		void display(SurfacePlotRenderer& plotter, LineRenderer& lineRenderer, const std::vector<TestPoint>& testPoints);
 		bool settings(PlotCompiler& plotCompiler);
 		void updateArray(Continous2dSystemVisualization& s);
 	};
@@ -91,11 +98,6 @@ struct Continous2dSystemVisualization {
 	bool spawnGridOfPointsNextFrame = false;
 
 	bool paused = false;
-	struct TestPoint {
-		// TODO: Maybe add a way to integrate backwards and forwards in time.
-		Vec2 pos;
-		std::vector<Vec2> history;
-	};
 	std::vector<TestPoint> testPoints;
 
 	bool drawNullclines = false;
@@ -166,6 +168,7 @@ struct Continous2dSystemVisualization {
 	bool formulaTypeIsCartesian() const;
 
 	SurfacePlotRenderer surfacePlotRenderer;
+	LineRenderer lineRenderer;
 
 	std::vector<Vec2> areaParticles;
 };

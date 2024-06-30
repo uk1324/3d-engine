@@ -1,0 +1,14 @@
+struct Vertex3Pc {
+	Vec3 position;
+	Vec3 color;
+}
+
+shader Line3Shader {
+	vertexStruct = Vertex3Pc;
+	vertUniforms = {
+		Mat4 viewProjection;
+	};
+	vertOut = {
+		Vec3 color;
+	};
+}
